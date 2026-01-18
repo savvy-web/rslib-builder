@@ -1,0 +1,114 @@
+{
+	"name": "@savvy-web/rslib-builder",
+	"version": "0.0.0",
+	"private": true,
+	"description": "RSlib-based build system for Node.js libraries with automatic package.json transformation, TypeScript declaration bundling, and multi-target support",
+	"homepage": "https://github.com/savvy-web/rslib-builder",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/savvy-web/rslib-builder.git"
+	},
+	"license": "MIT",
+	"type": "module",
+	"imports": {
+		"#utils/*": "./src/rslib/plugins/utils/*",
+		"#types/*": "./src/types/*"
+	},
+	"exports": {
+		".": "./src/index.ts",
+		"./tsconfig/root.json": "./src/public/tsconfig/root.json",
+		"./tsconfig/node/ecma/lib.json": "./src/public/tsconfig/node/ecma/lib.json",
+		"./tsconfig/node/ecma/lib-compat.json": "./src/public/tsconfig/node/ecma/lib-compat.json",
+		"./tsconfig/node/ecma/bundle.json": "./src/public/tsconfig/node/ecma/bundle.json",
+		"./tsconfig/node/ecma/bundleless.json": "./src/public/tsconfig/node/ecma/bundleless.json"
+	},
+	"scripts": {
+		"build": "turbo run build:dev build:npm",
+		"build:dev": "NODE_OPTIONS='--disable-warning=ExperimentalWarning' rslib build --env-mode dev",
+		"build:npm": "NODE_OPTIONS='--disable-warning=ExperimentalWarning' rslib build --env-mode npm",
+		"build:jsr": "NODE_OPTIONS='--disable-warning=ExperimentalWarning' rslib build --env-mode jsr",
+		"build:inspect": "rslib inspect --verbose",
+		"lint": "biome check --max-diagnostics=none",
+		"lint:fix": "biome check --write --max-diagnostics=none",
+		"lint:fix:unsafe": "biome check --write --unsafe --max-diagnostics=none",
+		"lint:md": "markdownlint-cli2 '**/*.{md,mdx}' --config './lib/configs/.markdownlint-cli2.jsonc'",
+		"lint:md:fix": "markdownlint-cli2  --config './lib/configs/.markdownlint-cli2.jsonc' --fix",
+		"test": "vitest run",
+		"test:coverage": "vitest run --coverage",
+		"test:watch": "vitest --watch",
+		"typecheck": "tsgo --noEmit"
+	},
+	"dependencies": {
+		"@pnpm/exportable-manifest": "^1000.3.0",
+		"glob": "^13.0.0",
+		"picocolors": "^1.1.1",
+		"sort-package-json": "^3.6.0",
+		"tmp": "^0.2.5",
+		"workspace-tools": "^0.40.3",
+		"yaml": "^2.8.2"
+	},
+	"devDependencies": {
+		"@biomejs/biome": "^2.3.11",
+		"@microsoft/api-extractor": "^7.55.2",
+		"@pnpm/types": "^1001.2.0",
+		"@rsbuild/core": "^1.7.2",
+		"@rslib/core": "^0.19.2",
+		"@rspack/binding": "^1.7.2",
+		"@types/node": "^25.0.9",
+		"@types/tmp": "^0.2.6",
+		"@typescript/native-preview": "7.0.0-dev.20260118.1",
+		"@vitest/coverage-v8": "^4.0.17",
+		"type-fest": "^5.4.1",
+		"turbo": "^2.7.5",
+		"typescript": "^5.9.3",
+		"vitest": "^4.0.17"
+	},
+	"peerDependencies": {
+		"@microsoft/api-extractor": "^7.55.2",
+		"@rslib/core": "^0.19.2",
+		"@types/node": "^25.0.9",
+		"@typescript/native-preview": "7.0.0-dev.20260118.1"
+	},
+	"peerDependenciesMeta": {
+		"@microsoft/api-extractor": {
+			"optional": false
+		},
+		"@typescript/native-preview": {
+			"optional": false
+		}
+	},
+	"publishConfig": {
+		"access": "public",
+		"targets": [
+			{
+				"protocol": "npm",
+				"registry": "https://npm.pkg.github.com/",
+				"directory": "dist/github",
+				"access": "public",
+				"provenance": true
+			},
+			{
+				"protocol": "npm",
+				"registry": "https://registry.npmjs.org/",
+				"directory": "dist/npm",
+				"access": "public",
+				"provenance": true
+			}
+		]
+	},
+	"packageManager": "pnpm@10.28.0",
+	"devEngines": {
+		"packageManager": {
+			"name": "pnpm",
+			"version": "10.28.0",
+			"onFail": "ignore"
+		},
+		"runtime": [
+			{
+				"name": "node",
+				"version": "24.11.0",
+				"onFail": "ignore"
+			}
+		]
+	}
+}

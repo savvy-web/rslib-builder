@@ -1,0 +1,95 @@
+name: Design Documentation Health Check
+
+on:
+  schedule:
+    # Run every Monday at 00:00 UTC
+    - cron: "0 0 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  health-check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup runtime
+        id: runtime
+        uses: savvy-web/workflow-runtime-action@main
+
+      - name: Make scripts executable
+        run: |
+          chmod +x .claude/scripts/validate-all-docs.sh
+          chmod +x .claude/scripts/validate-design-doc.sh
+
+      - name: Run health check
+        id: health
+        run: |
+          # Run validation on all design docs
+          if .claude/scripts/validate-all-docs.sh > health-report.txt 2>&1; then
+            echo "all_valid=true" >> $GITHUB_OUTPUT
+          else
+            echo "all_valid=false" >> $GITHUB_OUTPUT
+          fi
+
+          # Check for stale docs (last-synced > 30 days ago)
+          STALE_COUNT=0
+          TODAY=$(date +%s)
+          THIRTY_DAYS_AGO=$((TODAY - 30*24*60*60))
+
+          for file in $(find .claude/design -type f -name "*.md" ! -name "design.config.json"); do
+            LAST_SYNCED=$(awk 'BEGIN{found=0} /^---$/{found++; next} found==1{print} found==2{exit}' "$file" | grep "^last-synced:" | awk '{print $2}')
+            if [ -n "$LAST_SYNCED" ]; then
+              LAST_SYNCED_TS=$(date -d "$LAST_SYNCED" +%s 2>/dev/null || date -j -f "%Y-%m-%d" "$LAST_SYNCED" +%s 2>/dev/null || echo "0")
+              if [ "$LAST_SYNCED_TS" -lt "$THIRTY_DAYS_AGO" ]; then
+                echo "⚠️  Stale: $file (last synced: $LAST_SYNCED)" >> health-report.txt
+                STALE_COUNT=$((STALE_COUNT + 1))
+              fi
+            fi
+          done
+
+          echo "stale_count=$STALE_COUNT" >> $GITHUB_OUTPUT
+          echo "" >> health-report.txt
+          echo "Found $STALE_COUNT stale design docs (last-synced > 30 days ago)" >> health-report.txt
+
+      - name: Create issue if problems found
+        if: steps.health.outputs.all_valid == 'false' || steps.health.outputs.stale_count > 0
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const reportPath = 'health-report.txt';
+            const report = fs.readFileSync(reportPath, 'utf8');
+
+            const today = new Date().toISOString().split('T')[0];
+            const title = 'Design Documentation Health Check - ' + today;
+
+            const body = '# Design Documentation Health Check\n\n' +
+              '**Date:** ' + today + '\n' +
+              '**Status:** ⚠️ Issues Found\n\n' +
+              '## Health Report\n\n' +
+              '```\n' + report + '\n```\n\n' +
+              '## Recommended Actions\n\n' +
+              '1. **Fix validation errors:** Review and fix any frontmatter or structural issues\n' +
+              '2. **Update stale docs:** Sync design docs with current codebase state\n' +
+              '3. **Run locally:** Use `pnpm run docs:validate` to check all design docs\n\n' +
+              '---\n\n' +
+              '*This issue was created automatically by the weekly health check workflow.*';
+
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: title,
+              body: body,
+              labels: ['documentation', 'automated', 'health-check']
+            });
+
+      - name: Report success
+        if: steps.health.outputs.all_valid == 'true' && steps.health.outputs.stale_count == 0
+        run: |
+          echo "✅ All design documentation is healthy!"
+          echo "No validation errors or stale docs found."
