@@ -9,13 +9,13 @@ export default defineConfig({
 	test: {
 		globals: true,
 		environment: "node",
-		include: ["src/__test__/**/*.test.ts"],
+		include: ["src/**/*.test.ts"],
 		coverage: {
 			enabled: true,
 			provider: "v8",
 			reporter: ["text", "text-summary", "html", "lcov"],
-			include: ["src/rslib/**/*.ts"],
-			exclude: ["**/*.test.ts", "**/__test__/**", "**/types/**", "**/*.d.ts"],
+			include: ["src/**/*.ts"],
+			exclude: ["**/*.test.ts", "**/__test__/**", "**/types/**", "**/*.d.ts", "**/tsconfig/**"],
 			thresholds: {
 				perFile: true,
 				statements: 85,

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createTypePath, transformExportPath } from "#utils/path-transform-utils.js";
+import { createTypePath, transformExportPath } from "#utils/package-json-transformer.js";
 
 describe("path-transform-utils", () => {
 	describe("transformExportPath", () => {
@@ -59,17 +59,17 @@ describe("path-transform-utils", () => {
 				expect(result).toBe("./foo/bar.js");
 			});
 
-			it("should preserve /index.ts when collapseIndex is false (bundleless mode)", () => {
+			it("should preserve /index.ts when collapseIndex is false", () => {
 				const result = transformExportPath("./src/rslib/index.ts", true, false);
 				expect(result).toBe("./rslib/index.js");
 			});
 
-			it("should preserve /index.tsx when collapseIndex is false (bundleless mode)", () => {
+			it("should preserve /index.tsx when collapseIndex is false", () => {
 				const result = transformExportPath("./src/foo/bar/index.tsx", true, false);
 				expect(result).toBe("./foo/bar/index.js");
 			});
 
-			it("should default to false (bundleless mode) when collapseIndex is not specified", () => {
+			it("should default to false when collapseIndex is not specified", () => {
 				const result = transformExportPath("./src/rslib/index.ts");
 				expect(result).toBe("./rslib/index.js");
 			});
@@ -90,7 +90,7 @@ describe("path-transform-utils", () => {
 				expect(result).toBe("./index.js");
 			});
 
-			it("should handle root index file in bundleless mode", () => {
+			it("should handle root index file when collapseIndex is false", () => {
 				const result = transformExportPath("./src/index.ts", true, false);
 				expect(result).toBe("./index.js");
 			});
@@ -133,7 +133,7 @@ describe("path-transform-utils", () => {
 				});
 			});
 
-			describe("when collapseIndex is false (bundleless mode)", () => {
+			describe("when collapseIndex is false", () => {
 				it("should preserve nested /index.js paths", () => {
 					expect(createTypePath("./rslib/index.js", false)).toBe("./rslib/index.d.ts");
 				});

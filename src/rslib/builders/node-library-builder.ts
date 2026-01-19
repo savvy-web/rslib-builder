@@ -7,7 +7,6 @@ import type { RawCopyPattern } from "@rspack/binding";
 import type { PackageJson } from "type-fest";
 import { packageJsonVersion } from "#utils/file-utils.js";
 import { AutoEntryPlugin } from "../plugins/auto-entry-plugin.js";
-import { BundlelessPlugin } from "../plugins/bundleless-plugin.js";
 import type { ApiModelOptions } from "../plugins/dts-plugin.js";
 import { DtsPlugin } from "../plugins/dts-plugin.js";
 import { FilesArrayPlugin } from "../plugins/files-array-plugin.js";
@@ -35,14 +34,9 @@ export type TransformPackageJsonFn = (context: { target: BuildTarget; pkg: Packa
 export interface NodeLibraryBuilderOptions {
 	/** Override entry points (optional - will auto-detect from package.json) */
 	entry?: Record<string, string | string[]>;
-	/** Whether to bundle the output (default: true) */
-	bundle: boolean;
 	/**
 	 * When enabled, each export path will generate an index.js file in a directory
 	 * structure matching the export path, rather than using the export name as the filename.
-	 *
-	 * @remarks
-	 * This option is only relevant for bundled builds.
 	 *
 	 * @example
 	 * When `exportsAsIndexes` is `true`, given this package.json configuration:
@@ -87,7 +81,6 @@ export interface NodeLibraryBuilderOptions {
 	 * @example
 	 * ```typescript
 	 * NodeLibraryBuilder.create({
-	 *   bundle: true,
 	 *   externals: ['@rslib/core', '@rsbuild/core']
 	 * })
 	 * ```
@@ -95,7 +88,6 @@ export interface NodeLibraryBuilderOptions {
 	externals?: (string | RegExp)[];
 	/**
 	 * Packages whose type declarations should be bundled into the output .d.ts files.
-	 * Only applies when bundle is true.
 	 *
 	 * @remarks
 	 * By default, RSlib bundles types from packages in package.json. Use this to explicitly
@@ -107,7 +99,6 @@ export interface NodeLibraryBuilderOptions {
 	 * @example
 	 * ```typescript
 	 * NodeLibraryBuilder.create({
-	 *   bundle: true,
 	 *   dtsBundledPackages: ['@pnpm/lockfile.types', '@pnpm/types', 'picocolors']
 	 * })
 	 * ```
@@ -125,7 +116,6 @@ export interface NodeLibraryBuilderOptions {
 	 * @example
 	 * ```typescript
 	 * NodeLibraryBuilder.create({
-	 *   bundle: true,
 	 *   transformFiles({ compilation, filesArray, target }) {
 	 *     // Copy index.cjs to .pnpmfile.cjs
 	 *     const indexAsset = compilation.assets['index.cjs'];
@@ -155,7 +145,6 @@ export interface NodeLibraryBuilderOptions {
 	 * @example
 	 * ```typescript
 	 * NodeLibraryBuilder.create({
-	 *   bundle: true,
 	 *   transform({ target, pkg }) {
 	 *     if (target === 'npm') {
 	 *       // Mutation approach
@@ -171,7 +160,7 @@ export interface NodeLibraryBuilderOptions {
 	/**
 	 * Options for API model generation.
 	 * When enabled, generates an api.model.json file in the dist directory.
-	 * Only applies when bundle is true and target is "npm".
+	 * Only applies when target is "npm".
 	 *
 	 * @remarks
 	 * The generated api.model.json file contains the full API documentation
@@ -182,13 +171,11 @@ export interface NodeLibraryBuilderOptions {
 	 * ```typescript
 	 * // Enable API model generation with defaults
 	 * NodeLibraryBuilder.create({
-	 *   bundle: true,
 	 *   apiModel: true,
 	 * })
 	 *
 	 * // Enable with custom filename
 	 * NodeLibraryBuilder.create({
-	 *   bundle: true,
 	 *   apiModel: {
 	 *     enabled: true,
 	 *     filename: "my-package.api.json",
@@ -201,23 +188,6 @@ export interface NodeLibraryBuilderOptions {
 
 /**
  * @public
- */
-export interface BundledNodeLibraryBuilderOptions extends Partial<NodeLibraryBuilderOptions> {
-	/** {@inheritDoc NodeLibraryBuilderOptions.bundle} */
-	bundle: true;
-}
-
-/**
- * @public
- */
-export interface BundlelessNodeLibraryBuilderOptions
-	extends Omit<Partial<NodeLibraryBuilderOptions>, "exportsAsIndexes"> {
-	/** {@inheritDoc NodeLibraryBuilderOptions.bundle} */
-	bundle: false;
-}
-
-/**
- * @public
  * Node library builder class
  */
 /* v8 ignore next -- @preserve */
@@ -225,7 +195,6 @@ export interface BundlelessNodeLibraryBuilderOptions
 export class NodeLibraryBuilder {
 	static DEFAULT_OPTIONS: NodeLibraryBuilderOptions = {
 		entry: undefined,
-		bundle: true,
 		plugins: [],
 		define: {},
 		copyPatterns: [],
@@ -247,8 +216,6 @@ export class NodeLibraryBuilder {
 		}
 		return merged;
 	}
-	static create(options: Partial<BundledNodeLibraryBuilderOptions>): RslibConfigAsyncFn;
-	static create(options: Partial<BundlelessNodeLibraryBuilderOptions>): RslibConfigAsyncFn;
 	/**
 	 * Creates an async RSLib configuration function that determines build target from envMode.
 	 * This provides a clean API where users don't need to handle environment logic.
@@ -289,23 +256,13 @@ export class NodeLibraryBuilder {
 
 		// Standard plugins for dev and npm targets
 		if (target === "dev" || target === "npm") {
-			// Add auto-entry plugin if no explicit entries provided and bundling is enabled
-			// For bundleless mode, we handle entry differently
-
-			if (!options.entry && options.bundle) {
+			// Add auto-entry plugin if no explicit entries provided
+			if (!options.entry) {
 				plugins.push(
 					AutoEntryPlugin({
 						exportsAsIndexes: options.exportsAsIndexes,
 					}),
 				);
-			}
-
-			if (options.bundle === false) {
-				// For bundleless mode, compile all TS files in src/
-				options.entry = {
-					index: ["src/**/*.ts"],
-				};
-				plugins.push(BundlelessPlugin());
 			}
 
 			// Process package.json with pnpm + RSLib transformations
@@ -316,7 +273,7 @@ export class NodeLibraryBuilder {
 			plugins.push(
 				PackageJsonTransformPlugin({
 					forcePrivate: target === "dev",
-					bundle: options.bundle,
+					bundle: true,
 					target,
 					transform: transformFn,
 				}),
@@ -341,10 +298,6 @@ export class NodeLibraryBuilder {
 
 		const entry = options.entry;
 
-		// For bundleless mode, outBase should be the source directory so RSLib
-		// knows to strip the source prefix from output paths
-		const outBase = options.bundle === false ? "src" : outputDir;
-
 		// Add our custom DTS plugin that uses tsgo and emits through asset pipeline
 		// The plugin will generate the temp tsconfig itself since it needs access to api.context.rootPath
 		// Only enable API model generation for npm target (not dev)
@@ -354,9 +307,8 @@ export class NodeLibraryBuilder {
 			DtsPlugin({
 				tsconfigPath: options.tsconfigPath, // Pass through user's tsconfig if provided
 				abortOnError: true,
-				bundle: options.bundle,
+				bundle: true,
 				bundledPackages: options.dtsBundledPackages,
-				// Pass target and bundle mode so the plugin can generate the correct temp config
 				buildTarget: target,
 				apiModel: apiModelForTarget,
 			}),
@@ -364,7 +316,7 @@ export class NodeLibraryBuilder {
 
 		const lib: LibConfig = {
 			id: target,
-			outBase,
+			outBase: outputDir,
 			output: {
 				target: "node",
 				module: true,
@@ -382,13 +334,13 @@ export class NodeLibraryBuilder {
 			experiments: {
 				advancedEsm: true,
 			},
-			bundle: options.bundle ?? true,
+			bundle: true,
 			plugins,
 			source: {
 				// Don't set tsconfigPath here - DtsPlugin will generate and use its own temp config
 				// RSLib will use its default tsconfig resolution for JS compilation
 				tsconfigPath: options.tsconfigPath, // Only pass through if user explicitly provided one
-				entry, // Only set entry if it has values, otherwise rslib won't compile anything in bundleless mode
+				entry,
 				define: {
 					"process.env.__PACKAGE_VERSION__": JSON.stringify(VERSION),
 					...options.define,

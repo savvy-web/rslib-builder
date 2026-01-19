@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 // Mock helpers to suppress log output during tests
-vi.mock("#utils/logger-utils.js", () => ({
+vi.mock("#utils/build-logger.js", () => ({
 	createEnvLogger: () => ({
 		fileOp: vi.fn(),
 		error: vi.fn(),
@@ -9,11 +9,11 @@ vi.mock("#utils/logger-utils.js", () => ({
 }));
 
 // Mock asset utilities
-vi.mock("#utils/json-asset-utils.js");
+vi.mock("#utils/asset-utils.js");
 
-import { JsonAsset, TextAsset } from "#utils/json-asset-utils.js";
+import { JsonAsset, TextAsset } from "#utils/asset-utils.js";
 // Static imports after mocks are set up
-import { FilesArrayPlugin } from "../../../rslib/plugins/files-array-plugin.js";
+import { FilesArrayPlugin } from "./files-array-plugin.js";
 
 const mockJsonAssetCreate: ReturnType<typeof vi.mocked<typeof JsonAsset.create>> = vi.mocked(JsonAsset.create);
 const mockTextAssetCreate: ReturnType<typeof vi.mocked<typeof TextAsset.create>> = vi.mocked(TextAsset.create);

@@ -1,22 +1,23 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { createMockProcessAssetsContext, createMockStats } from "./test-types.js";
+import { createMockProcessAssetsContext, createMockStats } from "../../../__test__/rslib/utils/test-types.js";
 
-// Mock node:fs/promises and file-utils
+// Mock node:fs/promises
 vi.mock("node:fs/promises");
-vi.mock("#utils/file-utils.js");
 
 import { readFile, stat } from "node:fs/promises";
-// Static imports after mocks are set up
-import { createAssetProcessor } from "#utils/asset-processor-utils.js";
-import { fileExistAsync } from "#utils/file-utils.js";
 
 const mockReadFile: ReturnType<typeof vi.mocked<typeof readFile>> = vi.mocked(readFile);
 const mockStat: ReturnType<typeof vi.mocked<typeof stat>> = vi.mocked(stat);
-const mockFileExistAsync: ReturnType<typeof vi.mocked<typeof fileExistAsync>> = vi.mocked(fileExistAsync);
+
+// Import the function we want to test - this will use the actual implementation
+// but with mocked fs functions
+import { createAssetProcessor } from "#utils/asset-utils.js";
 
 describe("asset-processor-utils", () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
+		// Mock process.cwd to return a consistent path
+		vi.spyOn(process, "cwd").mockReturnValue("/test");
 	});
 
 	describe("createAssetProcessor", () => {
@@ -32,11 +33,7 @@ describe("asset-processor-utils", () => {
 
 			const fileContent = '{"name": "test"}';
 
-			mockFileExistAsync.mockResolvedValue({
-				assetName: "package.json",
-				assetPath: "/test/package.json",
-				assetExists: true,
-			});
+			// Mock stat to return valid stats (file exists)
 			mockStat.mockResolvedValue(createMockStats(new Date(1000)));
 			mockReadFile.mockResolvedValue(fileContent);
 
@@ -45,7 +42,6 @@ describe("asset-processor-utils", () => {
 
 			await processor(createMockProcessAssetsContext(mockOriginalSource, mockEmitAsset));
 
-			expect(mockFileExistAsync).toHaveBeenCalledWith("package.json");
 			expect(mockStat).toHaveBeenCalledWith("/test/package.json");
 			expect(mockReadFile).toHaveBeenCalledWith("/test/package.json", "utf-8");
 			expect(mockOriginalSource).toHaveBeenCalledWith(fileContent, "package.json");
@@ -56,19 +52,15 @@ describe("asset-processor-utils", () => {
 			const cache = new Map();
 			const processor = createAssetProcessor("missing.txt", cache);
 
-			mockFileExistAsync.mockResolvedValue({
-				assetName: "missing.txt",
-				assetPath: "/test/missing.txt",
-				assetExists: false,
-			});
+			// Mock stat to reject (file doesn't exist)
+			mockStat.mockRejectedValue(new Error("ENOENT"));
 
 			const mockEmitAsset = vi.fn();
 			const mockOriginalSource = vi.fn();
 
 			await processor(createMockProcessAssetsContext(mockOriginalSource, mockEmitAsset));
 
-			expect(mockFileExistAsync).toHaveBeenCalledWith("missing.txt");
-			expect(mockStat).not.toHaveBeenCalled();
+			expect(mockStat).toHaveBeenCalledWith("/test/missing.txt");
 			expect(mockReadFile).not.toHaveBeenCalled();
 			expect(mockEmitAsset).not.toHaveBeenCalled();
 		});
@@ -79,11 +71,6 @@ describe("asset-processor-utils", () => {
 
 			const fileContent = "# Test Package";
 
-			mockFileExistAsync.mockResolvedValue({
-				assetName: "README.md",
-				assetPath: "/test/README.md",
-				assetExists: true,
-			});
 			mockStat.mockResolvedValue(createMockStats(new Date(2000)));
 			mockReadFile.mockResolvedValue(fileContent);
 
@@ -108,7 +95,7 @@ describe("asset-processor-utils", () => {
 			// Second call with same mtime - should use cache
 			await processor(createMockProcessAssetsContext(mockOriginalSource, mockEmitAsset));
 
-			expect(mockStat).toHaveBeenCalledTimes(2); // Still needs to check mtime
+			expect(mockStat).toHaveBeenCalledTimes(4); // 2 for first call (fileExistAsync + mtime), 2 for second call
 			expect(mockReadFile).not.toHaveBeenCalled(); // Should not read file again
 			expect(mockOriginalSource).toHaveBeenCalledWith(fileContent, "README.md");
 			expect(mockEmitAsset).toHaveBeenCalledWith("README.md", expect.anything());
@@ -121,18 +108,12 @@ describe("asset-processor-utils", () => {
 			const originalContent = "MIT License";
 			const updatedContent = "MIT License Updated";
 
-			mockFileExistAsync.mockResolvedValue({
-				assetName: "LICENSE",
-				assetPath: "/test/LICENSE",
-				assetExists: true,
-			});
-
 			const mockOriginalSource = vi.fn();
 			const mockEmitAsset = vi.fn();
 
 			// First call
-			mockStat.mockResolvedValueOnce(createMockStats(new Date(3000)));
-			mockReadFile.mockResolvedValueOnce(originalContent);
+			mockStat.mockResolvedValue(createMockStats(new Date(3000)));
+			mockReadFile.mockResolvedValue(originalContent);
 
 			await processor(createMockProcessAssetsContext(mockOriginalSource, mockEmitAsset));
 
@@ -147,8 +128,8 @@ describe("asset-processor-utils", () => {
 			mockEmitAsset.mockClear();
 
 			// Second call with different mtime
-			mockStat.mockResolvedValueOnce(createMockStats(new Date(4000)));
-			mockReadFile.mockResolvedValueOnce(updatedContent);
+			mockStat.mockResolvedValue(createMockStats(new Date(4000)));
+			mockReadFile.mockResolvedValue(updatedContent);
 
 			await processor(createMockProcessAssetsContext(mockOriginalSource, mockEmitAsset));
 
@@ -165,21 +146,12 @@ describe("asset-processor-utils", () => {
 			const processor1 = createAssetProcessor("file1.txt", cache);
 			const processor2 = createAssetProcessor("file2.txt", cache);
 
-			mockFileExistAsync
-				.mockResolvedValueOnce({
-					assetName: "file1.txt",
-					assetPath: "/test/file1.txt",
-					assetExists: true,
-				})
-				.mockResolvedValueOnce({
-					assetName: "file2.txt",
-					assetPath: "/test/file2.txt",
-					assetExists: true,
-				});
-
 			mockStat
 				.mockResolvedValueOnce(createMockStats(new Date(5000)))
-				.mockResolvedValueOnce(createMockStats(new Date(6000)));
+				.mockResolvedValueOnce(createMockStats(new Date(5000))); // First processor: fileExistAsync + mtime
+			mockStat
+				.mockResolvedValueOnce(createMockStats(new Date(6000)))
+				.mockResolvedValueOnce(createMockStats(new Date(6000))); // Second processor
 
 			mockReadFile.mockResolvedValueOnce("Content 1").mockResolvedValueOnce("Content 2");
 
@@ -202,38 +174,34 @@ describe("asset-processor-utils", () => {
 		});
 
 		it("should handle different asset paths for same filename", async () => {
+			// This test verifies cache keys include the full path
+			// When the cwd changes, the cache key changes too
 			const cache = new Map();
 			const processor = createAssetProcessor("config.json", cache);
 
-			mockFileExistAsync
-				.mockResolvedValueOnce({
-					assetName: "config.json",
-					assetPath: "/project1/config.json",
-					assetExists: true,
-				})
-				.mockResolvedValueOnce({
-					assetName: "config.json",
-					assetPath: "/project2/config.json",
-					assetExists: true,
-				});
-
-			mockStat
-				.mockResolvedValueOnce(createMockStats(new Date(7000)))
-				.mockResolvedValueOnce(createMockStats(new Date(8000)));
-
-			mockReadFile.mockResolvedValueOnce('{"env": "dev"}').mockResolvedValueOnce('{"env": "prod"}');
+			vi.spyOn(process, "cwd").mockReturnValue("/project1");
+			mockStat.mockResolvedValue(createMockStats(new Date(7000)));
+			mockReadFile.mockResolvedValue('{"env": "dev"}');
 
 			const mockOriginalSource = vi.fn();
 			const mockEmitAsset = vi.fn();
 
 			await processor(createMockProcessAssetsContext(mockOriginalSource, mockEmitAsset));
-			await processor(createMockProcessAssetsContext(mockOriginalSource, mockEmitAsset));
 
-			expect(cache.size).toBe(2);
+			expect(cache.size).toBe(1);
 			expect(cache.get("config.json-/project1/config.json")).toEqual({
 				content: '{"env": "dev"}',
 				mtime: 7000,
 			});
+
+			// Change cwd and run again
+			vi.spyOn(process, "cwd").mockReturnValue("/project2");
+			mockStat.mockResolvedValue(createMockStats(new Date(8000)));
+			mockReadFile.mockResolvedValue('{"env": "prod"}');
+
+			await processor(createMockProcessAssetsContext(mockOriginalSource, mockEmitAsset));
+
+			expect(cache.size).toBe(2);
 			expect(cache.get("config.json-/project2/config.json")).toEqual({
 				content: '{"env": "prod"}',
 				mtime: 8000,

@@ -1,6 +1,6 @@
 import type { PackageJson } from "type-fest";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { MockAssetRegistry } from "../types/test-types.js";
+import type { MockAssetRegistry } from "../../__test__/rslib/types/test-types.js";
 
 // Mock node:fs/promises
 vi.mock("node:fs/promises", () => ({
@@ -10,14 +10,14 @@ vi.mock("node:fs/promises", () => ({
 
 // Mock dependencies
 vi.mock("#utils/file-utils.js");
-vi.mock("#utils/package-json-builder-utils.js");
-vi.mock("#utils/json-asset-utils.js");
+vi.mock("#utils/package-json-transformer.js");
+vi.mock("#utils/asset-utils.js");
 
+import { JsonAsset, TextAsset } from "#utils/asset-utils.js";
 // Static imports after mocks are set up
 import { fileExistAsync } from "#utils/file-utils.js";
-import { JsonAsset, TextAsset } from "#utils/json-asset-utils.js";
-import { buildPackageJson } from "#utils/package-json-builder-utils.js";
-import { PackageJsonTransformPlugin } from "../../../rslib/plugins/package-json-transform-plugin.js";
+import { buildPackageJson } from "#utils/package-json-transformer.js";
+import { PackageJsonTransformPlugin } from "./package-json-transform-plugin.js";
 
 const _mockFileExistAsync: ReturnType<typeof vi.mocked<typeof fileExistAsync>> = vi.mocked(fileExistAsync);
 const mockBuildPackageJson: ReturnType<typeof vi.mocked<typeof buildPackageJson>> = vi.mocked(buildPackageJson);
@@ -505,5 +505,169 @@ describe("PackageJsonTransformPlugin", () => {
 			undefined,
 			undefined,
 		);
+	});
+
+	it("should set private to true when forcePrivate option is enabled", async () => {
+		const plugin = PackageJsonTransformPlugin({ forcePrivate: true });
+		const mockApi = { processAssets: vi.fn(), expose: vi.fn(), useExposed: vi.fn().mockReturnValue(undefined) };
+
+		plugin.setup(mockApi as unknown as Parameters<ReturnType<typeof PackageJsonTransformPlugin>["setup"]>[0]);
+
+		const optimizeCallback = mockApi.processAssets.mock.calls[1][1];
+
+		const originalPackageJson: PackageJson = { name: "test", version: "1.0.0" };
+
+		const mockPackageJsonAsset = {
+			data: { ...originalPackageJson },
+			update: vi.fn(),
+		};
+		// biome-ignore lint/suspicious/noExplicitAny: Mock object for testing
+		mockJsonAssetCreate.mockResolvedValue(mockPackageJsonAsset as any);
+
+		mockBuildPackageJson.mockResolvedValue({ ...originalPackageJson, private: false } as PackageJson);
+
+		const mockContext = createMockContext();
+		await optimizeCallback(mockContext);
+
+		// Should have set private to true
+		expect(mockPackageJsonAsset.data.private).toBe(true);
+		expect(mockPackageJsonAsset.update).toHaveBeenCalled();
+	});
+
+	it("should handle useRollupTypes by updating exports to point to rollup types", async () => {
+		const plugin = PackageJsonTransformPlugin();
+		const mockApi = {
+			processAssets: vi.fn(),
+			expose: vi.fn(),
+			useExposed: vi.fn().mockImplementation((key: string) => {
+				if (key === "use-rollup-types") return true;
+				return undefined;
+			}),
+		};
+
+		plugin.setup(mockApi as unknown as Parameters<ReturnType<typeof PackageJsonTransformPlugin>["setup"]>[0]);
+
+		const optimizeCallback = mockApi.processAssets.mock.calls[1][1];
+
+		const originalPackageJson: PackageJson = {
+			name: "test",
+			version: "1.0.0",
+			exports: {
+				".": {
+					types: "./dist/index.d.ts",
+					import: "./dist/index.js",
+				},
+				"./utils": {
+					types: "./dist/utils.d.ts",
+					import: "./dist/utils.js",
+				},
+				"./api-extractor": {
+					types: "./api-extractor.d.ts",
+				},
+			},
+		};
+
+		const mockPackageJsonAsset = {
+			data: JSON.parse(JSON.stringify(originalPackageJson)),
+			update: vi.fn(),
+		};
+		// biome-ignore lint/suspicious/noExplicitAny: Mock object for testing
+		mockJsonAssetCreate.mockResolvedValue(mockPackageJsonAsset as any);
+
+		mockBuildPackageJson.mockResolvedValue(JSON.parse(JSON.stringify(originalPackageJson)));
+
+		const mockContext = createMockContext();
+		await optimizeCallback(mockContext);
+
+		// Should have removed api-extractor export
+		expect(mockPackageJsonAsset.data.exports["./api-extractor"]).toBeUndefined();
+
+		// Should have updated types to point to rollup
+		expect(mockPackageJsonAsset.data.exports["."].types).toBe("./index.d.ts");
+		expect(mockPackageJsonAsset.data.exports["./utils"].types).toBe("./index.d.ts");
+
+		expect(mockPackageJsonAsset.update).toHaveBeenCalled();
+	});
+
+	it("should not modify exports when useRollupTypes is false", async () => {
+		const plugin = PackageJsonTransformPlugin();
+		const mockApi = {
+			processAssets: vi.fn(),
+			expose: vi.fn(),
+			useExposed: vi.fn().mockReturnValue(undefined), // useRollupTypes not set
+		};
+
+		plugin.setup(mockApi as unknown as Parameters<ReturnType<typeof PackageJsonTransformPlugin>["setup"]>[0]);
+
+		const optimizeCallback = mockApi.processAssets.mock.calls[1][1];
+
+		const originalPackageJson: PackageJson = {
+			name: "test",
+			version: "1.0.0",
+			exports: {
+				".": {
+					types: "./dist/index.d.ts",
+					import: "./dist/index.js",
+				},
+			},
+		};
+
+		const mockPackageJsonAsset = {
+			data: JSON.parse(JSON.stringify(originalPackageJson)),
+			update: vi.fn(),
+		};
+		// biome-ignore lint/suspicious/noExplicitAny: Mock object for testing
+		mockJsonAssetCreate.mockResolvedValue(mockPackageJsonAsset as any);
+
+		mockBuildPackageJson.mockResolvedValue(JSON.parse(JSON.stringify(originalPackageJson)));
+
+		const mockContext = createMockContext();
+		await optimizeCallback(mockContext);
+
+		// Should not have modified the types path
+		expect(mockPackageJsonAsset.data.exports["."].types).toBe("./dist/index.d.ts");
+	});
+
+	it("should handle exports without types field when useRollupTypes is true", async () => {
+		const plugin = PackageJsonTransformPlugin();
+		const mockApi = {
+			processAssets: vi.fn(),
+			expose: vi.fn(),
+			useExposed: vi.fn().mockImplementation((key: string) => {
+				if (key === "use-rollup-types") return true;
+				return undefined;
+			}),
+		};
+
+		plugin.setup(mockApi as unknown as Parameters<ReturnType<typeof PackageJsonTransformPlugin>["setup"]>[0]);
+
+		const optimizeCallback = mockApi.processAssets.mock.calls[1][1];
+
+		const originalPackageJson: PackageJson = {
+			name: "test",
+			version: "1.0.0",
+			exports: {
+				".": {
+					import: "./dist/index.js", // No types field
+				},
+				"./data": "./data.json", // String export, not object
+			},
+		};
+
+		const mockPackageJsonAsset = {
+			data: JSON.parse(JSON.stringify(originalPackageJson)),
+			update: vi.fn(),
+		};
+		// biome-ignore lint/suspicious/noExplicitAny: Mock object for testing
+		mockJsonAssetCreate.mockResolvedValue(mockPackageJsonAsset as any);
+
+		mockBuildPackageJson.mockResolvedValue(JSON.parse(JSON.stringify(originalPackageJson)));
+
+		const mockContext = createMockContext();
+		await optimizeCallback(mockContext);
+
+		// Should not crash and should not add types field where it didn't exist
+		expect(mockPackageJsonAsset.data.exports["."].types).toBeUndefined();
+		expect(mockPackageJsonAsset.data.exports["./data"]).toBe("./data.json");
 	});
 });

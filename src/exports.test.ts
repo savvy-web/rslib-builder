@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { TSConfigs } from "../../tsconfig/index.js";
+import { TSConfigs } from "./tsconfig/index.js";
 
 describe("@savvy-web/tsconfig exports", () => {
 	// describe("main exports", () => {
@@ -43,7 +43,7 @@ describe("@savvy-web/tsconfig exports", () => {
 			expect(TSConfigs.node.ecma.lib.pathname).toBeDefined();
 		});
 
-		it("should provide dynamic bundle and bundleless methods on lib config", () => {
+		it("should provide dynamic bundle method on lib config", () => {
 			const lib = TSConfigs.node.ecma.lib;
 
 			// Test bundle method with different targets
@@ -64,25 +64,6 @@ describe("@savvy-web/tsconfig exports", () => {
 				expect(bundleConfig.include?.some((p) => p.includes("/src/"))).toBe(true);
 				expect(bundleConfig.include?.some((p) => p.includes("/types/"))).toBe(true);
 			}
-
-			// Test bundleless method with different targets
-			for (const target of ["dev", "npm"] as const) {
-				const bundlelessConfig = lib.bundleless(target);
-				expect(bundlelessConfig).toBeDefined();
-				expect(bundlelessConfig.compilerOptions?.outDir).toBe("dist");
-				expect(bundlelessConfig.compilerOptions?.rootDir).toBe("../../../../../../src");
-				// tsBuildInfoFile is now an absolute path
-				expect(bundlelessConfig.compilerOptions?.tsBuildInfoFile).toBe(
-					`${process.cwd()}/dist/.tsbuildinfo.${target}.bundleless`,
-				);
-				expect(bundlelessConfig.include).toBeDefined();
-				// Bundleless mode should not include types, __test__, or lib directories
-				expect(bundlelessConfig.include?.some((p) => p.includes("__test__"))).toBe(false);
-				expect(bundlelessConfig.include?.some((p) => p.includes("/lib/"))).toBe(false);
-				expect(bundlelessConfig.include?.some((p) => p.includes("/types/"))).toBe(false);
-				// Should include src
-				expect(bundlelessConfig.include?.some((p) => p.includes("/src/"))).toBe(true);
-			}
 		});
 
 		it("should provide temp config file writing methods", () => {
@@ -95,15 +76,6 @@ describe("@savvy-web/tsconfig exports", () => {
 				expect(bundleTempPath).toBeDefined();
 				expect(typeof bundleTempPath).toBe("string");
 				expect(bundleTempPath).toMatch(/tsconfig-bundle-.*\.json$/);
-			}
-
-			// Test writeBundlelessTempConfig with different targets
-			expect(typeof lib.writeBundlelessTempConfig).toBe("function");
-			for (const target of ["dev", "npm"] as const) {
-				const bundlelessTempPath = lib.writeBundlelessTempConfig(target);
-				expect(bundlelessTempPath).toBeDefined();
-				expect(typeof bundlelessTempPath).toBe("string");
-				expect(bundlelessTempPath).toMatch(/tsconfig-bundleless-.*\.json$/);
 			}
 		});
 	});

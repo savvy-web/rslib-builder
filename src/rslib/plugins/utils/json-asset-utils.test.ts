@@ -2,7 +2,7 @@ import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { ProcessAssetsHandler } from "@rsbuild/core";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { MockAssetRegistry } from "../types/test-types.js";
+import type { MockAssetRegistry } from "../../../__test__/rslib/types/test-types.js";
 
 // Mock node:fs/promises
 vi.mock("node:fs/promises", () => ({
@@ -18,7 +18,7 @@ const mockReadFile: ReturnType<typeof vi.mocked<typeof readFile>> = vi.mocked(re
 const mockJoin: ReturnType<typeof vi.mocked<typeof join>> = vi.mocked(join);
 
 // Static import after mocks are set up
-import { JsonAsset, TextAsset } from "#utils/json-asset-utils.js";
+import { JsonAsset, TextAsset } from "#utils/asset-utils.js";
 
 // Helper function to create mock compilation context
 function createMockContext(assets: MockAssetRegistry = {}): Parameters<ProcessAssetsHandler>[0] {

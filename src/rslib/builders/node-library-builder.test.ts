@@ -1,7 +1,7 @@
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { NodeLibraryBuilder } from "../../../rslib/builders/node-library-builder.js";
+import { NodeLibraryBuilder } from "./node-library-builder.js";
 
 // Mock node:fs
 vi.mock("node:fs", () => ({
@@ -22,7 +22,6 @@ describe("NodeLibraryBuilder", () => {
 		it("should have expected default values", () => {
 			expect(NodeLibraryBuilder.DEFAULT_OPTIONS).toEqual({
 				entry: undefined,
-				bundle: true,
 				plugins: [],
 				define: {},
 				copyPatterns: [],
@@ -48,12 +47,10 @@ describe("NodeLibraryBuilder", () => {
 			vi.mocked(existsSync).mockReturnValue(false);
 
 			const result = NodeLibraryBuilder.mergeOptions({
-				bundle: false,
 				targets: ["npm"],
 			});
 
 			expect(result).toMatchObject({
-				bundle: false,
 				targets: ["npm"],
 				// Should still have defaults for other properties
 				plugins: [],
@@ -113,7 +110,6 @@ describe("NodeLibraryBuilder", () => {
 
 			expect(result.externals).toEqual(["react", "react-dom"]);
 			expect(result.dtsBundledPackages).toEqual(["@types/node"]);
-			expect(result.bundle).toBe(true); // Default value
 		});
 
 		it("should preserve user-provided plugins array", () => {

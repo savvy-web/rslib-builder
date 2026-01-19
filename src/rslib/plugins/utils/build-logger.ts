@@ -1,8 +1,85 @@
 import { logger } from "@rsbuild/core";
 import colors from "picocolors";
-import { formatTime } from "#utils/time-utils.js";
 
 const { cyan, dim, bold }: typeof colors = colors;
+
+/**
+ * Formats elapsed time in milliseconds to a human-readable string with appropriate units.
+ *
+ * @remarks
+ * This utility function formats time durations consistently with RSLib's output format.
+ * It automatically chooses the most appropriate unit (milliseconds or seconds) based
+ * on the magnitude of the input value.
+ *
+ * **Formatting Rules:**
+ * - Values less than 1000ms are displayed as milliseconds (e.g., "250ms")
+ * - Values 1000ms and above are displayed as seconds with 2 decimal places (e.g., "1.25s")
+ *
+ * @param ms - The time duration in milliseconds to format
+ * @returns A formatted string representation of the time duration
+ *
+ * @example
+ * ```typescript
+ * console.log(formatTime(150));    // "150ms"
+ * console.log(formatTime(999));    // "999ms"
+ * console.log(formatTime(1000));   // "1.00s"
+ * console.log(formatTime(1250));   // "1.25s"
+ * console.log(formatTime(45000));  // "45.00s"
+ * ```
+ */
+export function formatTime(ms: number): string {
+	if (ms < 1000) {
+		return `${ms}ms`;
+	}
+	return `${(ms / 1000).toFixed(2)}s`;
+}
+
+/**
+ * Timer interface for measuring execution time.
+ */
+export interface Timer {
+	/** Returns elapsed time in milliseconds */
+	elapsed: () => number;
+	/** Returns formatted elapsed time string */
+	format: () => string;
+}
+
+/**
+ * Creates a high-precision timer for measuring execution time and performance monitoring.
+ *
+ * @remarks
+ * This function creates a timer object that captures the current timestamp and provides
+ * methods to measure elapsed time. The timer uses `Date.now()` for millisecond precision
+ * and is ideal for performance monitoring in build processes and plugin execution.
+ *
+ * The returned timer object provides two methods:
+ * - `elapsed()`: Returns raw milliseconds for calculations or comparisons
+ * - `format()`: Returns a formatted string suitable for user-facing output
+ *
+ * @returns A timer object with methods to measure and format elapsed time
+ *
+ * @example
+ * ```typescript
+ * // Basic usage for performance monitoring
+ * const timer = createTimer();
+ *
+ * // Simulate some work
+ * await someAsyncOperation();
+ *
+ * console.log(`Operation took: ${timer.format()}`);
+ * // Output: "Operation took: 1.25s"
+ *
+ * console.log(`Raw milliseconds: ${timer.elapsed()}`);
+ * // Output: "Raw milliseconds: 1250"
+ * ```
+ */
+export function createTimer(): Timer {
+	const start = Date.now();
+	return {
+		elapsed: () => Date.now() - start,
+		format: () => formatTime(Date.now() - start),
+	};
+}
 
 /**
  * Determines if the current process is running in a test environment.
@@ -13,34 +90,36 @@ const { cyan, dim, bold }: typeof colors = colors;
  * and command-line arguments. This detection is used to suppress logging output
  * during test runs to keep test output clean.
  *
- * The function checks:
- * - `NODE_ENV` environment variable set to "test"
- * - `VITEST` environment variable set to "true"
- * - `JEST_WORKER_ID` environment variable (set by Jest)
- * - Command line arguments containing test runner names
- *
  * @returns True if running in a test environment, false otherwise
- *
- * @example
- * ```typescript
- * // During normal execution
- * console.log(isTestEnvironment()); // false
- *
- * // During test execution (with VITEST=true)
- * console.log(isTestEnvironment()); // true
- * ```
  *
  * @internal This function is used internally by the logger to suppress output during tests
  */
-const isTestEnvironment = (): boolean => {
+function isTestEnvironment(): boolean {
 	return (
 		process.env.NODE_ENV === "test" ||
 		process.env.VITEST === "true" ||
 		process.env.JEST_WORKER_ID !== undefined ||
-		// Check command line for test runners (safer than checking globalThis)
 		process.argv.some((arg) => arg.includes("vitest") || arg.includes("jest"))
 	);
-};
+}
+
+/**
+ * Logger interface returned by createEnvLogger.
+ */
+export interface EnvLogger {
+	info: (message: string, ...args: unknown[]) => void;
+	warn: (message: string, ...args: unknown[]) => void;
+	error: (message: string, ...args: unknown[]) => void;
+	withTime: (message: string, time: number, ...args: unknown[]) => void;
+	success: (message: string, filename?: string, ...args: unknown[]) => void;
+	fileOp: (message: string, files: string[], ...args: unknown[]) => void;
+	entries: (message: string, entries: Record<string, string>, ...args: unknown[]) => void;
+	global: {
+		info: (message: string, ...args: unknown[]) => void;
+		warn: (message: string, ...args: unknown[]) => void;
+		error: (message: string, ...args: unknown[]) => void;
+	};
+}
 
 /**
  * Creates an environment-aware logger with enhanced styling and automatic test suppression.
@@ -106,22 +185,7 @@ const isTestEnvironment = (): boolean => {
  *
  * @see {@link formatTime} for the time formatting utility used in `withTime` method
  */
-export const createEnvLogger = (
-	envId: string,
-): {
-	info: (message: string, ...args: unknown[]) => void;
-	warn: (message: string, ...args: unknown[]) => void;
-	error: (message: string, ...args: unknown[]) => void;
-	withTime: (message: string, time: number, ...args: unknown[]) => void;
-	success: (message: string, filename?: string, ...args: unknown[]) => void;
-	fileOp: (message: string, files: string[], ...args: unknown[]) => void;
-	entries: (message: string, entries: Record<string, string>, ...args: unknown[]) => void;
-	global: {
-		info: (message: string, ...args: unknown[]) => void;
-		warn: (message: string, ...args: unknown[]) => void;
-		error: (message: string, ...args: unknown[]) => void;
-	};
-} => {
+export function createEnvLogger(envId: string): EnvLogger {
 	const isTest = isTestEnvironment();
 
 	return {
@@ -326,4 +390,4 @@ export const createEnvLogger = (
 			},
 		},
 	};
-};
+}

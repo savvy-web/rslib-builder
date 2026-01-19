@@ -4,11 +4,11 @@
  *
  * @remarks
  * This package provides a powerful builder system built on top of RSLib that simplifies the
- * process of building Node.js libraries. It offers:
+ * process of building modern ESM Node.js libraries. It offers:
  *
  * - **Automatic Entry Detection**: Auto-detects entry points from package.json exports
  * - **Multi-Target Builds**: Support for dev and npm build targets
- * - **Bundle Modes**: Both bundled (single-file) and bundleless (per-file) compilation
+ * - **Bundled ESM Output**: Optimized single-file outputs with rolled-up types
  * - **Package.json Transformation**: Automatic path updates, PNPM catalog resolution
  * - **TypeScript Declaration Bundling**: Using tsgo and API Extractor
  * - **File Array Generation**: Automatic files array creation for package.json
@@ -19,9 +19,7 @@
  * ```typescript
  * import { NodeLibraryBuilder } from '@savvy-web/rslib-builder';
  *
- * export default NodeLibraryBuilder.create({
- *   bundle: true,
- * });
+ * export default NodeLibraryBuilder.create({});
  * ```
  *
  * @example
@@ -30,7 +28,6 @@
  * import { NodeLibraryBuilder } from '@savvy-web/rslib-builder';
  *
  * export default NodeLibraryBuilder.create({
- *   bundle: true,
  *   externals: ['@rslib/core'],
  *   transform({ pkg }) {
  *     delete pkg.devDependencies;
@@ -47,8 +44,6 @@ export type * from "./rslib/builders/node-library-builder.js";
 export * from "./rslib/builders/node-library-builder.js";
 export type * from "./rslib/plugins/auto-entry-plugin.js";
 export * from "./rslib/plugins/auto-entry-plugin.js";
-export type * from "./rslib/plugins/bundleless-plugin.js";
-export * from "./rslib/plugins/bundleless-plugin.js";
 export type * from "./rslib/plugins/dts-plugin.js";
 export * from "./rslib/plugins/dts-plugin.js";
 export type * from "./rslib/plugins/files-array-plugin.js";

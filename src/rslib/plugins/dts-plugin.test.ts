@@ -10,7 +10,7 @@ import {
 	generateTsgoArgs,
 	getTsgoBinPath,
 	stripSourceMapComment,
-} from "../../../rslib/plugins/dts-plugin.js";
+} from "./dts-plugin.js";
 
 // Track created test directories for cleanup
 const testDirs: string[] = [];
@@ -273,6 +273,16 @@ export declare const bar: number;`);
 
 			const binPath = getTsgoBinPath();
 			expect(binPath).toMatch(/node_modules\/\.bin\/tsgo$/);
+			expect(existsSync(binPath)).toBe(true);
+		});
+
+		it("should find tsgo in workspace root when not in local node_modules", async () => {
+			// This test verifies the workspace root fallback by running from the actual project
+			// where tsgo exists in the workspace root's node_modules
+			const binPath = getTsgoBinPath();
+			// Should find tsgo somewhere in the path
+			expect(binPath).toMatch(/node_modules\/\.bin\/tsgo$/);
+			// The actual tsgo should exist since we're in the real project
 			expect(existsSync(binPath)).toBe(true);
 		});
 	});

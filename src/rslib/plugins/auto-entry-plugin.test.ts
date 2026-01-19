@@ -1,7 +1,7 @@
 import { access, readFile, stat } from "node:fs/promises";
 import type { PackageJson } from "type-fest";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { createMockStats } from "../types/test-types.js";
+import { createMockStats } from "../../__test__/rslib/types/test-types.js";
 
 // Mock node:fs/promises
 vi.mock("node:fs/promises", () => ({
@@ -27,7 +27,7 @@ const mockAccess: ReturnType<typeof vi.mocked<typeof access>> = vi.mocked(access
 const mockStat: ReturnType<typeof vi.mocked<typeof stat>> = vi.mocked(stat);
 
 // Static import after mocks are set up
-import { AutoEntryPlugin } from "../../../rslib/plugins/auto-entry-plugin.js";
+import { AutoEntryPlugin } from "./auto-entry-plugin.js";
 
 describe("AutoEntryPlugin", () => {
 	beforeEach(() => {

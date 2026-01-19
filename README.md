@@ -5,19 +5,35 @@ transformation, TypeScript declaration bundling, and multi-target support.
 
 ## Features
 
-- **🎯 Multiple Build Targets** - dev, npm, and jsr with different optimizations
-- **📦 Bundle Modes** - Bundled (single file) or bundleless (per-file) compilation
-- **🔄 Auto Package.json Transform** - Export paths, PNPM catalog
-  resolution, files array
-- **📘 TypeScript Declaration Bundling** - Fast generation with tsgo and API Extractor
-- **🗺️ Source Map Handling** - Generates for debugging but excludes from npm publishing
-- **🔌 Plugin System** - Extensible with custom RSlib/Rsbuild plugins
-- **⚡ Self-Building** - Uses its own builder to build itself
+- **Multiple Build Targets** - dev and npm with different optimizations
+- **Bundled ESM Output** - Single-file outputs with rolled-up types
+- **Auto Package.json Transform** - Export paths, PNPM catalog resolution,
+  files array generation
+- **TypeScript Declaration Bundling** - Fast generation with tsgo and
+  API Extractor
+- **Source Map Handling** - Generates for debugging but excludes from
+  npm publishing
+- **Plugin System** - Extensible with custom RSlib/Rsbuild plugins
+- **API Model Generation** - Optional api.model.json for documentation tooling
+
+## Prerequisites
+
+- Node.js 24.x or later
+- pnpm 10.x or later
+- TypeScript 5.9.x or later
 
 ## Installation
 
 ```bash
-pnpm add -D @savvy-web/rslib-builder @rslib/core
+pnpm add -D @savvy-web/rslib-builder
+```
+
+### Peer Dependencies
+
+Install the required peer dependencies:
+
+```bash
+pnpm add -D @rslib/core @microsoft/api-extractor @typescript/native-preview
 ```
 
 ## Quick Start
@@ -28,7 +44,6 @@ Create an `rslib.config.ts` in your project root:
 import { NodeLibraryBuilder } from '@savvy-web/rslib-builder';
 
 export default NodeLibraryBuilder.create({
-  bundle: true,
   externals: ['@rslib/core'],
   transform({ pkg, target }) {
     if (target === 'npm') {
@@ -56,9 +71,6 @@ Add scripts to your `package.json`:
 
 ```typescript
 interface BuilderOptions {
-  // Bundle mode: true = single file, false = per-file compilation
-  bundle?: boolean;
-
   // Path to tsconfig.json for compilation
   tsconfigPath?: string;
 
@@ -74,8 +86,8 @@ interface BuilderOptions {
   // Export entries as index files (e.g., ./foo/index.js instead of ./foo.js)
   exportsAsIndexes?: boolean;
 
-  // Generate API reports with Microsoft API Extractor
-  apiReports?: boolean;
+  // Generate API model file for documentation tooling
+  apiModel?: ApiModelOptions | boolean;
 
   // Copy static files to dist
   copyPatterns?: CopyPattern[];
@@ -84,38 +96,17 @@ interface BuilderOptions {
 
 ### Build Targets
 
-Three build targets available via `--env-mode`:
+Two build targets available via `--env-mode`:
 
 - **dev** - Unminified with source maps for local development
 - **npm** - Optimized for npm publishing (Node.js runtime)
-- **jsr** - Optimized for JSR publishing (Deno/TypeScript-first)
 
 ```bash
 rslib build --env-mode dev
 rslib build --env-mode npm
-rslib build --env-mode jsr
 ```
 
 ## Advanced Usage
-
-### Bundled vs Bundleless
-
-**Bundled mode** - Single-file outputs:
-
-```typescript
-NodeLibraryBuilder.create({
-  bundle: true,
-  externals: ['@rslib/core'],
-});
-```
-
-**Bundleless mode** - Per-file compilation:
-
-```typescript
-NodeLibraryBuilder.create({
-  bundle: false,
-});
-```
 
 ### TypeScript Declaration Bundling
 
@@ -123,7 +114,6 @@ Inline type definitions from dependencies:
 
 ```typescript
 NodeLibraryBuilder.create({
-  bundle: true,
   dtsBundledPackages: [
     'picocolors',      // Exact package name
     '@pnpm/**',        // Minimatch pattern
@@ -143,11 +133,6 @@ NodeLibraryBuilder.create({
     if (target === 'npm') {
       delete pkg.devDependencies;
       delete pkg.scripts;
-    }
-
-    // Add JSR-specific config
-    if (target === 'jsr') {
-      pkg.type = 'module';
     }
 
     return pkg;
@@ -175,12 +160,9 @@ NodeLibraryBuilder.create({
 The builder includes several built-in plugins:
 
 1. **AutoEntryPlugin** - Auto-extracts entry points from package.json exports
-2. **BundlelessPlugin** - Enables per-file compilation mode
-3. **PackageJsonTransformPlugin** - Transforms package.json for targets
-4. **DtsPlugin** - Generates TypeScript declarations with tsgo/API Extractor
-5. **FilesArrayPlugin** - Generates files array, excludes source maps
-6. **JSRBundlelessPlugin** - Special handling for JSR builds
-7. **APIReportPlugin** - Generates API documentation reports
+2. **PackageJsonTransformPlugin** - Transforms package.json for targets
+3. **DtsPlugin** - Generates TypeScript declarations with tsgo/API Extractor
+4. **FilesArrayPlugin** - Generates files array, excludes source maps
 
 ## TypeScript Config Templates
 
@@ -198,11 +180,8 @@ The package exports TypeScript config templates for different use cases:
 
 Available templates:
 
-- `tsconfig/root.json` - Base configuration
-- `tsconfig/node/ecma/lib.json` - Node.js library (bundleless)
-- `tsconfig/node/ecma/bundle.json` - Node.js library (bundled)
-- `tsconfig/node/ecma/bundleless.json` - Node.js library (explicit bundleless)
-- `tsconfig/node/ecma/lib-compat.json` - Node.js with broader compatibility
+- `tsconfig/root.json` - Base workspace configuration
+- `tsconfig/node/ecma/lib.json` - Node.js ESM library configuration
 
 ## Development
 
@@ -225,31 +204,15 @@ pnpm lint
 
 ## How It Works
 
-### Source Map Handling
+The builder automatically handles common build concerns:
 
-Source maps are generated during build but **NOT published to npm**:
-
-- `.d.ts.map` files are generated but excluded from files array
-- `.js.map` files are generated but excluded from files array
-- Reduces package size and protects internal implementation details
-
-### Plugin Execution Order
-
-1. AutoEntryPlugin - Extracts entries from package.json
-2. BundlelessPlugin - Configures per-file compilation (if enabled)
-3. DtsPlugin - Generates TypeScript declarations (`pre-process` stage)
-4. PackageJsonTransformPlugin - Transforms package.json
-5. FilesArrayPlugin - Generates files array (`additional` stage)
-6. User plugins - Custom plugins (if provided)
-
-### Automatic Package.json Transformation
-
-The builder automatically:
-
-1. Resolves PNPM `catalog:` protocol to actual versions
-2. Updates export paths from source (`./src/...`) to built (`./...`)
-3. Ensures bin files have proper shebang and permissions
-4. Generates files array with all published assets (excluding `.map` files)
+- **Entry Detection** - Extracts entry points from package.json exports
+- **Package.json Transformation** - Resolves PNPM `catalog:` protocol,
+  updates export paths from source to built, generates files array
+- **Source Maps** - Generates .map files for debugging but excludes them
+  from npm publishing to reduce package size
+- **Declaration Bundling** - Uses tsgo for fast generation and API Extractor
+  for bundling
 
 ## Examples
 
@@ -258,15 +221,17 @@ builder building itself.
 
 ## License
 
-MIT
+[MIT](./LICENSE)
 
 ## Contributing
 
-Contributions welcome! Please read the [CLAUDE.md](./CLAUDE.md) for
-development guidelines.
+Contributions welcome! See [CONTRIBUTING.md](./CONTRIBUTING.md) for setup
+and guidelines.
 
 ## Links
 
 - [RSlib Documentation](https://rslib.dev/)
 - [Rsbuild Plugin API](https://rsbuild.dev/plugins/dev/core)
+- [API Extractor](https://api-extractor.com/)
 - [PNPM Workspace](https://pnpm.io/workspaces)
+- [PNPM Catalogs](https://pnpm.io/catalogs)

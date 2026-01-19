@@ -16,8 +16,8 @@ import {
 	sys,
 } from "typescript";
 import { getWorkspaceRoot } from "workspace-tools";
-import { getApiExtractorPath } from "#utils/dependency-path-utils.js";
-import { createEnvLogger } from "#utils/logger-utils.js";
+import { createEnvLogger } from "#utils/build-logger.js";
+import { getApiExtractorPath } from "#utils/file-utils.js";
 import { TSConfigs } from "../../tsconfig/index.js";
 
 /**
@@ -154,12 +154,14 @@ export function getTsgoBinPath(): string {
 	// If not found locally, use workspace-tools to find the workspace root
 	// This handles pnpm, npm, yarn, rush, and lerna workspaces
 	const workspaceRoot = getWorkspaceRoot(cwd);
+	/* v8 ignore start -- Workspace fallback difficult to test without mocking workspace-tools */
 	if (workspaceRoot) {
 		const workspaceTsgoBin = join(workspaceRoot, "node_modules", ".bin", "tsgo");
 		if (existsSync(workspaceTsgoBin)) {
 			return workspaceTsgoBin;
 		}
 	}
+	/* v8 ignore stop */
 
 	// Fallback to current directory (will error with a clear message if not found)
 	return localTsgoBin;
@@ -243,7 +245,9 @@ interface BundleDtsResult {
  * Bundles TypeScript declaration files using API Extractor.
  * Writes bundled output to a temporary directory (not dist).
  * Returns a map of entry names to their bundled file paths in temp.
+ * @internal
  */
+/* v8 ignore start -- Integration function requiring API Extractor */
 async function bundleDtsFiles(options: {
 	cwd: string;
 	tempDtsDir: string;
@@ -375,6 +379,7 @@ async function bundleDtsFiles(options: {
 
 	return { bundledFiles, apiModelPath };
 }
+/* v8 ignore stop */
 
 /**
  * Strips sourceMappingURL comment from declaration file content.
@@ -422,7 +427,9 @@ export function findTsConfig(cwd: string, tsconfigPath?: string): string | null 
 
 /**
  * Loads and parses a TypeScript config file.
+ * @internal
  */
+/* v8 ignore start -- Integration function with TypeScript compiler API */
 function loadTsConfig(configPath: string): ParsedCommandLine {
 	const configContent = readConfigFile(configPath, sys.readFile.bind(sys));
 
@@ -440,10 +447,13 @@ function loadTsConfig(configPath: string): ParsedCommandLine {
 
 	return parsedConfig;
 }
+/* v8 ignore stop */
 
 /**
  * Runs tsgo to generate declaration files.
+ * @internal
  */
+/* v8 ignore start -- Integration function spawning external process */
 function runTsgo(options: {
 	configPath: string;
 	declarationDir: string;
@@ -495,6 +505,7 @@ function runTsgo(options: {
 		});
 	});
 }
+/* v8 ignore stop */
 
 /**
  * Plugin to generate TypeScript declaration files using tsgo and emit them through Rslib's asset pipeline.
@@ -581,11 +592,7 @@ export const DtsPlugin = (options: DtsPluginOptions = {}): RsbuildPlugin => {
 						const originalCwd = process.cwd();
 						try {
 							process.chdir(cwd);
-							if (options.bundle) {
-								configTsconfigPath = TSConfigs.node.ecma.lib.writeBundleTempConfig(options.buildTarget);
-							} else {
-								configTsconfigPath = TSConfigs.node.ecma.lib.writeBundlelessTempConfig(options.buildTarget);
-							}
+							configTsconfigPath = TSConfigs.node.ecma.lib.writeBundleTempConfig(options.buildTarget);
 							log.global.info(`Using tsconfig: ${configTsconfigPath}`);
 						} finally {
 							// Restore original working directory

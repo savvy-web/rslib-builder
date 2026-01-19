@@ -5,8 +5,17 @@ import type { ProjectManifest } from "@pnpm/types";
 import type { PackageJson } from "type-fest";
 import { getWorkspaceRoot } from "workspace-tools";
 import { parse } from "yaml";
-import { createEnvLogger } from "#utils/logger-utils.js";
-import type { PnpmWorkspace } from "#utils/package-json-types-utils.js";
+import { createEnvLogger } from "#utils/build-logger.js";
+
+/**
+ * Configuration structure for pnpm workspace files (pnpm-workspace.yaml).
+ */
+interface PnpmWorkspace {
+	packages?: string[];
+	catalog?: Record<string, string>;
+	onlyBuiltDependencies?: string[];
+	publicHoistPattern?: string[];
+}
 
 const CATALOG_PREFIX = "catalog:";
 const WORKSPACE_PREFIX = "workspace:";
@@ -275,11 +284,16 @@ export class PnpmCatalog {
 	}
 }
 
-// Export singleton instance for backward compatibility
+// Singleton instance for use by applyPnpmTransformations
 let defaultInstance: PnpmCatalog | null = null;
 
 /**
- * Gets the default PnpmCatalog instance.
+ * Gets the default PnpmCatalog singleton instance.
+ *
+ * @remarks
+ * Used internally by applyPnpmTransformations to maintain a single
+ * cached instance across builds.
+ *
  * @internal
  */
 export function getDefaultPnpmCatalog(): PnpmCatalog {
@@ -287,22 +301,4 @@ export function getDefaultPnpmCatalog(): PnpmCatalog {
 		defaultInstance = new PnpmCatalog();
 	}
 	return defaultInstance;
-}
-
-/**
- * Clears the catalog cache (for backward compatibility).
- * @public
- */
-export function clearCatalogCache(): void {
-	if (defaultInstance) {
-		defaultInstance.clearCache();
-	}
-}
-
-/**
- * Gets the catalog (for backward compatibility).
- * @public
- */
-export async function getCatalog(): Promise<Record<string, string>> {
-	return getDefaultPnpmCatalog().getCatalog();
 }

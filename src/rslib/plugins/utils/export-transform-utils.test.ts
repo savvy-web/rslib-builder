@@ -1,13 +1,95 @@
 import { describe, expect, it } from "vitest";
-import {
-	isConditionsObject,
-	transformArrayExports,
-	transformExportEntry,
-	transformObjectExports,
-	transformPackageExports,
-	transformStringExport,
-} from "#utils/export-transform-utils.js";
-import type { FlexibleExports } from "#utils/package-json-types-utils.js";
+import type { FlexibleExports } from "#utils/package-json-transformer.js";
+import { isConditionsObject, transformPackageExports } from "#utils/package-json-transformer.js";
+
+// Helper functions for backwards compatibility with the test structure
+// These are now internal to package-json-transformer.ts but we test through the public API
+function transformStringExport(
+	exportString: string,
+	processTSExports: boolean,
+	exportKey?: string,
+	entrypoints?: Map<string, string>,
+	exportToOutputMap?: Map<string, string>,
+	collapseIndex: boolean = false,
+): FlexibleExports {
+	return transformPackageExports(
+		exportString,
+		processTSExports,
+		exportKey,
+		entrypoints,
+		exportToOutputMap,
+		collapseIndex,
+	);
+}
+
+function transformArrayExports(
+	exports: FlexibleExports[],
+	processTSExports: boolean,
+	exportKey?: string,
+	entrypoints?: Map<string, string>,
+	exportToOutputMap?: Map<string, string>,
+	collapseIndex: boolean = false,
+): FlexibleExports[] {
+	return transformPackageExports(
+		exports,
+		processTSExports,
+		exportKey,
+		entrypoints,
+		exportToOutputMap,
+		collapseIndex,
+	) as FlexibleExports[];
+}
+
+function transformObjectExports(
+	exports: Record<string, unknown>,
+	processTSExports: boolean,
+	exportKey?: string,
+	entrypoints?: Map<string, string>,
+	exportToOutputMap?: Map<string, string>,
+	collapseIndex: boolean = false,
+): Record<string, unknown> {
+	return transformPackageExports(
+		exports as FlexibleExports,
+		processTSExports,
+		exportKey,
+		entrypoints,
+		exportToOutputMap,
+		collapseIndex,
+	) as Record<string, unknown>;
+}
+
+function transformExportEntry(
+	key: string,
+	value: unknown,
+	isConditions: boolean,
+	processTSExports: boolean,
+	exportKey?: string,
+	entrypoints?: Map<string, string>,
+	exportToOutputMap?: Map<string, string>,
+	collapseIndex: boolean = false,
+): unknown {
+	// For testing purposes, we wrap the value in an object and extract the result
+	if (isConditions) {
+		const obj = { [key]: value };
+		const result = transformPackageExports(
+			obj as FlexibleExports,
+			processTSExports,
+			exportKey,
+			entrypoints,
+			exportToOutputMap,
+			collapseIndex,
+		) as Record<string, unknown>;
+		return result[key];
+	}
+	return transformPackageExports(
+		value as FlexibleExports,
+		processTSExports,
+		key,
+		entrypoints,
+		exportToOutputMap,
+		collapseIndex,
+	);
+}
 
 describe("export-transform-utils", () => {
 	describe("isConditionsObject", () => {
@@ -514,9 +596,9 @@ describe("export-transform-utils", () => {
 		});
 	});
 
-	describe("bundled vs bundleless mode (collapseIndex parameter)", () => {
+	describe("collapseIndex parameter behavior", () => {
 		describe("transformStringExport with collapseIndex", () => {
-			it("should collapse /index.ts to flat file in bundled mode", () => {
+			it("should collapse /index.ts to flat file when collapseIndex is true", () => {
 				const result = transformStringExport("./src/rslib/index.ts", true, undefined, undefined, undefined, true);
 				expect(result).toEqual({
 					types: "./rslib.d.ts",
@@ -524,7 +606,7 @@ describe("export-transform-utils", () => {
 				});
 			});
 
-			it("should preserve /index.ts structure in bundleless mode", () => {
+			it("should preserve /index.ts structure when collapseIndex is false", () => {
 				const result = transformStringExport("./src/rslib/index.ts", true, undefined, undefined, undefined, false);
 				expect(result).toEqual({
 					types: "./rslib/index.d.ts",
@@ -532,7 +614,7 @@ describe("export-transform-utils", () => {
 				});
 			});
 
-			it("should default to bundleless mode when collapseIndex not specified", () => {
+			it("should default to collapseIndex false when not specified", () => {
 				const result = transformStringExport("./src/rslib/index.ts", true);
 				expect(result).toEqual({
 					types: "./rslib/index.d.ts",
@@ -560,7 +642,7 @@ describe("export-transform-utils", () => {
 		});
 
 		describe("transformPackageExports with collapseIndex", () => {
-			it("should handle simple string export in bundled mode", () => {
+			it("should handle simple string export when collapseIndex is true", () => {
 				const exports: FlexibleExports = "./src/rslib/index.ts";
 				const result = transformPackageExports(exports, true, undefined, undefined, undefined, true);
 				expect(result).toEqual({
@@ -569,7 +651,7 @@ describe("export-transform-utils", () => {
 				});
 			});
 
-			it("should handle simple string export in bundleless mode", () => {
+			it("should handle simple string export when collapseIndex is false", () => {
 				const exports: FlexibleExports = "./src/rslib/index.ts";
 				const result = transformPackageExports(exports, true, undefined, undefined, undefined, false);
 				expect(result).toEqual({
@@ -578,7 +660,7 @@ describe("export-transform-utils", () => {
 				});
 			});
 
-			it("should handle object exports in bundled mode", () => {
+			it("should handle object exports when collapseIndex is true", () => {
 				const exports: FlexibleExports = {
 					"./rslib": "./src/rslib/index.ts",
 					"./commitlint": "./src/commitlint.ts",
@@ -601,7 +683,7 @@ describe("export-transform-utils", () => {
 				});
 			});
 
-			it("should handle object exports in bundleless mode", () => {
+			it("should handle object exports when collapseIndex is false", () => {
 				const exports: FlexibleExports = {
 					"./rslib": "./src/rslib/index.ts",
 					"./commitlint": "./src/commitlint.ts",
@@ -624,7 +706,7 @@ describe("export-transform-utils", () => {
 				});
 			});
 
-			it("should handle nested export conditions in bundled mode", () => {
+			it("should handle nested export conditions when collapseIndex is true", () => {
 				const exports: FlexibleExports = {
 					".": {
 						types: "./src/index.d.ts",
@@ -640,7 +722,7 @@ describe("export-transform-utils", () => {
 				});
 			});
 
-			it("should handle nested export conditions in bundleless mode", () => {
+			it("should handle nested export conditions when collapseIndex is false", () => {
 				const exports: FlexibleExports = {
 					".": {
 						types: "./src/index.d.ts",

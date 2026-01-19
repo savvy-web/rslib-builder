@@ -1,7 +1,7 @@
 import type { RsbuildPlugin, RsbuildPluginAPI } from "@rsbuild/core";
 import type { PackageJson } from "type-fest";
-import { JsonAsset, TextAsset } from "#utils/json-asset-utils.js";
-import { createEnvLogger } from "#utils/logger-utils.js";
+import { JsonAsset, TextAsset } from "#utils/asset-utils.js";
+import { createEnvLogger } from "#utils/build-logger.js";
 
 /**
  * @public

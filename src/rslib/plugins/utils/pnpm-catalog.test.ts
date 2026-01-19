@@ -1,6 +1,6 @@
 import type { PackageJson } from "type-fest";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { createMockStats } from "./test-types.js";
+import { createMockStats } from "../../../__test__/rslib/utils/test-types.js";
 
 // Mock external dependencies before importing the module
 vi.mock("workspace-tools");
