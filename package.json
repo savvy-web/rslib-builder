@@ -119,7 +119,7 @@
 			{
 				"protocol": "npm",
 				"registry": "https://npm.pkg.github.com/",
-				"directory": "dist/github",
+				"directory": "dist/npm",
 				"access": "public",
 				"provenance": true
 			},
