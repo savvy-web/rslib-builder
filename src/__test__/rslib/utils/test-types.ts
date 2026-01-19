@@ -5,15 +5,15 @@ import { vi } from "vitest";
 /**
  * Mock types for test utilities to avoid `as any` usage
  */
-export const createMockStats = (mtime: Date, isFile = false): Stats => ({
+export const createMockStats = (mtime: Date, isFile: boolean = false): Stats => ({
 	mtime,
-	isFile: () => isFile,
-	isDirectory: () => false,
-	isBlockDevice: () => false,
-	isCharacterDevice: () => false,
-	isSymbolicLink: () => false,
-	isFIFO: () => false,
-	isSocket: () => false,
+	isFile: (): boolean => isFile,
+	isDirectory: (): boolean => false,
+	isBlockDevice: (): boolean => false,
+	isCharacterDevice: (): boolean => false,
+	isSymbolicLink: (): boolean => false,
+	isFIFO: (): boolean => false,
+	isSocket: (): boolean => false,
 	dev: 1,
 	ino: 1,
 	mode: 1,

@@ -15,8 +15,8 @@ import { JsonAsset, TextAsset } from "#utils/json-asset-utils.js";
 // Static imports after mocks are set up
 import { FilesArrayPlugin } from "../../../rslib/plugins/files-array-plugin.js";
 
-const mockJsonAssetCreate = vi.mocked(JsonAsset.create);
-const mockTextAssetCreate = vi.mocked(TextAsset.create);
+const mockJsonAssetCreate: ReturnType<typeof vi.mocked<typeof JsonAsset.create>> = vi.mocked(JsonAsset.create);
+const mockTextAssetCreate: ReturnType<typeof vi.mocked<typeof TextAsset.create>> = vi.mocked(TextAsset.create);
 
 describe("FilesArrayPlugin", () => {
 	it("should create plugin with correct name", () => {

@@ -22,6 +22,9 @@ function createTestDir(): string {
 }
 
 describe("dts-plugin utilities", () => {
+	// Build sourceMappingURL dynamically to prevent Vite from trying to load non-existent .map files
+	const SOURCE_MAP_PREFIX = "//# source" + "MappingURL=";
+
 	afterEach(async () => {
 		// Clean up all test directories
 		await Promise.all(testDirs.map((dir) => rm(dir, { recursive: true, force: true })));
@@ -30,16 +33,16 @@ describe("dts-plugin utilities", () => {
 
 	describe("stripSourceMapComment", () => {
 		it("should strip sourceMappingURL comment from single line", () => {
-			const content = "export declare const foo: string;\n//# sourceMappingURL=index.d.ts.map";
+			const content = `export declare const foo: string;\n${SOURCE_MAP_PREFIX}index.d.ts.map`;
 			const result = stripSourceMapComment(content);
 			expect(result).toBe("export declare const foo: string;");
 		});
 
 		it("should strip sourceMappingURL comment from multiple lines", () => {
 			const content = `export declare const foo: string;
-//# sourceMappingURL=foo.d.ts.map
+${SOURCE_MAP_PREFIX}foo.d.ts.map
 export declare const bar: number;
-//# sourceMappingURL=bar.d.ts.map`;
+${SOURCE_MAP_PREFIX}bar.d.ts.map`;
 			const result = stripSourceMapComment(content);
 			expect(result).toBe(`export declare const foo: string;\n\nexport declare const bar: number;`);
 		});
@@ -56,7 +59,7 @@ export declare const bar: number;
 		});
 
 		it("should handle only sourceMappingURL comment", () => {
-			const content = "//# sourceMappingURL=index.d.ts.map";
+			const content = `${SOURCE_MAP_PREFIX}index.d.ts.map`;
 			const result = stripSourceMapComment(content);
 			expect(result).toBe("");
 		});
@@ -66,7 +69,7 @@ export declare const bar: number;
 export declare const foo: string;
 /** TSDoc comment */
 export declare const bar: number;
-//# sourceMappingURL=index.d.ts.map`;
+${SOURCE_MAP_PREFIX}index.d.ts.map`;
 			const result = stripSourceMapComment(content);
 			expect(result).toBe(`// This is a regular comment
 export declare const foo: string;

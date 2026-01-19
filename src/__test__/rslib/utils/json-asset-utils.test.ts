@@ -14,8 +14,8 @@ vi.mock("node:path", () => ({
 	join: vi.fn(),
 }));
 
-const mockReadFile = vi.mocked(readFile);
-const mockJoin = vi.mocked(join);
+const mockReadFile: ReturnType<typeof vi.mocked<typeof readFile>> = vi.mocked(readFile);
+const mockJoin: ReturnType<typeof vi.mocked<typeof join>> = vi.mocked(join);
 
 // Static import after mocks are set up
 import { JsonAsset, TextAsset } from "#utils/json-asset-utils.js";

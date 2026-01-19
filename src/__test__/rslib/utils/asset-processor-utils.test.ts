@@ -10,9 +10,9 @@ import { readFile, stat } from "node:fs/promises";
 import { createAssetProcessor } from "#utils/asset-processor-utils.js";
 import { fileExistAsync } from "#utils/file-utils.js";
 
-const mockReadFile = vi.mocked(readFile);
-const mockStat = vi.mocked(stat);
-const mockFileExistAsync = vi.mocked(fileExistAsync);
+const mockReadFile: ReturnType<typeof vi.mocked<typeof readFile>> = vi.mocked(readFile);
+const mockStat: ReturnType<typeof vi.mocked<typeof stat>> = vi.mocked(stat);
+const mockFileExistAsync: ReturnType<typeof vi.mocked<typeof fileExistAsync>> = vi.mocked(fileExistAsync);
 
 describe("asset-processor-utils", () => {
 	beforeEach(() => {

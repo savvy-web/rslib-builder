@@ -11,10 +11,18 @@ export default defineConfig({
 		environment: "node",
 		include: ["src/__test__/**/*.test.ts"],
 		coverage: {
+			enabled: true,
 			provider: "v8",
 			reporter: ["text", "text-summary", "html", "lcov"],
 			include: ["src/rslib/**/*.ts"],
 			exclude: ["**/*.test.ts", "**/__test__/**", "**/types/**", "**/*.d.ts"],
+			thresholds: {
+				perFile: true,
+				statements: 85,
+				branches: 85,
+				functions: 85,
+				lines: 85,
+			},
 		},
 	},
 	resolve: {

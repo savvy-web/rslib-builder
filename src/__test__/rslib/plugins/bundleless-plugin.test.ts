@@ -1,10 +1,23 @@
+import type { Mock } from "vitest";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { BundlelessPlugin } from "../../../rslib/plugins/bundleless-plugin.js";
 import type { MockAsset, MockAssetRegistry } from "../types/test-types.js";
 
+interface MockBundlelessApi {
+	onBeforeBuild: Mock;
+	processAssets: Mock;
+	logger: {
+		debug: Mock;
+	};
+	context: {
+		rootPath: string;
+	};
+	getRsbuildConfig: Mock;
+}
+
 describe("BundlelessPlugin", () => {
 	// Helper function to create a mock API with configurable distPath
-	const createMockApi = (distPath = "dist/npm") => ({
+	const createMockApi = (distPath: string = "dist/npm"): MockBundlelessApi => ({
 		onBeforeBuild: vi.fn(),
 		processAssets: vi.fn(),
 		logger: {

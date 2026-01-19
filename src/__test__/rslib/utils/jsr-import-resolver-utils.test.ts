@@ -15,8 +15,8 @@ vi.mock("node:path", () => ({
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 
-const mockAccess = vi.mocked(fs.access);
-const mockResolve = vi.mocked(path.resolve);
+const mockAccess: ReturnType<typeof vi.mocked<typeof fs.access>> = vi.mocked(fs.access);
+const mockResolve: ReturnType<typeof vi.mocked<typeof path.resolve>> = vi.mocked(path.resolve);
 
 describe("jsr-import-resolver-utils", () => {
 	beforeEach(() => {

@@ -19,13 +19,30 @@ import { JsonAsset, TextAsset } from "#utils/json-asset-utils.js";
 import { buildPackageJson } from "#utils/package-json-builder-utils.js";
 import { PackageJsonTransformPlugin } from "../../../rslib/plugins/package-json-transform-plugin.js";
 
-const _mockFileExistAsync = vi.mocked(fileExistAsync);
-const mockBuildPackageJson = vi.mocked(buildPackageJson);
-const mockJsonAssetCreate = vi.mocked(JsonAsset.create);
-const mockTextAssetCreate = vi.mocked(TextAsset.create);
+const _mockFileExistAsync: ReturnType<typeof vi.mocked<typeof fileExistAsync>> = vi.mocked(fileExistAsync);
+const mockBuildPackageJson: ReturnType<typeof vi.mocked<typeof buildPackageJson>> = vi.mocked(buildPackageJson);
+const mockJsonAssetCreate: ReturnType<typeof vi.mocked<typeof JsonAsset.create>> = vi.mocked(JsonAsset.create);
+const mockTextAssetCreate: ReturnType<typeof vi.mocked<typeof TextAsset.create>> = vi.mocked(TextAsset.create);
+
+interface MockContext {
+	assets: MockAssetRegistry;
+	sources: {
+		RawSource: ReturnType<typeof vi.fn>;
+	};
+	compilation: {
+		emitAsset: ReturnType<typeof vi.fn>;
+		updateAsset: ReturnType<typeof vi.fn>;
+		name: string | undefined;
+	};
+	_mocks: {
+		RawSource: ReturnType<typeof vi.fn>;
+		emitAsset: ReturnType<typeof vi.fn>;
+		updateAsset: ReturnType<typeof vi.fn>;
+	};
+}
 
 // Helper to create proper webpack-style context mock
-function createMockContext(assets: MockAssetRegistry = {}) {
+function createMockContext(assets: MockAssetRegistry = {}): MockContext {
 	const mockRawSource = vi.fn().mockImplementation((content: string) => ({
 		source: () => content,
 	}));

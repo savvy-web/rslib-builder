@@ -106,11 +106,13 @@ rslib build --env-mode jsr
 ### Bundle vs Bundleless
 
 **Bundled mode** (`bundle: true`):
+
 - Single-file outputs per export
 - Faster runtime loading
 - Better for CLI tools
 
 **Bundleless mode** (`bundle: false`):
+
 - Preserves source file structure
 - Better tree-shaking
 - Better for config packages

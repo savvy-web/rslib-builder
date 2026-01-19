@@ -10,8 +10,10 @@ vi.mock("#utils/rslib-transform-utils.js");
 import { applyPnpmTransformations } from "#utils/pnpm-transform-utils.js";
 import { applyRslibTransformations } from "#utils/rslib-transform-utils.js";
 
-const mockApplyPnpmTransformations = vi.mocked(applyPnpmTransformations);
-const mockApplyRslibTransformations = vi.mocked(applyRslibTransformations);
+const mockApplyPnpmTransformations: ReturnType<typeof vi.mocked<typeof applyPnpmTransformations>> =
+	vi.mocked(applyPnpmTransformations);
+const mockApplyRslibTransformations: ReturnType<typeof vi.mocked<typeof applyRslibTransformations>> =
+	vi.mocked(applyRslibTransformations);
 
 describe("package-json-builder-utils", () => {
 	describe("buildPackageJson", () => {

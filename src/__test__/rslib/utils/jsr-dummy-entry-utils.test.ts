@@ -19,11 +19,11 @@ vi.mock("node:path", () => ({
 	join: vi.fn(),
 }));
 
-const mockExistsSync = vi.mocked(existsSync);
-const mockMkdirSync = vi.mocked(mkdirSync);
-const mockWriteFileSync = vi.mocked(writeFileSync);
-const mockTmpdir = vi.mocked(tmpdir);
-const mockJoin = vi.mocked(join);
+const mockExistsSync: ReturnType<typeof vi.mocked<typeof existsSync>> = vi.mocked(existsSync);
+const mockMkdirSync: ReturnType<typeof vi.mocked<typeof mkdirSync>> = vi.mocked(mkdirSync);
+const mockWriteFileSync: ReturnType<typeof vi.mocked<typeof writeFileSync>> = vi.mocked(writeFileSync);
+const mockTmpdir: ReturnType<typeof vi.mocked<typeof tmpdir>> = vi.mocked(tmpdir);
+const mockJoin: ReturnType<typeof vi.mocked<typeof join>> = vi.mocked(join);
 
 describe("jsr-dummy-entry-utils", () => {
 	beforeEach(() => {

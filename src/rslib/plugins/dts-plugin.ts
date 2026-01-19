@@ -294,7 +294,7 @@ async function bundleDtsFiles(options: {
 
 /**
  * Strips sourceMappingURL comment from declaration file content.
- * This removes comments like: //# sourceMappingURL=index.d.ts.map
+ * This removes comments like: `//# source` + `MappingURL=index.d.ts.map`
  *
  * @remarks
  * Source maps are preserved in the temp directory for API Extractor documentation
