@@ -8,6 +8,11 @@
 		"type": "git",
 		"url": "https://github.com/savvy-web/rslib-builder.git"
 	},
+	"author": {
+		"name": "C. Spencer Beggs",
+		"email": "spencer@savvyweb.systems",
+		"url": "https://savvyweb.systems"
+	},
 	"license": "MIT",
 	"type": "module",
 	"imports": {
@@ -74,6 +79,9 @@
 			"optional": false
 		},
 		"@typescript/native-preview": {
+			"optional": false
+		},
+		"typescript": {
 			"optional": false
 		}
 	},

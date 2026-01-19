@@ -31,7 +31,6 @@ describe("NodeLibraryBuilder", () => {
 				externals: [],
 				dtsBundledPackages: undefined,
 				transformFiles: undefined,
-				apiReports: false,
 			});
 		});
 	});
@@ -137,16 +136,6 @@ describe("NodeLibraryBuilder", () => {
 			});
 
 			expect(result.targets).toEqual(["npm"]);
-		});
-
-		it("should allow setting apiReports to true", () => {
-			vi.mocked(existsSync).mockReturnValue(false);
-
-			const result = NodeLibraryBuilder.mergeOptions({
-				apiReports: true,
-			});
-
-			expect(result.apiReports).toBe(true);
 		});
 	});
 });

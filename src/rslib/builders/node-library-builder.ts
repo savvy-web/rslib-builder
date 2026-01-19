@@ -6,9 +6,9 @@ import { defineConfig } from "@rslib/core";
 import type { RawCopyPattern } from "@rspack/binding";
 import type { PackageJson } from "type-fest";
 import { packageJsonVersion } from "#utils/file-utils.js";
-import { ApiReportPlugin } from "../plugins/api-report-plugin.js";
 import { AutoEntryPlugin } from "../plugins/auto-entry-plugin.js";
 import { BundlelessPlugin } from "../plugins/bundleless-plugin.js";
+import type { ApiModelOptions } from "../plugins/dts-plugin.js";
 import { DtsPlugin } from "../plugins/dts-plugin.js";
 import { FilesArrayPlugin } from "../plugins/files-array-plugin.js";
 import { PackageJsonTransformPlugin } from "../plugins/package-json-transform-plugin.js";
@@ -169,18 +169,34 @@ export interface NodeLibraryBuilderOptions {
 	 */
 	transform?: TransformPackageJsonFn;
 	/**
-	 * Enable API report generation for packages without a default export.
-	 * Only applicable when bundle is true.
+	 * Options for API model generation.
+	 * When enabled, generates an api.model.json file in the dist directory.
+	 * Only applies when bundle is true and target is "npm".
 	 *
 	 * @remarks
-	 * When enabled, the plugin will:
-	 * - Check if the package has no "." export in package.json
-	 * - Look for a magic file `src/api-extractor.ts` containing `@packageDocumentation`
-	 * - Generate consolidated exports for API Extractor
+	 * The generated api.model.json file contains the full API documentation
+	 * in a machine-readable format for use by documentation generators.
+	 * A .npmignore file is also generated to exclude the API model from npm publish.
 	 *
-	 * @defaultValue false
+	 * @example
+	 * ```typescript
+	 * // Enable API model generation with defaults
+	 * NodeLibraryBuilder.create({
+	 *   bundle: true,
+	 *   apiModel: true,
+	 * })
+	 *
+	 * // Enable with custom filename
+	 * NodeLibraryBuilder.create({
+	 *   bundle: true,
+	 *   apiModel: {
+	 *     enabled: true,
+	 *     filename: "my-package.api.json",
+	 *   },
+	 * })
+	 * ```
 	 */
-	apiReports?: boolean;
+	apiModel?: ApiModelOptions | boolean;
 }
 
 /**
@@ -218,7 +234,6 @@ export class NodeLibraryBuilder {
 		externals: [],
 		dtsBundledPackages: undefined,
 		transformFiles: undefined,
-		apiReports: false,
 	};
 	static mergeOptions(options: Partial<NodeLibraryBuilderOptions> = {}): NodeLibraryBuilderOptions {
 		const merged = {
@@ -274,11 +289,6 @@ export class NodeLibraryBuilder {
 
 		// Standard plugins for dev and npm targets
 		if (target === "dev" || target === "npm") {
-			// Add API Report plugin for npm builds only
-			if (target === "npm" && options.apiReports && options.bundle) {
-				plugins.push(ApiReportPlugin({ enabled: true }));
-			}
-
 			// Add auto-entry plugin if no explicit entries provided and bundling is enabled
 			// For bundleless mode, we handle entry differently
 
@@ -337,6 +347,9 @@ export class NodeLibraryBuilder {
 
 		// Add our custom DTS plugin that uses tsgo and emits through asset pipeline
 		// The plugin will generate the temp tsconfig itself since it needs access to api.context.rootPath
+		// Only enable API model generation for npm target (not dev)
+		const apiModelForTarget = target === "npm" ? options.apiModel : undefined;
+
 		plugins.push(
 			DtsPlugin({
 				tsconfigPath: options.tsconfigPath, // Pass through user's tsconfig if provided
@@ -345,6 +358,7 @@ export class NodeLibraryBuilder {
 				bundledPackages: options.dtsBundledPackages,
 				// Pass target and bundle mode so the plugin can generate the correct temp config
 				buildTarget: target,
+				apiModel: apiModelForTarget,
 			}),
 		);
 

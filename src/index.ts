@@ -7,12 +7,12 @@
  * process of building Node.js libraries. It offers:
  *
  * - **Automatic Entry Detection**: Auto-detects entry points from package.json exports
- * - **Multi-Target Builds**: Support for dev, npm, and jsr build targets
+ * - **Multi-Target Builds**: Support for dev and npm build targets
  * - **Bundle Modes**: Both bundled (single-file) and bundleless (per-file) compilation
  * - **Package.json Transformation**: Automatic path updates, PNPM catalog resolution
  * - **TypeScript Declaration Bundling**: Using tsgo and API Extractor
  * - **File Array Generation**: Automatic files array creation for package.json
- * - **JSR Support**: Special handling for JSR (JavaScript Registry) publishing
+ * - **API Model Generation**: Optional api.model.json for documentation tooling
  *
  * @example
  * Basic usage in rslib.config.ts:
@@ -21,8 +21,6 @@
  *
  * export default NodeLibraryBuilder.create({
  *   bundle: true,
- *   format: 'esm',
- *   apiReports: true
  * });
  * ```
  *
@@ -47,8 +45,6 @@
 /* v8 ignore start - Export module, tested through consuming packages */
 export type * from "./rslib/builders/node-library-builder.js";
 export * from "./rslib/builders/node-library-builder.js";
-export type * from "./rslib/plugins/api-report-plugin.js";
-export * from "./rslib/plugins/api-report-plugin.js";
 export type * from "./rslib/plugins/auto-entry-plugin.js";
 export * from "./rslib/plugins/auto-entry-plugin.js";
 export type * from "./rslib/plugins/bundleless-plugin.js";
