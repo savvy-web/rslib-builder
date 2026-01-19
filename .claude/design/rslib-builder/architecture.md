@@ -12,8 +12,9 @@ dependencies: []
 
 # RSlib Builder - Architecture
 
-A sophisticated build system abstraction layer built on RSlib/Rsbuild/Rspack, providing a fluent API
-for building TypeScript packages with multi-target support.
+A sophisticated build system abstraction layer built on
+RSlib/Rsbuild/Rspack, providing a fluent API for building TypeScript
+packages with multi-target support.
 
 ## Table of Contents
 
@@ -31,18 +32,22 @@ for building TypeScript packages with multi-target support.
 
 ## Overview
 
-`@savvy-web/rslib-builder` provides a high-level `NodeLibraryBuilder` API that simplifies building
-TypeScript packages for multiple targets (dev, npm, jsr). It handles automatic configuration
-generation, plugin orchestration, and complex package.json transformations.
+`@savvy-web/rslib-builder` provides a high-level `NodeLibraryBuilder`
+API that simplifies building TypeScript packages for multiple targets
+(dev, npm, jsr). It handles automatic configuration generation, plugin
+orchestration, and complex package.json transformations.
 
-The system features a plugin-based architecture where plugins operate at different asset processing
-stages, collectively transforming raw TypeScript source into production-ready distributions with
-proper type declarations, export mappings, and dependency resolution.
+The system features a plugin-based architecture where plugins operate
+at different asset processing stages, collectively transforming raw
+TypeScript source into production-ready distributions with proper type
+declarations, export mappings, and dependency resolution.
 
 **Key Design Principles:**
 
-- **Abstraction over complexity**: Hide RSlib/Rsbuild configuration details behind a fluent API
-- **Plugin composition**: Modular plugins handle specific concerns (entries, types, transforms)
+- **Abstraction over complexity**: Hide RSlib/Rsbuild configuration
+  details behind a fluent API
+- **Plugin composition**: Modular plugins handle specific concerns
+  (entries, types, transforms)
 - **Multi-target support**: Single configuration produces dev, npm, and jsr builds
 - **Convention over configuration**: Sensible defaults with escape hatches for customization
 
@@ -100,25 +105,27 @@ NodeLibraryBuilder.create(options): RslibConfigAsyncFn
 
 **Location:** `src/rslib/plugins/`
 
-**Purpose:** Modular build transformations operating at specific asset processing stages.
+**Purpose:** Modular build transformations operating at specific asset
+processing stages.
 
 **Plugins:**
 
-| Plugin | Purpose | Key Stage |
-|--------|---------|-----------|
-| AutoEntryPlugin | Discover entries from package.json | modifyRsbuildConfig |
-| DtsPlugin | Generate .d.ts files with tsgo/API Extractor | pre-process, summarize |
-| PackageJsonTransformPlugin | Transform package.json for distribution | pre-process, optimize |
-| FilesArrayPlugin | Build package.json files array | additional, optimize-inline |
-| BundlelessPlugin | Transform paths for bundleless mode | additional |
-| JSRBundlelessPlugin | Preserve TypeScript for JSR | optimize-inline |
-| ApiReportPlugin | Generate API reports for rollup types | modifyRsbuildConfig |
+| Plugin | Purpose | Stage |
+| ------ | ------- | ----- |
+| AutoEntryPlugin | Discover entries from pkg | modifyRsbuildConfig |
+| DtsPlugin | Generate .d.ts with tsgo | pre-process |
+| PackageJsonTransformPlugin | Transform pkg for dist | pre-process |
+| FilesArrayPlugin | Build pkg files array | additional |
+| BundlelessPlugin | Transform bundleless paths | additional |
+| JSRBundlelessPlugin | Preserve TS for JSR | optimize-inline |
+| ApiReportPlugin | Generate API reports | modifyRsbuildConfig |
 
 #### Component 3: Utility Modules
 
 **Location:** `src/rslib/plugins/utils/`
 
-**Purpose:** Shared utilities for entry extraction, package.json building, and transformations.
+**Purpose:** Shared utilities for entry extraction, package.json
+building, and transformations.
 
 **Key utilities:**
 
@@ -181,7 +188,8 @@ NodeLibraryBuilder.create(options): RslibConfigAsyncFn
 
 #### Decision 1: Plugin-Based Architecture
 
-**Context:** Need modular, testable build transformations that can be composed differently per target.
+**Context:** Need modular, testable build transformations that can be
+composed differently per target.
 
 **Options considered:**
 
@@ -197,7 +205,8 @@ NodeLibraryBuilder.create(options): RslibConfigAsyncFn
 
 #### Decision 2: Shared State via api.expose()
 
-**Context:** Plugins need to share data (entries, files array) across execution stages.
+**Context:** Plugins need to share data (entries, files array) across
+execution stages.
 
 **Options considered:**
 
@@ -344,10 +353,10 @@ NodeLibraryBuilder.create(options): RslibConfigAsyncFn
 ### Shared State Keys
 
 | Key | Type | Producer | Consumers |
-|-----|------|----------|-----------|
+| --- | ---- | -------- | --------- |
 | `files-array` | `Set<string>` | FilesArrayPlugin | All plugins |
-| `entrypoints` | `Map<string, string>` | AutoEntryPlugin | JSRBundlelessPlugin |
-| `exportToOutputMap` | `Map<string, string>` | AutoEntryPlugin | PackageJsonTransformPlugin |
+| `entrypoints` | `Map` | AutoEntryPlugin | JSRBundlelessPlugin |
+| `exportToOutputMap` | `Map` | AutoEntryPlugin | PkgJsonTransform |
 | `api-extractor-temp-mapping` | object | ApiReportPlugin | DtsPlugin |
 | `use-rollup-types` | boolean | ApiReportPlugin | DtsPlugin |
 
@@ -556,4 +565,5 @@ expect(config.source.entry).toEqual({ ... });
 
 **Document Status:** Draft - Core architecture documented, needs refinement
 
-**Next Steps:** Document additional plugin details, add sequence diagrams for complex flows
+**Next Steps:** Document additional plugin details, add sequence
+diagrams for complex flows

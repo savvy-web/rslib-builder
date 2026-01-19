@@ -1,15 +1,19 @@
 # @savvy-web/rslib-builder - AI Agent Documentation
 
-This document provides guidance for AI agents working on the `@savvy-web/rslib-builder` package.
+This document provides guidance for AI agents working on the
+`@savvy-web/rslib-builder` package.
 
 ## Package Overview
 
-`@savvy-web/rslib-builder` is an RSlib-based build system for Node.js libraries. It provides a high-level builder API and plugin system that simplifies building TypeScript packages with support for:
+`@savvy-web/rslib-builder` is an RSlib-based build system for Node.js
+libraries. It provides a high-level builder API and plugin system that
+simplifies building TypeScript packages with support for:
 
 - **Bundled and bundleless builds** - Single-file outputs or per-file compilation
 - **Multiple targets** - dev and npm with different optimizations
 - **Automatic package.json transformation** - Export path updates, catalog resolution
-- **TypeScript declaration bundling** - Fast declaration generation with tsgo and API Extractor
+- **TypeScript declaration bundling** - Fast declaration generation with tsgo
+  and API Extractor
 - **Source map handling** - Generates but excludes from npm publishing
 - **Self-building** - This package builds itself using NodeLibraryBuilder
 
@@ -17,7 +21,7 @@ This document provides guidance for AI agents working on the `@savvy-web/rslib-b
 
 ### Directory Structure
 
-```
+```text
 node-build/
 ├── src/
 │   ├── rslib/                    # RSlib build system
@@ -51,7 +55,8 @@ node-build/
 
 #### NodeLibraryBuilder
 
-The main API for building Node.js libraries. Provides a fluent interface for RSlib builds.
+The main API for building Node.js libraries. Provides a fluent interface for
+RSlib builds.
 
 **Location**: `src/rslib/builders/node-library-builder.ts`
 
