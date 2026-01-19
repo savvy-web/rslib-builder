@@ -1,5 +1,11 @@
 # @savvy-web/rslib-builder
 
+## 0.1.1
+
+### Patch Changes
+
+- 6f503aa: Fix ReDoS vulnerability in `stripSourceMapComment` regex (CWE-1333).
+
 ## 0.1.0
 
 ### Minor Changes
