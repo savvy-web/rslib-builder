@@ -55,7 +55,7 @@ export interface PackageJsonTransformOptions {
 	processTSExports?: boolean;
 
 	/**
-	 * Whether to collapse index files (./foo/index.ts -> ./foo.js).
+	 * Whether to collapse index files (./foo/index.ts becomes ./foo.js).
 	 * This is typically true for bundled builds.
 	 * @defaultValue false
 	 */
@@ -77,7 +77,7 @@ export interface PackageJsonTransformOptions {
  *
  * @remarks
  * This class consolidates all package.json transformation logic including:
- * - Path transformations (src/ -> dist/, .ts -> .js)
+ * - Path transformations (src/ to dist/, .ts to .js)
  * - Export conditions generation (types, import, require)
  * - Bin field transformations
  * - PNPM catalog and workspace resolution
@@ -241,9 +241,9 @@ export class PackageJsonTransformer {
 	 * Performs the complete package.json transformation.
 	 *
 	 * @param packageJson - The source package.json
-	 * @param context - Transform context
-	 * @param context.isProduction - Whether this is a production build
-	 * @param context.customTransform - Optional custom transform function
+	 * @param context - Transform context with properties:
+	 *   - `isProduction`: Whether this is a production build
+	 *   - `customTransform`: Optional custom transform function
 	 * @returns The transformed package.json
 	 */
 	async transform(

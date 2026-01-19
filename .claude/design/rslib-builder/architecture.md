@@ -3,10 +3,11 @@ status: current
 module: rslib-builder
 category: architecture
 created: 2026-01-18
-updated: 2026-01-18
+updated: 2026-01-19
 last-synced: 2026-01-19
 completeness: 90
-related: []
+related:
+  - rslib-builder/api-extraction.md
 dependencies: []
 ---
 
@@ -859,6 +860,11 @@ For comprehensive testing strategy details, see
 ---
 
 ## Related Documentation
+
+**Internal Design Docs:**
+
+- [API Extraction](./api-extraction.md) - API model generation and TSDoc
+  configuration
 
 **Package Documentation:**
 

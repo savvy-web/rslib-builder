@@ -143,6 +143,7 @@
 	"files": {
 		"includes": [
 			"**",
+			"**/.claude/settings.local.json",
 			"!**/node_modules",
 			"!**/dist",
 			"!**/.turbo",
@@ -150,7 +151,6 @@
 			"!**/.rslib",
 			"!**/.vitest",
 			"!**/.coverage",
-			"!.claude/settings.local.json",
 			"!**/*.api.json",
 			"!lib/turbo/schema.json",
 			"!coverage"

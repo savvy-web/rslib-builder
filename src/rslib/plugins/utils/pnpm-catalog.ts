@@ -119,7 +119,7 @@ export class PnpmCatalog {
 	 * @param dir - The directory containing the package (defaults to cwd)
 	 * @returns The resolved package.json
 	 *
-	 * @throws {Error} When resolution fails for critical dependencies
+	 * @throws When resolution fails for critical dependencies
 	 */
 	async resolvePackageJson(packageJson: PackageJson, dir: string = process.cwd()): Promise<PackageJson> {
 		const logger = createEnvLogger("pnpm");

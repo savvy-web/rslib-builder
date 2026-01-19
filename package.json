@@ -32,7 +32,7 @@
 		"build:dev": "NODE_OPTIONS='--disable-warning=ExperimentalWarning' rslib build --env-mode dev",
 		"build:inspect": "rslib inspect --verbose",
 		"build:npm": "NODE_OPTIONS='--disable-warning=ExperimentalWarning' rslib build --env-mode npm",
-		"ci:build": "turbo run build:dev build:npm",
+		"ci:build": "CI=\"true\" turbo run build:dev build:npm",
 		"ci:test": "vitest run --coverage",
 		"ci:version": "changeset version && biome format --write",
 		"lint": "biome check --max-diagnostics=none",
@@ -47,6 +47,8 @@
 		"typecheck": "tsgo --noEmit"
 	},
 	"dependencies": {
+		"@microsoft/tsdoc": "^0.16.0",
+		"@microsoft/tsdoc-config": "^0.18.0",
 		"@pnpm/exportable-manifest": "^1000.3.0",
 		"glob": "^13.0.0",
 		"markdownlint-cli2": "^0.20.0",
