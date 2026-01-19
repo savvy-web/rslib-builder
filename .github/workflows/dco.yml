@@ -9,9 +9,10 @@ jobs:
   dco:
     name: DCO Check
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - name: DCO Check
-        uses: githubofkrishnadhas/dco-check@v1
+        uses: cpanato/dco-check-action@main
         with:
-          allow-merge-commits: false
-          allow-revert-commits: true
+          github_token: ${{ secrets.GITHUB_TOKEN }}
