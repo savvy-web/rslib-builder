@@ -22,7 +22,7 @@ import { TSConfigs } from "../../tsconfig/index.js";
 
 /**
  * Options for API model generation.
- * When enabled, generates an api.model.json file using API Extractor.
+ * When enabled, generates an `<unscopedPackageName>.api.json` file using API Extractor.
  *
  * @remarks
  * API models are only generated for the main "index" entry point (the "." export).
@@ -41,16 +41,9 @@ export interface ApiModelOptions {
 
 	/**
 	 * Filename for the generated API model file.
-	 * @defaultValue "api.model.json"
+	 * @defaultValue `<unscopedPackageName>.api.json` (e.g., `rslib-builder.api.json`)
 	 */
 	filename?: string;
-
-	/**
-	 * Whether to add a .npmignore file that excludes the API model file.
-	 * This is useful when the API model is for internal tooling only.
-	 * @defaultValue true
-	 */
-	npmIgnore?: boolean;
 
 	/**
 	 * Local paths to copy the API model and package.json to.
@@ -59,7 +52,10 @@ export interface ApiModelOptions {
 	 * @remarks
 	 * Each path must be a directory. The parent directory must exist,
 	 * but the final directory will be created if it doesn't exist.
-	 * Both api.model.json and the processed package.json will be copied.
+	 * Both the API model and the processed package.json will be copied.
+	 *
+	 * The API model file is emitted to dist but excluded from npm publish
+	 * (added as negated pattern `!<filename>` in the `files` array).
 	 *
 	 * @example
 	 * ```typescript
@@ -70,6 +66,16 @@ export interface ApiModelOptions {
 	 * ```
 	 */
 	localPaths?: string[];
+}
+
+/**
+ * Extracts the unscoped package name from a potentially scoped package name.
+ * @param name - The package name (e.g., `@scope/package` or `package`)
+ * @returns The unscoped name (e.g., `package`)
+ * @internal
+ */
+export function getUnscopedPackageName(name: string): string {
+	return name.startsWith("@") ? (name.split("/")[1] ?? name) : name;
 }
 
 /**
@@ -136,8 +142,10 @@ export interface DtsPluginOptions {
 
 	/**
 	 * Options for API model generation.
-	 * When enabled, generates an api.model.json file in the dist directory.
+	 * When enabled, generates an `<unscopedPackageName>.api.json` file in the dist directory.
 	 * Only applies when bundle is true.
+	 *
+	 * The API model is excluded from npm publish (not added to `files` array).
 	 */
 	apiModel?: ApiModelOptions | boolean;
 }
@@ -276,7 +284,8 @@ async function bundleDtsFiles(options: {
 	const apiModelEnabled =
 		apiModel === true ||
 		(typeof apiModel === "object" && (apiModel.enabled === undefined || apiModel.enabled === true));
-	const apiModelFilename = typeof apiModel === "object" && apiModel.filename ? apiModel.filename : "api.model.json";
+	// Temp filename for internal use - final output filename is determined at emission time
+	const apiModelFilename = typeof apiModel === "object" && apiModel.filename ? apiModel.filename : "api.json";
 
 	// Validate that API Extractor is installed before attempting import
 	getApiExtractorPath();
@@ -834,37 +843,27 @@ export const DtsPlugin = (options: DtsPluginOptions = {}): RsbuildPlugin => {
 
 									// Emit API model file if generated
 									if (apiModelPath) {
+										// Default filename follows API Extractor convention: <unscopedPackageName>.api.json
+										const defaultApiModelFilename = packageJson.name
+											? `${getUnscopedPackageName(packageJson.name)}.api.json`
+											: "api.json";
 										const apiModelFilename =
 											typeof options.apiModel === "object" && options.apiModel.filename
 												? options.apiModel.filename
-												: "api.model.json";
+												: defaultApiModelFilename;
 										const apiModelContent = await readFile(apiModelPath, "utf-8");
 										const apiModelSource = new context.sources.OriginalSource(apiModelContent, apiModelFilename);
 										context.compilation.emitAsset(apiModelFilename, apiModelSource);
 
-										// Add to files array (the file will be in dist, but .npmignore will exclude from publish)
+										// Add negated pattern to files array to exclude from npm publish
+										// The file is still emitted to dist for local tooling use
 										if (filesArray) {
-											filesArray.add(apiModelFilename);
+											filesArray.add(`!${apiModelFilename}`);
 										}
 
-										logger.info(`${color.dim(`[${envId}]`)} Emitted API model: ${apiModelFilename}`);
-
-										// Emit .npmignore file to exclude api.model.json from npm publish
-										const shouldAddNpmIgnore =
-											options.apiModel === true ||
-											(typeof options.apiModel === "object" && options.apiModel.npmIgnore !== false);
-
-										if (shouldAddNpmIgnore) {
-											const npmIgnoreContent = `# Exclude API model from npm publish (used by internal tooling)\n${apiModelFilename}\n`;
-											const npmIgnoreSource = new context.sources.OriginalSource(npmIgnoreContent, ".npmignore");
-											context.compilation.emitAsset(".npmignore", npmIgnoreSource);
-
-											if (filesArray) {
-												filesArray.add(".npmignore");
-											}
-
-											logger.info(`${color.dim(`[${envId}]`)} Emitted .npmignore to exclude ${apiModelFilename}`);
-										}
+										logger.info(
+											`${color.dim(`[${envId}]`)} Emitted API model: ${apiModelFilename} (excluded from npm publish)`,
+										);
 
 										// Copy API model and package.json to local paths if specified
 										// Skip in CI environments (GITHUB_ACTIONS or CI env vars)
@@ -887,7 +886,7 @@ export const DtsPlugin = (options: DtsPluginOptions = {}): RsbuildPlugin => {
 												// Create the target directory if it doesn't exist
 												await mkdir(resolvedPath, { recursive: true });
 
-												// Copy api.model.json
+												// Copy API model file
 												const apiModelDestPath = join(resolvedPath, apiModelFilename);
 												await writeFile(apiModelDestPath, apiModelContent, "utf-8");
 

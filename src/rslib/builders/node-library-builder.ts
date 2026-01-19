@@ -159,13 +159,13 @@ export interface NodeLibraryBuilderOptions {
 	transform?: TransformPackageJsonFn;
 	/**
 	 * Options for API model generation.
-	 * When enabled, generates an api.model.json file in the dist directory.
+	 * When enabled, generates an `<unscopedPackageName>.api.json` file in the dist directory.
 	 * Only applies when target is "npm".
 	 *
 	 * @remarks
-	 * The generated api.model.json file contains the full API documentation
+	 * The generated API model file contains the full API documentation
 	 * in a machine-readable format for use by documentation generators.
-	 * A .npmignore file is also generated to exclude the API model from npm publish.
+	 * The file is emitted to dist but excluded from npm publish (added as negated pattern in `files` array).
 	 *
 	 * @example
 	 * ```typescript

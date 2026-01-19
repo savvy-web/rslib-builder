@@ -43,5 +43,5 @@ test.ts
 **/coverage-debug
 .claude/plugins-debug.log
 .playwright-mcp
-website/lib/packages/*/api.model.json
+website/lib/packages/*/*.api.json
 website/lib/packages/*/package.json
