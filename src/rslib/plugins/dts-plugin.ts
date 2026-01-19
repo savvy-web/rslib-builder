@@ -401,7 +401,7 @@ async function bundleDtsFiles(options: {
  * @public
  */
 export function stripSourceMapComment(content: string): string {
-	return content.replace(/\/\/# sourceMappingURL=.+\.d\.ts\.map\s*$/gm, "").trim();
+	return content.replace(/\/\/# sourceMappingURL=\S+\.d\.ts\.map\s*$/gm, "").trim();
 }
 
 /**
