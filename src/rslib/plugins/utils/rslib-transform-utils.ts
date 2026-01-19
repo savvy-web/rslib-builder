@@ -64,7 +64,6 @@ export function applyRslibTransformations(
 	entrypoints?: Map<string, string>,
 	exportToOutputMap?: Map<string, string>,
 	bundle?: boolean,
-	format: "esm" | "cjs" = "esm",
 ): PackageJson {
 	// Remove unwanted fields that pnpm doesn't remove
 	// Keep devDependencies as package authors may need types from those packages
@@ -81,7 +80,7 @@ export function applyRslibTransformations(
 		private: isPrivate,
 	} as PackageJson;
 
-	// Transform exports if they exist (RSLib-specific: .ts → .js/.cjs with type definitions)
+	// Transform exports if they exist (RSLib-specific: .ts → .js with type definitions)
 	if (processedManifest.exports) {
 		processedManifest.exports = transformPackageExports(
 			processedManifest.exports,
@@ -90,7 +89,6 @@ export function applyRslibTransformations(
 			entrypoints,
 			exportToOutputMap,
 			bundle ?? false,
-			format,
 		) as PackageJson.Exports;
 	}
 
@@ -107,9 +105,7 @@ export function applyRslibTransformations(
 			const transformedPaths: Record<string, string[]> = {};
 
 			for (const [key, value] of Object.entries(paths as Record<string, string[]>)) {
-				transformedPaths[key] = value.map((path) =>
-					transformExportPath(path, processTSExports, bundle ?? false, format),
-				);
+				transformedPaths[key] = value.map((path) => transformExportPath(path, processTSExports, bundle ?? false));
 			}
 
 			transformedTypesVersions[version] = transformedPaths;

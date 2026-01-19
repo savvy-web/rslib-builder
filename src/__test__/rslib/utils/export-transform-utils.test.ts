@@ -557,49 +557,6 @@ describe("export-transform-utils", () => {
 					transformStringExport("./src/index.ts", true, ".", undefined, exportToOutputMap);
 				}).toThrow('Export key "." has no mapped path');
 			});
-
-			it("should use mapped path with CJS format", () => {
-				const exportToOutputMap = new Map<string, string>([[".", "./custom-output.cjs"]]);
-				const result = transformStringExport("./src/index.ts", true, ".", undefined, exportToOutputMap, false, "cjs");
-				expect(result).toEqual({
-					types: "./custom-output.d.ts",
-					require: "./custom-output.cjs",
-				});
-			});
-		});
-
-		describe("transformStringExport with CJS format", () => {
-			it("should transform TypeScript files to CJS export conditions", () => {
-				const result = transformStringExport("./src/index.ts", true, undefined, undefined, undefined, false, "cjs");
-				expect(result).toEqual({
-					types: "./index.d.ts",
-					require: "./index.cjs",
-				});
-			});
-
-			it("should transform nested paths with CJS format", () => {
-				const result = transformStringExport(
-					"./src/utils/helper.ts",
-					true,
-					undefined,
-					undefined,
-					undefined,
-					false,
-					"cjs",
-				);
-				expect(result).toEqual({
-					types: "./utils/helper.d.ts",
-					require: "./utils/helper.cjs",
-				});
-			});
-
-			it("should handle CJS format in bundle mode", () => {
-				const result = transformStringExport("./src/index.ts", true, undefined, undefined, undefined, true, "cjs");
-				expect(result).toEqual({
-					types: "./index.d.ts",
-					require: "./index.cjs",
-				});
-			});
 		});
 
 		describe("transformPackageExports with collapseIndex", () => {

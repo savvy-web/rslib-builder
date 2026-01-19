@@ -77,10 +77,10 @@ export interface DtsPluginOptions {
 	footer?: string;
 
 	/**
-	 * Build target (dev, npm, jsr).
+	 * Build target (dev, npm).
 	 * Used to generate the correct temp tsconfig when tsconfigPath is not provided.
 	 */
-	buildTarget?: "dev" | "npm" | "jsr";
+	buildTarget?: "dev" | "npm";
 }
 
 /**
@@ -650,53 +650,46 @@ export const DtsPlugin = (options: DtsPluginOptions = {}): RsbuildPlugin => {
 									packageJson = exposedPackageJson;
 								}
 
-								// Extract entry points from package.json exports
+								// Only process the main export (".") for API Extractor bundling
 								const entryPoints = new Map<string, string>();
 
 								if (packageJson.exports) {
-									for (const [exportPath, exportValue] of Object.entries(packageJson.exports)) {
+									const exports = packageJson.exports as Record<string, unknown>;
+									const mainExport = exports["."];
+
+									if (mainExport) {
 										// Handle both string and object export values
 										const sourcePath =
-											typeof exportValue === "string" ? exportValue : (exportValue as { default?: string })?.default;
+											typeof mainExport === "string" ? mainExport : (mainExport as { default?: string })?.default;
 
 										if (sourcePath && typeof sourcePath === "string") {
 											// Only process TypeScript source files (skip JSON, CSS, declaration files, etc.)
-											if (!sourcePath.match(/\.(ts|mts|cts|tsx)$/)) {
-												continue;
+											if (sourcePath.match(/\.(ts|mts|cts|tsx)$/)) {
+												// Skip test files
+												if (!sourcePath.includes(".test.") && !sourcePath.includes("__test__")) {
+													// Skip files outside the package root (e.g., temp files in /tmp/)
+													const resolvedSourcePath = sourcePath.startsWith(".") ? join(cwd, sourcePath) : sourcePath;
+													if (resolvedSourcePath.startsWith(cwd)) {
+														// If this is the temp api-extractor file, use the original path instead
+														let finalSourcePath = sourcePath;
+														if (apiExtractorMapping && resolvedSourcePath === apiExtractorMapping.tempPath) {
+															finalSourcePath = apiExtractorMapping.originalPath;
+															log.global.info(`Using original path for api-extractor: ${finalSourcePath}`);
+														}
+
+														// Store main export as "index" entry
+														entryPoints.set("index", finalSourcePath);
+													} else {
+														log.global.info(`Skipping main export (source outside package: ${sourcePath})`);
+													}
+												}
 											}
-
-											// Skip test files
-											if (sourcePath.includes(".test.") || sourcePath.includes("__test__")) {
-												continue;
-											}
-
-											// Skip files outside the package root (e.g., temp files in /tmp/)
-											// Resolve the source path and check if it's within the package
-											const resolvedSourcePath = sourcePath.startsWith(".") ? join(cwd, sourcePath) : sourcePath;
-											if (!resolvedSourcePath.startsWith(cwd)) {
-												log.global.info(`Skipping entry ${exportPath} (source outside package: ${sourcePath})`);
-												continue;
-											}
-
-											// Normalize export path to entry name
-											// "." -> "index", "./foo/bar" -> "foo/bar"
-											const entryName = exportPath === "." ? "index" : exportPath.replace(/^\.\//, "");
-
-											// If this is the temp api-extractor file, use the original path instead
-											let finalSourcePath = sourcePath;
-											if (apiExtractorMapping && resolvedSourcePath === apiExtractorMapping.tempPath) {
-												finalSourcePath = apiExtractorMapping.originalPath;
-												log.global.info(`Using original path for api-extractor: ${finalSourcePath}`);
-											}
-
-											// Store source path (will be converted to .d.ts path in bundleDtsFiles)
-											entryPoints.set(entryName, finalSourcePath);
 										}
 									}
 								}
 
 								if (entryPoints.size === 0) {
-									log.global.warn("No entry points found in package.json exports, skipping bundling");
+									log.global.warn("No main export found in package.json exports, skipping bundling");
 								} else {
 									// Create temp directory for bundled output
 									const tempBundledDir = join(tempDtsDir, "bundled");

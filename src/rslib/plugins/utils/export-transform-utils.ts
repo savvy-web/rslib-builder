@@ -42,7 +42,6 @@ export function transformStringExport(
 	entrypoints?: Map<string, string>,
 	exportToOutputMap?: Map<string, string>,
 	collapseIndex: boolean = false,
-	format: "esm" | "cjs" = "esm",
 ): FlexibleExports {
 	// First, check if we have a direct mapping from export key to output path (for exportsAsIndexes)
 	let transformedPath: string;
@@ -66,25 +65,23 @@ export function transformStringExport(
 			transformedPath = entrypoints.get(keyWithoutPrefix) ?? exportString;
 		} else {
 			// Fall back to normal path transformation
-			transformedPath = transformExportPath(exportString, processTSExports, collapseIndex, format);
+			transformedPath = transformExportPath(exportString, processTSExports, collapseIndex);
 		}
 	} else {
 		// Fall back to normal path transformation
-		transformedPath = transformExportPath(exportString, processTSExports, collapseIndex, format);
+		transformedPath = transformExportPath(exportString, processTSExports, collapseIndex);
 	}
 
 	// RSLib always generates types for TypeScript source files when processTSExports is true
-	// Create an object with types and the appropriate module key for .ts/.tsx files (excluding .d.ts files)
+	// Create an object with types and import key for .ts/.tsx files (excluding .d.ts files)
 	if (
 		processTSExports &&
 		(exportString.endsWith(".ts") || exportString.endsWith(".tsx")) &&
 		!exportString.endsWith(".d.ts")
 	) {
-		// Use 'require' for CJS format, 'import' for ESM format
-		const moduleKey = format === "cjs" ? "require" : "import";
 		return {
 			types: createTypePath(transformedPath, collapseIndex),
-			[moduleKey]: transformedPath,
+			import: transformedPath,
 		};
 	}
 
@@ -123,7 +120,6 @@ export function transformArrayExports(
 	entrypoints?: Map<string, string>,
 	exportToOutputMap?: Map<string, string>,
 	collapseIndex: boolean = false,
-	format: "esm" | "cjs" = "esm",
 ): FlexibleExports[] {
 	return exportsArray.map((item) => {
 		const transformed = transformPackageExports(
@@ -133,7 +129,6 @@ export function transformArrayExports(
 			entrypoints,
 			exportToOutputMap,
 			collapseIndex,
-			format,
 		);
 		return transformed ?? item;
 	});
@@ -202,12 +197,11 @@ export function transformExportEntry(
 	entrypoints?: Map<string, string>,
 	exportToOutputMap?: Map<string, string>,
 	collapseIndex: boolean = false,
-	format: "esm" | "cjs" = "esm",
 ): unknown {
 	if (isConditions && (key === "import" || key === "require" || key === "types" || key === "default")) {
 		// For existing export conditions, just transform the path
 		if (typeof value === "string") {
-			return transformExportPath(value, processTSExports, collapseIndex, format);
+			return transformExportPath(value, processTSExports, collapseIndex);
 		}
 		if (value !== undefined && value !== null) {
 			return transformPackageExports(
@@ -217,7 +211,6 @@ export function transformExportEntry(
 				entrypoints,
 				exportToOutputMap,
 				collapseIndex,
-				format,
 			);
 		}
 		return value; // Keep undefined/null as-is
@@ -232,7 +225,6 @@ export function transformExportEntry(
 			entrypoints,
 			exportToOutputMap,
 			collapseIndex,
-			format,
 		);
 	}
 	return value; // Keep undefined/null as-is
@@ -258,7 +250,6 @@ export function transformObjectExports(
 	entrypoints?: Map<string, string>,
 	exportToOutputMap?: Map<string, string>,
 	collapseIndex: boolean = false,
-	format: "esm" | "cjs" = "esm",
 ): Record<string, unknown> {
 	const transformed: Record<string, unknown> = {};
 	const isConditions = isConditionsObject(exportsObject);
@@ -273,7 +264,6 @@ export function transformObjectExports(
 			entrypoints,
 			exportToOutputMap,
 			collapseIndex,
-			format,
 		);
 	}
 
@@ -322,45 +312,20 @@ export function transformPackageExports(
 	entrypoints?: Map<string, string>,
 	exportToOutputMap?: Map<string, string>,
 	collapseIndex: boolean = false,
-	format: "esm" | "cjs" = "esm",
 ): FlexibleExports {
 	// Handle string exports
 	if (typeof exports === "string") {
-		return transformStringExport(
-			exports,
-			processTSExports,
-			exportKey,
-			entrypoints,
-			exportToOutputMap,
-			collapseIndex,
-			format,
-		);
+		return transformStringExport(exports, processTSExports, exportKey, entrypoints, exportToOutputMap, collapseIndex);
 	}
 
 	// Handle array exports
 	if (Array.isArray(exports)) {
-		return transformArrayExports(
-			exports,
-			processTSExports,
-			exportKey,
-			entrypoints,
-			exportToOutputMap,
-			collapseIndex,
-			format,
-		);
+		return transformArrayExports(exports, processTSExports, exportKey, entrypoints, exportToOutputMap, collapseIndex);
 	}
 
 	// Handle object exports
 	if (exports && typeof exports === "object") {
-		return transformObjectExports(
-			exports,
-			processTSExports,
-			exportKey,
-			entrypoints,
-			exportToOutputMap,
-			collapseIndex,
-			format,
-		);
+		return transformObjectExports(exports, processTSExports, exportKey, entrypoints, exportToOutputMap, collapseIndex);
 	}
 
 	// Return as-is for null, undefined, or other types

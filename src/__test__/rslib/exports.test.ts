@@ -47,7 +47,7 @@ describe("@savvy-web/tsconfig exports", () => {
 			const lib = TSConfigs.node.ecma.lib;
 
 			// Test bundle method with different targets
-			for (const target of ["dev", "npm", "jsr"] as const) {
+			for (const target of ["dev", "npm"] as const) {
 				const bundleConfig = lib.bundle(target);
 				expect(bundleConfig).toBeDefined();
 				expect(bundleConfig.compilerOptions?.outDir).toBe("dist");
@@ -66,7 +66,7 @@ describe("@savvy-web/tsconfig exports", () => {
 			}
 
 			// Test bundleless method with different targets
-			for (const target of ["dev", "npm", "jsr"] as const) {
+			for (const target of ["dev", "npm"] as const) {
 				const bundlelessConfig = lib.bundleless(target);
 				expect(bundlelessConfig).toBeDefined();
 				expect(bundlelessConfig.compilerOptions?.outDir).toBe("dist");
@@ -90,7 +90,7 @@ describe("@savvy-web/tsconfig exports", () => {
 
 			// Test writeBundleTempConfig with different targets
 			expect(typeof lib.writeBundleTempConfig).toBe("function");
-			for (const target of ["dev", "npm", "jsr"] as const) {
+			for (const target of ["dev", "npm"] as const) {
 				const bundleTempPath = lib.writeBundleTempConfig(target);
 				expect(bundleTempPath).toBeDefined();
 				expect(typeof bundleTempPath).toBe("string");
@@ -99,7 +99,7 @@ describe("@savvy-web/tsconfig exports", () => {
 
 			// Test writeBundlelessTempConfig with different targets
 			expect(typeof lib.writeBundlelessTempConfig).toBe("function");
-			for (const target of ["dev", "npm", "jsr"] as const) {
+			for (const target of ["dev", "npm"] as const) {
 				const bundlelessTempPath = lib.writeBundlelessTempConfig(target);
 				expect(bundlelessTempPath).toBeDefined();
 				expect(typeof bundlelessTempPath).toBe("string");

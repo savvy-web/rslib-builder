@@ -70,7 +70,6 @@ describe("package-json-builder-utils", () => {
 				undefined,
 				undefined,
 				undefined,
-				"esm",
 			);
 			expect(result).toEqual(finalResult);
 		});
@@ -110,7 +109,6 @@ describe("package-json-builder-utils", () => {
 				undefined,
 				undefined,
 				undefined,
-				"esm",
 			);
 			expect(result).toEqual(finalResult);
 		});
@@ -151,7 +149,6 @@ describe("package-json-builder-utils", () => {
 				undefined,
 				undefined,
 				undefined,
-				"esm",
 			);
 			expect(result).toEqual(finalResult);
 		});
@@ -195,7 +192,6 @@ describe("package-json-builder-utils", () => {
 				undefined,
 				undefined,
 				undefined,
-				"esm",
 			);
 			expect(result).toEqual(finalResult);
 		});
@@ -240,95 +236,11 @@ describe("package-json-builder-utils", () => {
 				undefined,
 				undefined,
 				undefined,
-				"esm",
 				customTransform,
 			);
 
 			expect(result).toEqual(finalResult);
 			expect(result.devDependencies).toBeUndefined();
-		});
-
-		it("should handle CJS format parameter", async () => {
-			const originalPackageJson: PackageJson = {
-				name: "test-package",
-				version: "1.0.0",
-				exports: "./src/index.ts",
-			};
-
-			const rslibTransformed: PackageJson = {
-				name: "test-package",
-				version: "1.0.0",
-				exports: {
-					types: "./index.d.ts",
-					require: "./index.cjs",
-				},
-				private: true,
-			};
-
-			mockApplyRslibTransformations.mockReturnValue(rslibTransformed);
-
-			const result = await buildPackageJson(originalPackageJson, false, true, undefined, undefined, undefined, "cjs");
-
-			expect(applyRslibTransformations).toHaveBeenCalledWith(
-				originalPackageJson,
-				originalPackageJson,
-				true,
-				undefined,
-				undefined,
-				undefined,
-				"cjs",
-			);
-			expect(result).toEqual(rslibTransformed);
-		});
-
-		it("should handle CJS format with production build", async () => {
-			const originalPackageJson: PackageJson = {
-				name: "test-package",
-				version: "1.0.0",
-				dependencies: {
-					react: "catalog:react",
-				},
-				exports: "./src/index.ts",
-			};
-
-			const pnpmTransformed: PackageJson = {
-				name: "test-package",
-				version: "1.0.0",
-				dependencies: {
-					react: "^18.0.0",
-				},
-				exports: "./src/index.ts",
-			};
-
-			const finalResult: PackageJson = {
-				name: "test-package",
-				version: "1.0.0",
-				dependencies: {
-					react: "^18.0.0",
-				},
-				exports: {
-					types: "./index.d.ts",
-					require: "./index.cjs",
-				},
-				private: true,
-			};
-
-			mockApplyPnpmTransformations.mockResolvedValue(pnpmTransformed);
-			mockApplyRslibTransformations.mockReturnValue(finalResult);
-
-			const result = await buildPackageJson(originalPackageJson, true, true, undefined, undefined, undefined, "cjs");
-
-			expect(applyPnpmTransformations).toHaveBeenCalledWith(originalPackageJson);
-			expect(applyRslibTransformations).toHaveBeenCalledWith(
-				pnpmTransformed,
-				originalPackageJson,
-				true,
-				undefined,
-				undefined,
-				undefined,
-				"cjs",
-			);
-			expect(result).toEqual(finalResult);
 		});
 	});
 });

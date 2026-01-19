@@ -2,7 +2,6 @@ import sortPkg from "sort-package-json";
 import type { PackageJson } from "type-fest";
 import type { FlexibleExports } from "#utils/package-json-types-utils.js";
 import { PnpmCatalog } from "#utils/pnpm-catalog.js";
-import type { OutputFormat } from "../../builders/node-library-builder.js";
 
 /**
  * Options for transforming package.json.
@@ -21,12 +20,6 @@ export interface PackageJsonTransformOptions {
 	 * @defaultValue false
 	 */
 	collapseIndex?: boolean;
-
-	/**
-	 * Output format - 'esm' or 'cjs'.
-	 * @defaultValue 'esm'
-	 */
-	format?: OutputFormat;
 
 	/**
 	 * Map of export paths to entry files (from AutoEntryPlugin).
@@ -75,7 +68,6 @@ export class PackageJsonTransformer {
 		this.options = {
 			processTSExports: options.processTSExports ?? true,
 			collapseIndex: options.collapseIndex ?? false,
-			format: options.format ?? "esm",
 			entrypoints: options.entrypoints ?? new Map(),
 			exportToOutputMap: options.exportToOutputMap ?? new Map(),
 		};
@@ -113,18 +105,17 @@ export class PackageJsonTransformer {
 		}
 
 		if (this.options.processTSExports) {
-			const extension = this.options.format === "cjs" ? ".cjs" : ".js";
 			const { collapseIndex } = this.options;
 
 			// In bundled mode (collapseIndex=true), rslib collapses /index.ts files
 			if (collapseIndex && transformedPath.endsWith("/index.ts") && transformedPath !== "./index.ts") {
-				transformedPath = `${transformedPath.slice(0, -"/index.ts".length)}${extension}`;
+				transformedPath = `${transformedPath.slice(0, -"/index.ts".length)}.js`;
 			} else if (collapseIndex && transformedPath.endsWith("/index.tsx") && transformedPath !== "./index.tsx") {
-				transformedPath = `${transformedPath.slice(0, -"/index.tsx".length)}${extension}`;
+				transformedPath = `${transformedPath.slice(0, -"/index.tsx".length)}.js`;
 			} else if (transformedPath.endsWith(".tsx")) {
-				transformedPath = `${transformedPath.slice(0, -4)}${extension}`;
+				transformedPath = `${transformedPath.slice(0, -4)}.js`;
 			} else if (transformedPath.endsWith(".ts") && !transformedPath.endsWith(".d.ts")) {
-				transformedPath = `${transformedPath.slice(0, -3)}${extension}`;
+				transformedPath = `${transformedPath.slice(0, -3)}.js`;
 			}
 		}
 
@@ -150,15 +141,9 @@ export class PackageJsonTransformer {
 		if (collapseIndex && jsPath.endsWith("/index.js") && jsPath !== "./index.js") {
 			return `${jsPath.slice(0, -"/index.js".length)}.d.ts`;
 		}
-		if (collapseIndex && jsPath.endsWith("/index.cjs") && jsPath !== "./index.cjs") {
-			return `${jsPath.slice(0, -"/index.cjs".length)}.d.ts`;
-		}
 
 		if (jsPath.endsWith(".js")) {
 			return `${jsPath.slice(0, -3)}.d.ts`;
-		}
-		if (jsPath.endsWith(".cjs")) {
-			return `${jsPath.slice(0, -4)}.d.ts`;
 		}
 		return `${jsPath}.d.ts`;
 	}
@@ -319,7 +304,7 @@ export class PackageJsonTransformer {
 	 * Transforms a string export value.
 	 */
 	private transformStringExport(exportString: string, exportKey?: string): FlexibleExports {
-		const { entrypoints, exportToOutputMap, format, processTSExports } = this.options;
+		const { entrypoints, exportToOutputMap, processTSExports } = this.options;
 
 		let transformedPath: string;
 
@@ -350,10 +335,9 @@ export class PackageJsonTransformer {
 			(exportString.endsWith(".ts") || exportString.endsWith(".tsx")) &&
 			!exportString.endsWith(".d.ts")
 		) {
-			const moduleKey = format === "cjs" ? "require" : "import";
 			return {
 				types: this.createTypePath(transformedPath),
-				[moduleKey]: transformedPath,
+				import: transformedPath,
 			};
 		}
 

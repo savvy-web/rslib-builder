@@ -23,13 +23,11 @@ describe("NodeLibraryBuilder", () => {
 			expect(NodeLibraryBuilder.DEFAULT_OPTIONS).toEqual({
 				entry: undefined,
 				bundle: true,
-				format: "esm",
 				plugins: [],
 				define: {},
 				copyPatterns: [],
 				targets: ["dev", "npm"],
 				tsconfigPath: undefined,
-				jsr: true,
 				externals: [],
 				dtsBundledPackages: undefined,
 				transformFiles: undefined,
@@ -52,14 +50,12 @@ describe("NodeLibraryBuilder", () => {
 
 			const result = NodeLibraryBuilder.mergeOptions({
 				bundle: false,
-				format: "cjs",
-				targets: ["jsr"],
+				targets: ["npm"],
 			});
 
 			expect(result).toMatchObject({
 				bundle: false,
-				format: "cjs",
-				targets: ["jsr"],
+				targets: ["npm"],
 				// Should still have defaults for other properties
 				plugins: [],
 				define: {},
@@ -119,7 +115,6 @@ describe("NodeLibraryBuilder", () => {
 			expect(result.externals).toEqual(["react", "react-dom"]);
 			expect(result.dtsBundledPackages).toEqual(["@types/node"]);
 			expect(result.bundle).toBe(true); // Default value
-			expect(result.format).toBe("esm"); // Default value
 		});
 
 		it("should preserve user-provided plugins array", () => {
@@ -142,16 +137,6 @@ describe("NodeLibraryBuilder", () => {
 			});
 
 			expect(result.targets).toEqual(["npm"]);
-		});
-
-		it("should allow setting jsr to a string scope", () => {
-			vi.mocked(existsSync).mockReturnValue(false);
-
-			const result = NodeLibraryBuilder.mergeOptions({
-				jsr: "@myorg/mypackage",
-			});
-
-			expect(result.jsr).toBe("@myorg/mypackage");
 		});
 
 		it("should allow setting apiReports to true", () => {

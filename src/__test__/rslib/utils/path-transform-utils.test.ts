@@ -114,10 +114,6 @@ describe("path-transform-utils", () => {
 			expect(createTypePath("./components/Button.js")).toBe("./components/Button.d.ts");
 		});
 
-		it("should handle .cjs files", () => {
-			expect(createTypePath("./utils/helper.cjs")).toBe("./utils/helper.d.ts");
-		});
-
 		describe("collapseIndex parameter", () => {
 			describe("when collapseIndex is true (bundled mode, default)", () => {
 				it("should collapse nested /index.js to parent directory", () => {
@@ -128,28 +124,12 @@ describe("path-transform-utils", () => {
 					expect(createTypePath("./foo/bar/baz/index.js", true)).toBe("./foo/bar/baz.d.ts");
 				});
 
-				it("should collapse nested /index.cjs to parent directory", () => {
-					expect(createTypePath("./rslib/index.cjs", true)).toBe("./rslib.d.ts");
-				});
-
-				it("should collapse deeply nested /index.cjs to parent directory", () => {
-					expect(createTypePath("./foo/bar/baz/index.cjs", true)).toBe("./foo/bar/baz.d.ts");
-				});
-
 				it("should NOT collapse root index.js (special case)", () => {
 					expect(createTypePath("./index.js", true)).toBe("./index.d.ts");
 				});
 
-				it("should NOT collapse root index.cjs (special case)", () => {
-					expect(createTypePath("./index.cjs", true)).toBe("./index.d.ts");
-				});
-
 				it("should handle regular .js files without collapsing", () => {
 					expect(createTypePath("./utils/helper.js", true)).toBe("./utils/helper.d.ts");
-				});
-
-				it("should handle regular .cjs files without collapsing", () => {
-					expect(createTypePath("./utils/helper.cjs", true)).toBe("./utils/helper.d.ts");
 				});
 			});
 
@@ -162,28 +142,12 @@ describe("path-transform-utils", () => {
 					expect(createTypePath("./foo/bar/baz/index.js", false)).toBe("./foo/bar/baz/index.d.ts");
 				});
 
-				it("should preserve nested /index.cjs paths", () => {
-					expect(createTypePath("./rslib/index.cjs", false)).toBe("./rslib/index.d.ts");
-				});
-
-				it("should preserve deeply nested /index.cjs paths", () => {
-					expect(createTypePath("./foo/bar/baz/index.cjs", false)).toBe("./foo/bar/baz/index.d.ts");
-				});
-
 				it("should handle root index.js normally", () => {
 					expect(createTypePath("./index.js", false)).toBe("./index.d.ts");
 				});
 
-				it("should handle root index.cjs normally", () => {
-					expect(createTypePath("./index.cjs", false)).toBe("./index.d.ts");
-				});
-
 				it("should handle regular .js files normally", () => {
 					expect(createTypePath("./utils/helper.js", false)).toBe("./utils/helper.d.ts");
-				});
-
-				it("should handle regular .cjs files normally", () => {
-					expect(createTypePath("./utils/helper.cjs", false)).toBe("./utils/helper.d.ts");
 				});
 			});
 		});

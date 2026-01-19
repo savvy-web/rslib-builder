@@ -86,18 +86,9 @@ export const AutoEntryPlugin = (options?: { exportsAsIndexes?: boolean }): Rsbui
 
 					// Populate the unified entrypoints Map for other plugins to use
 					for (const [entryName, sourcePath] of Object.entries(entries)) {
-						// Convert auto-entry names to JSR-style output names
-						let jsrOutputName: string;
-						if (entryName === "index") {
-							jsrOutputName = "index.ts";
-						} else if (entryName.startsWith("bin/")) {
-							// bin/name -> bin/name.ts
-							jsrOutputName = `${entryName}.ts`;
-						} else {
-							// other entries -> name.ts
-							jsrOutputName = `${entryName}.ts`;
-						}
-						entrypoints.set(jsrOutputName, sourcePath);
+						// Convert entry names to TypeScript output names with .ts extension
+						const outputName = `${entryName}.ts`;
+						entrypoints.set(outputName, sourcePath);
 					}
 
 					// JSON schema exports are no longer processed here - they should be generated via separate scripts

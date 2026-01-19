@@ -45,11 +45,6 @@ describe("PackageJsonTransformer", () => {
 			expect(transformer.transformExportPath("./types.d.ts")).toBe("./types.d.ts");
 		});
 
-		it("should convert .ts to .cjs when format is cjs", () => {
-			const transformer = new PackageJsonTransformer({ format: "cjs" });
-			expect(transformer.transformExportPath("./index.ts")).toBe("./index.cjs");
-		});
-
 		it("should collapse index.ts when collapseIndex is true", () => {
 			const transformer = new PackageJsonTransformer({ collapseIndex: true });
 			expect(transformer.transformExportPath("./utils/index.ts")).toBe("./utils.js");
@@ -87,29 +82,14 @@ describe("PackageJsonTransformer", () => {
 			expect(transformer.createTypePath("./index.js")).toBe("./index.d.ts");
 		});
 
-		it("should convert .cjs to .d.ts", () => {
-			const transformer = new PackageJsonTransformer();
-			expect(transformer.createTypePath("./index.cjs")).toBe("./index.d.ts");
-		});
-
 		it("should collapse nested index.js when collapseIndex is true", () => {
 			const transformer = new PackageJsonTransformer({ collapseIndex: true });
 			expect(transformer.createTypePath("./utils/index.js")).toBe("./utils.d.ts");
 		});
 
-		it("should collapse nested index.cjs when collapseIndex is true", () => {
-			const transformer = new PackageJsonTransformer({ collapseIndex: true });
-			expect(transformer.createTypePath("./utils/index.cjs")).toBe("./utils.d.ts");
-		});
-
 		it("should not collapse root ./index.js", () => {
 			const transformer = new PackageJsonTransformer({ collapseIndex: true });
 			expect(transformer.createTypePath("./index.js")).toBe("./index.d.ts");
-		});
-
-		it("should not collapse root ./index.cjs", () => {
-			const transformer = new PackageJsonTransformer({ collapseIndex: true });
-			expect(transformer.createTypePath("./index.cjs")).toBe("./index.d.ts");
 		});
 
 		it("should append .d.ts to paths without known extensions", () => {
@@ -136,16 +116,6 @@ describe("PackageJsonTransformer", () => {
 			expect(result).toEqual({
 				types: "./component.d.ts",
 				import: "./component.js",
-			});
-		});
-
-		it("should use require key when format is cjs", () => {
-			const transformer = new PackageJsonTransformer({ format: "cjs" });
-			const result = transformer.transformExports("./src/index.ts", ".");
-
-			expect(result).toEqual({
-				types: "./index.d.ts",
-				require: "./index.cjs",
 			});
 		});
 

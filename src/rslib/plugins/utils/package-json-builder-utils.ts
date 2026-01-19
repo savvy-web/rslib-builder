@@ -77,7 +77,6 @@ export async function buildPackageJson(
 	entrypoints?: Map<string, string>,
 	exportToOutputMap?: Map<string, string>,
 	bundle?: boolean,
-	format: "esm" | "cjs" = "esm",
 	transform?: (pkg: PackageJson) => PackageJson,
 ): Promise<PackageJson> {
 	// Step 1: Apply pnpm transformations (dependency resolution, etc.)
@@ -93,7 +92,6 @@ export async function buildPackageJson(
 			entrypoints,
 			exportToOutputMap,
 			bundle,
-			format,
 		);
 	} else {
 		// Step 2: Apply RSLib transformations (path transformations, field removal, etc.)
@@ -105,7 +103,6 @@ export async function buildPackageJson(
 			entrypoints,
 			exportToOutputMap,
 			bundle,
-			format,
 		);
 	}
 

@@ -7,7 +7,7 @@ This document provides guidance for AI agents working on the `@savvy-web/rslib-b
 `@savvy-web/rslib-builder` is an RSlib-based build system for Node.js libraries. It provides a high-level builder API and plugin system that simplifies building TypeScript packages with support for:
 
 - **Bundled and bundleless builds** - Single-file outputs or per-file compilation
-- **Multiple targets** - dev, npm, and jsr with different optimizations
+- **Multiple targets** - dev and npm with different optimizations
 - **Automatic package.json transformation** - Export path updates, catalog resolution
 - **TypeScript declaration bundling** - Fast declaration generation with tsgo and API Extractor
 - **Source map handling** - Generates but excludes from npm publishing
@@ -29,7 +29,6 @@ node-build/
 │   │       ├── bundleless-plugin.ts
 │   │       ├── dts-plugin.ts
 │   │       ├── files-array-plugin.ts
-│   │       ├── jsr-bundleless-plugin.ts
 │   │       ├── package-json-transform-plugin.ts
 │   │       ├── api-report-plugin.ts
 │   │       └── utils/           # Plugin utilities
@@ -84,23 +83,20 @@ Custom RSlib plugins handle complex build scenarios:
 3. **PackageJsonTransformPlugin** - Transforms package.json for different targets
 4. **DtsPlugin** - Generates TypeScript declarations using tsgo and API Extractor
 5. **FilesArrayPlugin** - Generates files array, excludes source maps
-6. **JSRBundlelessPlugin** - Special handling for JSR builds
-7. **APIReportPlugin** - Generates API reports using Microsoft API Extractor
+6. **APIReportPlugin** - Generates API reports using Microsoft API Extractor
 
 ### Build Targets
 
-Three build targets with different optimizations:
+Two build targets with different optimizations:
 
 - **dev**: Unminified, with source maps, for local development
 - **npm**: Optimized for npm publishing (Node.js runtime)
-- **jsr**: Optimized for JSR publishing (Deno/TypeScript-first)
 
 Targets selected via `--env-mode`:
 
 ```bash
 rslib build --env-mode dev
 rslib build --env-mode npm
-rslib build --env-mode jsr
 ```
 
 ### Bundle vs Bundleless
@@ -205,9 +201,6 @@ pnpm build:dev
 
 # NPM build
 pnpm build:npm
-
-# JSR build
-pnpm build:jsr
 
 # Inspect config
 pnpm build:inspect

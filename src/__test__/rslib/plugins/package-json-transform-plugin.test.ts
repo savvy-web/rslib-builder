@@ -146,7 +146,6 @@ describe("PackageJsonTransformPlugin", () => {
 			undefined,
 			undefined,
 			undefined,
-			"esm",
 			undefined,
 		);
 		expect(mockPackageJsonAsset.update).toHaveBeenCalled();
@@ -187,7 +186,6 @@ describe("PackageJsonTransformPlugin", () => {
 			undefined,
 			undefined,
 			undefined,
-			"esm",
 			undefined,
 		);
 	});
@@ -228,7 +226,6 @@ describe("PackageJsonTransformPlugin", () => {
 			undefined,
 			undefined,
 			undefined,
-			"esm",
 			undefined,
 		);
 	});
@@ -506,7 +503,6 @@ describe("PackageJsonTransformPlugin", () => {
 			undefined,
 			undefined,
 			undefined,
-			"esm",
 			undefined,
 		);
 	});

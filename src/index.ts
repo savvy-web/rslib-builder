@@ -57,8 +57,6 @@ export type * from "./rslib/plugins/dts-plugin.js";
 export * from "./rslib/plugins/dts-plugin.js";
 export type * from "./rslib/plugins/files-array-plugin.js";
 export * from "./rslib/plugins/files-array-plugin.js";
-export type * from "./rslib/plugins/jsr-bundleless-plugin.js";
-export * from "./rslib/plugins/jsr-bundleless-plugin.js";
 export type * from "./rslib/plugins/package-json-transform-plugin.js";
 export * from "./rslib/plugins/package-json-transform-plugin.js";
 // Utility classes for programmatic use

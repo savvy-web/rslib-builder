@@ -381,7 +381,7 @@ export class LibraryTSConfigFile extends TSConfigFile {
 	 * // Use in RSlib config
 	 * ```
 	 */
-	bundle(target: "dev" | "npm" | "jsr"): TSConfigJsonWithSchema {
+	bundle(target: "dev" | "npm"): TSConfigJsonWithSchema {
 		const config = transformStringsDeep(this.config, (str) =>
 			// biome-ignore lint/suspicious/noTemplateCurlyInString: replacing an actual literal
 			str.replace("${configDir}", "../../../../../.."),
@@ -435,7 +435,7 @@ export class LibraryTSConfigFile extends TSConfigFile {
 	 * // Use in RSlib config
 	 * ```
 	 */
-	bundleless(target: "dev" | "npm" | "jsr"): TSConfigJsonWithSchema {
+	bundleless(target: "dev" | "npm"): TSConfigJsonWithSchema {
 		const config = transformStringsDeep(this.config, (str) =>
 			// biome-ignore lint/suspicious/noTemplateCurlyInString: replacing an actual literal
 			str.replace("${configDir}", "../../../../../.."),
@@ -485,7 +485,7 @@ export class LibraryTSConfigFile extends TSConfigFile {
 	 * // Use tmpPath with RSlib: { source: { tsconfigPath: tmpPath } }
 	 * ```
 	 */
-	writeBundleTempConfig(target: "dev" | "npm" | "jsr"): string {
+	writeBundleTempConfig(target: "dev" | "npm"): string {
 		const cwd = process.cwd();
 		const config = this.bundle(target);
 
@@ -548,7 +548,7 @@ export class LibraryTSConfigFile extends TSConfigFile {
 	 * // Use tmpPath with RSlib: { source: { tsconfigPath: tmpPath } }
 	 * ```
 	 */
-	writeBundlelessTempConfig(target: "dev" | "npm" | "jsr"): string {
+	writeBundlelessTempConfig(target: "dev" | "npm"): string {
 		const cwd = process.cwd();
 		const config = this.bundleless(target);
 

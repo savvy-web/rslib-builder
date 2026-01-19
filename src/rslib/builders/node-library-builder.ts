@@ -1,18 +1,16 @@
 import { existsSync } from "node:fs";
 import { join } from "node:path";
-import type { RsbuildPlugin, RsbuildPluginAPI, SourceConfig } from "@rsbuild/core";
+import type { RsbuildPlugin, SourceConfig } from "@rsbuild/core";
 import type { ConfigParams, LibConfig, RslibConfig } from "@rslib/core";
 import { defineConfig } from "@rslib/core";
 import type { RawCopyPattern } from "@rspack/binding";
 import type { PackageJson } from "type-fest";
 import { packageJsonVersion } from "#utils/file-utils.js";
-import { getJSRVirtualDummyEntry } from "#utils/jsr-dummy-entry-utils.js";
 import { ApiReportPlugin } from "../plugins/api-report-plugin.js";
 import { AutoEntryPlugin } from "../plugins/auto-entry-plugin.js";
 import { BundlelessPlugin } from "../plugins/bundleless-plugin.js";
 import { DtsPlugin } from "../plugins/dts-plugin.js";
 import { FilesArrayPlugin } from "../plugins/files-array-plugin.js";
-import { JSRBundlelessPlugin } from "../plugins/jsr-bundleless-plugin.js";
 import { PackageJsonTransformPlugin } from "../plugins/package-json-transform-plugin.js";
 
 /**
@@ -24,11 +22,7 @@ export type RslibConfigAsyncFn = (env: ConfigParams) => Promise<RslibConfig>;
 /**
  * @public
  */
-export type BuildTarget = "dev" | "npm" | "jsr";
-/**
- * @public
- */
-export type OutputFormat = "esm" | "cjs";
+export type BuildTarget = "dev" | "npm";
 
 /**
  * @public
@@ -43,10 +37,6 @@ export interface NodeLibraryBuilderOptions {
 	entry?: Record<string, string | string[]>;
 	/** Whether to bundle the output (default: true) */
 	bundle: boolean;
-	/**
-	 * Output format - 'esm' for ECMAScript modules or 'cjs' for CommonJS (default: 'esm')
-	 */
-	format?: OutputFormat;
 	/**
 	 * When enabled, each export path will generate an index.js file in a directory
 	 * structure matching the export path, rather than using the export name as the filename.
@@ -86,8 +76,6 @@ export interface NodeLibraryBuilderOptions {
 	tsconfigPath: string | undefined;
 	/** Build targets to include (default: ["dev", "npm"]) */
 	targets?: BuildTarget[];
-	/** JSR scope for the JSR build target. Can be a string or true to use package name */
-	jsr: string | true;
 	/**
 	 * External dependencies that should not be bundled.
 	 * These modules will be imported at runtime instead of being included in the bundle.
@@ -222,13 +210,11 @@ export class NodeLibraryBuilder {
 	static DEFAULT_OPTIONS: NodeLibraryBuilderOptions = {
 		entry: undefined,
 		bundle: true,
-		format: "esm",
 		plugins: [],
 		define: {},
 		copyPatterns: [],
 		targets: ["dev", "npm"],
 		tsconfigPath: undefined,
-		jsr: true,
 		externals: [],
 		dtsBundledPackages: undefined,
 		transformFiles: undefined,
@@ -260,7 +246,7 @@ export class NodeLibraryBuilder {
 			const target = (envMode as BuildTarget) || "dev";
 
 			// Validate target
-			const validTargets: BuildTarget[] = ["dev", "npm", "jsr"];
+			const validTargets: BuildTarget[] = ["dev", "npm"];
 			if (!validTargets.includes(target)) {
 				throw new Error(
 					`Invalid env-mode: "${target}". Must be one of: ${validTargets.join(", ")}\n` +
@@ -312,26 +298,15 @@ export class NodeLibraryBuilder {
 				plugins.push(BundlelessPlugin());
 			}
 
-			// Wrap user's transform to provide target context and handle format
-			const transformFn = (pkg: PackageJson): PackageJson => {
-				// Apply format-specific transformations first
-				if (options.format === "cjs") {
-					pkg.type = "commonjs";
-				}
-
-				// Then apply user's custom transform if provided
-				if (options.transform) {
-					return options.transform({ target, pkg });
-				}
-				return pkg;
-			};
-
 			// Process package.json with pnpm + RSLib transformations
+			// Wrap user's transform to provide target context
+			const userTransform = options.transform;
+			const transformFn = userTransform ? (pkg: PackageJson): PackageJson => userTransform({ target, pkg }) : undefined;
+
 			plugins.push(
 				PackageJsonTransformPlugin({
 					forcePrivate: target === "dev",
 					bundle: options.bundle,
-					format: options.format ?? "esm",
 					target,
 					transform: transformFn,
 				}),
@@ -346,88 +321,6 @@ export class NodeLibraryBuilder {
 			);
 		}
 
-		// JSR-specific plugins
-		if (target === "jsr") {
-			// Always add auto-entry plugin for JSR builds since JSRTypeScriptBundlerPlugin depends on it
-			plugins.push(
-				AutoEntryPlugin({
-					exportsAsIndexes: options.exportsAsIndexes,
-				}),
-			);
-
-			// Wrap user's transform to provide target context and handle format
-			const transformFn = (pkg: PackageJson): PackageJson => {
-				// Apply format-specific transformations first
-				if (options.format === "cjs") {
-					pkg.type = "commonjs";
-				}
-
-				// Then apply user's custom transform if provided
-				if (options.transform) {
-					return options.transform({ target, pkg });
-				}
-				return pkg;
-			};
-
-			// Process package.json with JSR-specific options
-			plugins.push(
-				PackageJsonTransformPlugin({
-					name: typeof options.jsr === "string" ? options.jsr : undefined,
-					processTSExports: false,
-					bundle: options.bundle,
-					format: options.format ?? "esm",
-					target,
-					transform: transformFn,
-				}),
-			);
-
-			// Add files array plugin for consistency
-			plugins.push(
-				FilesArrayPlugin({
-					target,
-					transformFiles: options.transformFiles,
-				}),
-			);
-
-			// Add JSR cleanup plugin to remove unwanted JS files
-			plugins.push({
-				name: "jsr-cleanup-plugin",
-				setup(api: RsbuildPluginAPI): void {
-					api.processAssets(
-						{
-							stage: "optimize-inline", // Run after JSR bundler
-						},
-						// biome-ignore lint/suspicious/noExplicitAny: Rsbuild internal API type not exported
-						async (compiler: any) => {
-							const envId = compiler.compilation?.name || "unknown";
-							if (envId !== "jsr") return;
-
-							// Remove JS files that shouldn't be in JSR output
-							const assetsToRemove: string[] = [];
-							for (const assetName of Object.keys(compiler.assets)) {
-								if (assetName.endsWith(".js") && assetName !== "_dummy.js") {
-									assetsToRemove.push(assetName);
-								}
-							}
-
-							// Remove the assets
-							for (const assetName of assetsToRemove) {
-								delete compiler.assets[assetName];
-							}
-						},
-					);
-				},
-			});
-
-			// Use bundleless plugin for JSR to preserve file structure
-			// This excludes unused files through import graph analysis
-			plugins.push(
-				JSRBundlelessPlugin({
-					name: typeof options.jsr === "string" ? options.jsr : undefined,
-				}),
-			);
-		}
-
 		// Add user-provided plugins
 		if (options.plugins) {
 			plugins.push(...options.plugins);
@@ -436,13 +329,7 @@ export class NodeLibraryBuilder {
 		// Build output configuration
 		const outputDir = `dist/${target}`;
 
-		let entry = options.entry;
-		if (target === "jsr") {
-			// For JSR, use a virtual dummy entry since actual bundling is handled by JSRBundlelessPlugin
-			entry = { _dummy: getJSRVirtualDummyEntry() };
-		}
-
-		const format = options.format ?? "esm";
+		const entry = options.entry;
 
 		// For bundleless mode, outBase should be the source directory so RSLib
 		// knows to strip the source prefix from output paths
@@ -477,7 +364,7 @@ export class NodeLibraryBuilder {
 				},
 				externals: options.externals && options.externals.length > 0 ? options.externals : undefined,
 			},
-			format,
+			format: "esm",
 			experiments: {
 				advancedEsm: true,
 			},

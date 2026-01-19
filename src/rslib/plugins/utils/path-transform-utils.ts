@@ -34,7 +34,6 @@ export function transformExportPath(
 	path: string,
 	processTSExports: boolean = true,
 	collapseIndex: boolean = false,
-	format: "esm" | "cjs" = "esm",
 ): string {
 	let transformedPath = path;
 
@@ -50,22 +49,20 @@ export function transformExportPath(
 	}
 
 	if (processTSExports) {
-		const extension = format === "cjs" ? ".cjs" : ".js";
-
 		// In bundled mode (collapseIndex=true), rslib collapses /index.ts files to just the directory name
 		// For example: ./foo/bar/index.ts -> ./foo/bar.js (rslib output)
 		// In bundleless mode (collapseIndex=false), keep the full path: ./foo/bar/index.ts -> ./foo/bar/index.js
 		// Note: Root index files (./index.ts) should not be collapsed as there's no parent directory
 		if (collapseIndex && transformedPath.endsWith("/index.ts") && transformedPath !== "./index.ts") {
-			transformedPath = `${transformedPath.slice(0, -"/index.ts".length)}${extension}`;
+			transformedPath = `${transformedPath.slice(0, -"/index.ts".length)}.js`;
 		} else if (collapseIndex && transformedPath.endsWith("/index.tsx") && transformedPath !== "./index.tsx") {
-			transformedPath = `${transformedPath.slice(0, -"/index.tsx".length)}${extension}`;
+			transformedPath = `${transformedPath.slice(0, -"/index.tsx".length)}.js`;
 		} else if (transformedPath.endsWith(".tsx")) {
-			// Convert .tsx to .js/.cjs
-			transformedPath = `${transformedPath.slice(0, -4)}${extension}`;
+			// Convert .tsx to .js
+			transformedPath = `${transformedPath.slice(0, -4)}.js`;
 		} else if (transformedPath.endsWith(".ts") && !transformedPath.endsWith(".d.ts")) {
-			// Convert .ts to .js/.cjs (excluding .d.ts files)
-			transformedPath = `${transformedPath.slice(0, -3)}${extension}`;
+			// Convert .ts to .js (excluding .d.ts files)
+			transformedPath = `${transformedPath.slice(0, -3)}.js`;
 		}
 	}
 
@@ -104,7 +101,6 @@ export function transformExportPath(
 export function createTypePath(jsPath: string, collapseIndex: boolean = true): string {
 	// Handle both regular files and collapsed index files
 	// ./foo.js -> ./foo.d.ts
-	// ./foo.cjs -> ./foo.d.ts
 	// ./foo/bar.js -> ./foo/bar.d.ts (this could be from ./foo/bar/index.ts)
 
 	// Special handling for bundled mode (collapseIndex=true) where JS is ./foo/index.js
@@ -113,15 +109,9 @@ export function createTypePath(jsPath: string, collapseIndex: boolean = true): s
 	if (collapseIndex && jsPath.endsWith("/index.js") && jsPath !== "./index.js") {
 		return `${jsPath.slice(0, -"/index.js".length)}.d.ts`;
 	}
-	if (collapseIndex && jsPath.endsWith("/index.cjs") && jsPath !== "./index.cjs") {
-		return `${jsPath.slice(0, -"/index.cjs".length)}.d.ts`;
-	}
 
 	if (jsPath.endsWith(".js")) {
 		return `${jsPath.slice(0, -3)}.d.ts`;
-	}
-	if (jsPath.endsWith(".cjs")) {
-		return `${jsPath.slice(0, -4)}.d.ts`;
 	}
 	return `${jsPath}.d.ts`;
 }

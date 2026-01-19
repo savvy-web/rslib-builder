@@ -26,7 +26,6 @@
 		"build": "turbo run build:dev build:npm",
 		"build:dev": "NODE_OPTIONS='--disable-warning=ExperimentalWarning' rslib build --env-mode dev",
 		"build:npm": "NODE_OPTIONS='--disable-warning=ExperimentalWarning' rslib build --env-mode npm",
-		"build:jsr": "NODE_OPTIONS='--disable-warning=ExperimentalWarning' rslib build --env-mode jsr",
 		"build:inspect": "rslib inspect --verbose",
 		"lint": "biome check --max-diagnostics=none",
 		"lint:fix": "biome check --write --max-diagnostics=none",

@@ -5,7 +5,8 @@ export default NodeLibraryBuilder.create({
 	bundle: true,
 	apiReports: true,
 	// Externalize build tools (peerDependencies) and internal cross-module imports
-	externals: ["@rslib/core", "@rsbuild/core", "@rspack/core"],
+	// source-map-support is optionally required by TypeScript internals (in try/catch)
+	externals: ["@rslib/core", "@rsbuild/core", "@rspack/core", "source-map-support"],
 	dtsBundledPackages: [],
 	copyPatterns: [
 		{
