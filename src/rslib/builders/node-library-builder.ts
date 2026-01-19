@@ -1,18 +1,15 @@
 import { existsSync } from "node:fs";
 import { join } from "node:path";
-import type { RsbuildPlugin, RsbuildPluginAPI, SourceConfig } from "@rsbuild/core";
+import type { RsbuildPlugin, SourceConfig } from "@rsbuild/core";
 import type { ConfigParams, LibConfig, RslibConfig } from "@rslib/core";
 import { defineConfig } from "@rslib/core";
 import type { RawCopyPattern } from "@rspack/binding";
 import type { PackageJson } from "type-fest";
 import { packageJsonVersion } from "#utils/file-utils.js";
-import { getJSRVirtualDummyEntry } from "#utils/jsr-dummy-entry-utils.js";
-import { ApiReportPlugin } from "../plugins/api-report-plugin.js";
 import { AutoEntryPlugin } from "../plugins/auto-entry-plugin.js";
-import { BundlelessPlugin } from "../plugins/bundleless-plugin.js";
+import type { ApiModelOptions } from "../plugins/dts-plugin.js";
 import { DtsPlugin } from "../plugins/dts-plugin.js";
 import { FilesArrayPlugin } from "../plugins/files-array-plugin.js";
-import { JSRBundlelessPlugin } from "../plugins/jsr-bundleless-plugin.js";
 import { PackageJsonTransformPlugin } from "../plugins/package-json-transform-plugin.js";
 
 /**
@@ -24,11 +21,7 @@ export type RslibConfigAsyncFn = (env: ConfigParams) => Promise<RslibConfig>;
 /**
  * @public
  */
-export type BuildTarget = "dev" | "npm" | "jsr";
-/**
- * @public
- */
-export type OutputFormat = "esm" | "cjs";
+export type BuildTarget = "dev" | "npm";
 
 /**
  * @public
@@ -41,18 +34,9 @@ export type TransformPackageJsonFn = (context: { target: BuildTarget; pkg: Packa
 export interface NodeLibraryBuilderOptions {
 	/** Override entry points (optional - will auto-detect from package.json) */
 	entry?: Record<string, string | string[]>;
-	/** Whether to bundle the output (default: true) */
-	bundle: boolean;
-	/**
-	 * Output format - 'esm' for ECMAScript modules or 'cjs' for CommonJS (default: 'esm')
-	 */
-	format?: OutputFormat;
 	/**
 	 * When enabled, each export path will generate an index.js file in a directory
 	 * structure matching the export path, rather than using the export name as the filename.
-	 *
-	 * @remarks
-	 * This option is only relevant for bundled builds.
 	 *
 	 * @example
 	 * When `exportsAsIndexes` is `true`, given this package.json configuration:
@@ -86,8 +70,6 @@ export interface NodeLibraryBuilderOptions {
 	tsconfigPath: string | undefined;
 	/** Build targets to include (default: ["dev", "npm"]) */
 	targets?: BuildTarget[];
-	/** JSR scope for the JSR build target. Can be a string or true to use package name */
-	jsr: string | true;
 	/**
 	 * External dependencies that should not be bundled.
 	 * These modules will be imported at runtime instead of being included in the bundle.
@@ -99,7 +81,6 @@ export interface NodeLibraryBuilderOptions {
 	 * @example
 	 * ```typescript
 	 * NodeLibraryBuilder.create({
-	 *   bundle: true,
 	 *   externals: ['@rslib/core', '@rsbuild/core']
 	 * })
 	 * ```
@@ -107,7 +88,6 @@ export interface NodeLibraryBuilderOptions {
 	externals?: (string | RegExp)[];
 	/**
 	 * Packages whose type declarations should be bundled into the output .d.ts files.
-	 * Only applies when bundle is true.
 	 *
 	 * @remarks
 	 * By default, RSlib bundles types from packages in package.json. Use this to explicitly
@@ -119,7 +99,6 @@ export interface NodeLibraryBuilderOptions {
 	 * @example
 	 * ```typescript
 	 * NodeLibraryBuilder.create({
-	 *   bundle: true,
 	 *   dtsBundledPackages: ['@pnpm/lockfile.types', '@pnpm/types', 'picocolors']
 	 * })
 	 * ```
@@ -137,7 +116,6 @@ export interface NodeLibraryBuilderOptions {
 	 * @example
 	 * ```typescript
 	 * NodeLibraryBuilder.create({
-	 *   bundle: true,
 	 *   transformFiles({ compilation, filesArray, target }) {
 	 *     // Copy index.cjs to .pnpmfile.cjs
 	 *     const indexAsset = compilation.assets['index.cjs'];
@@ -167,7 +145,6 @@ export interface NodeLibraryBuilderOptions {
 	 * @example
 	 * ```typescript
 	 * NodeLibraryBuilder.create({
-	 *   bundle: true,
 	 *   transform({ target, pkg }) {
 	 *     if (target === 'npm') {
 	 *       // Mutation approach
@@ -181,35 +158,32 @@ export interface NodeLibraryBuilderOptions {
 	 */
 	transform?: TransformPackageJsonFn;
 	/**
-	 * Enable API report generation for packages without a default export.
-	 * Only applicable when bundle is true.
+	 * Options for API model generation.
+	 * When enabled, generates an api.model.json file in the dist directory.
+	 * Only applies when target is "npm".
 	 *
 	 * @remarks
-	 * When enabled, the plugin will:
-	 * - Check if the package has no "." export in package.json
-	 * - Look for a magic file `src/api-extractor.ts` containing `@packageDocumentation`
-	 * - Generate consolidated exports for API Extractor
+	 * The generated api.model.json file contains the full API documentation
+	 * in a machine-readable format for use by documentation generators.
+	 * A .npmignore file is also generated to exclude the API model from npm publish.
 	 *
-	 * @defaultValue false
+	 * @example
+	 * ```typescript
+	 * // Enable API model generation with defaults
+	 * NodeLibraryBuilder.create({
+	 *   apiModel: true,
+	 * })
+	 *
+	 * // Enable with custom filename
+	 * NodeLibraryBuilder.create({
+	 *   apiModel: {
+	 *     enabled: true,
+	 *     filename: "my-package.api.json",
+	 *   },
+	 * })
+	 * ```
 	 */
-	apiReports?: boolean;
-}
-
-/**
- * @public
- */
-export interface BundledNodeLibraryBuilderOptions extends Partial<NodeLibraryBuilderOptions> {
-	/** {@inheritDoc NodeLibraryBuilderOptions.bundle} */
-	bundle: true;
-}
-
-/**
- * @public
- */
-export interface BundlelessNodeLibraryBuilderOptions
-	extends Omit<Partial<NodeLibraryBuilderOptions>, "exportsAsIndexes"> {
-	/** {@inheritDoc NodeLibraryBuilderOptions.bundle} */
-	bundle: false;
+	apiModel?: ApiModelOptions | boolean;
 }
 
 /**
@@ -221,18 +195,14 @@ export interface BundlelessNodeLibraryBuilderOptions
 export class NodeLibraryBuilder {
 	static DEFAULT_OPTIONS: NodeLibraryBuilderOptions = {
 		entry: undefined,
-		bundle: true,
-		format: "esm",
 		plugins: [],
 		define: {},
 		copyPatterns: [],
 		targets: ["dev", "npm"],
 		tsconfigPath: undefined,
-		jsr: true,
 		externals: [],
 		dtsBundledPackages: undefined,
 		transformFiles: undefined,
-		apiReports: false,
 	};
 	static mergeOptions(options: Partial<NodeLibraryBuilderOptions> = {}): NodeLibraryBuilderOptions {
 		const merged = {
@@ -246,8 +216,6 @@ export class NodeLibraryBuilder {
 		}
 		return merged;
 	}
-	static create(options: Partial<BundledNodeLibraryBuilderOptions>): RslibConfigAsyncFn;
-	static create(options: Partial<BundlelessNodeLibraryBuilderOptions>): RslibConfigAsyncFn;
 	/**
 	 * Creates an async RSLib configuration function that determines build target from envMode.
 	 * This provides a clean API where users don't need to handle environment logic.
@@ -260,7 +228,7 @@ export class NodeLibraryBuilder {
 			const target = (envMode as BuildTarget) || "dev";
 
 			// Validate target
-			const validTargets: BuildTarget[] = ["dev", "npm", "jsr"];
+			const validTargets: BuildTarget[] = ["dev", "npm"];
 			if (!validTargets.includes(target)) {
 				throw new Error(
 					`Invalid env-mode: "${target}". Must be one of: ${validTargets.join(", ")}\n` +
@@ -288,15 +256,8 @@ export class NodeLibraryBuilder {
 
 		// Standard plugins for dev and npm targets
 		if (target === "dev" || target === "npm") {
-			// Add API Report plugin for npm builds only
-			if (target === "npm" && options.apiReports && options.bundle) {
-				plugins.push(ApiReportPlugin({ enabled: true }));
-			}
-
-			// Add auto-entry plugin if no explicit entries provided and bundling is enabled
-			// For bundleless mode, we handle entry differently
-
-			if (!options.entry && options.bundle) {
+			// Add auto-entry plugin if no explicit entries provided
+			if (!options.entry) {
 				plugins.push(
 					AutoEntryPlugin({
 						exportsAsIndexes: options.exportsAsIndexes,
@@ -304,34 +265,15 @@ export class NodeLibraryBuilder {
 				);
 			}
 
-			if (options.bundle === false) {
-				// For bundleless mode, compile all TS files in src/
-				options.entry = {
-					index: ["src/**/*.ts"],
-				};
-				plugins.push(BundlelessPlugin());
-			}
-
-			// Wrap user's transform to provide target context and handle format
-			const transformFn = (pkg: PackageJson): PackageJson => {
-				// Apply format-specific transformations first
-				if (options.format === "cjs") {
-					pkg.type = "commonjs";
-				}
-
-				// Then apply user's custom transform if provided
-				if (options.transform) {
-					return options.transform({ target, pkg });
-				}
-				return pkg;
-			};
-
 			// Process package.json with pnpm + RSLib transformations
+			// Wrap user's transform to provide target context
+			const userTransform = options.transform;
+			const transformFn = userTransform ? (pkg: PackageJson): PackageJson => userTransform({ target, pkg }) : undefined;
+
 			plugins.push(
 				PackageJsonTransformPlugin({
 					forcePrivate: target === "dev",
-					bundle: options.bundle,
-					format: options.format ?? "esm",
+					bundle: true,
 					target,
 					transform: transformFn,
 				}),
@@ -346,88 +288,6 @@ export class NodeLibraryBuilder {
 			);
 		}
 
-		// JSR-specific plugins
-		if (target === "jsr") {
-			// Always add auto-entry plugin for JSR builds since JSRTypeScriptBundlerPlugin depends on it
-			plugins.push(
-				AutoEntryPlugin({
-					exportsAsIndexes: options.exportsAsIndexes,
-				}),
-			);
-
-			// Wrap user's transform to provide target context and handle format
-			const transformFn = (pkg: PackageJson): PackageJson => {
-				// Apply format-specific transformations first
-				if (options.format === "cjs") {
-					pkg.type = "commonjs";
-				}
-
-				// Then apply user's custom transform if provided
-				if (options.transform) {
-					return options.transform({ target, pkg });
-				}
-				return pkg;
-			};
-
-			// Process package.json with JSR-specific options
-			plugins.push(
-				PackageJsonTransformPlugin({
-					name: typeof options.jsr === "string" ? options.jsr : undefined,
-					processTSExports: false,
-					bundle: options.bundle,
-					format: options.format ?? "esm",
-					target,
-					transform: transformFn,
-				}),
-			);
-
-			// Add files array plugin for consistency
-			plugins.push(
-				FilesArrayPlugin({
-					target,
-					transformFiles: options.transformFiles,
-				}),
-			);
-
-			// Add JSR cleanup plugin to remove unwanted JS files
-			plugins.push({
-				name: "jsr-cleanup-plugin",
-				setup(api: RsbuildPluginAPI): void {
-					api.processAssets(
-						{
-							stage: "optimize-inline", // Run after JSR bundler
-						},
-						// biome-ignore lint/suspicious/noExplicitAny: Rsbuild internal API type not exported
-						async (compiler: any) => {
-							const envId = compiler.compilation?.name || "unknown";
-							if (envId !== "jsr") return;
-
-							// Remove JS files that shouldn't be in JSR output
-							const assetsToRemove: string[] = [];
-							for (const assetName of Object.keys(compiler.assets)) {
-								if (assetName.endsWith(".js") && assetName !== "_dummy.js") {
-									assetsToRemove.push(assetName);
-								}
-							}
-
-							// Remove the assets
-							for (const assetName of assetsToRemove) {
-								delete compiler.assets[assetName];
-							}
-						},
-					);
-				},
-			});
-
-			// Use bundleless plugin for JSR to preserve file structure
-			// This excludes unused files through import graph analysis
-			plugins.push(
-				JSRBundlelessPlugin({
-					name: typeof options.jsr === "string" ? options.jsr : undefined,
-				}),
-			);
-		}
-
 		// Add user-provided plugins
 		if (options.plugins) {
 			plugins.push(...options.plugins);
@@ -436,34 +296,27 @@ export class NodeLibraryBuilder {
 		// Build output configuration
 		const outputDir = `dist/${target}`;
 
-		let entry = options.entry;
-		if (target === "jsr") {
-			// For JSR, use a virtual dummy entry since actual bundling is handled by JSRBundlelessPlugin
-			entry = { _dummy: getJSRVirtualDummyEntry() };
-		}
-
-		const format = options.format ?? "esm";
-
-		// For bundleless mode, outBase should be the source directory so RSLib
-		// knows to strip the source prefix from output paths
-		const outBase = options.bundle === false ? "src" : outputDir;
+		const entry = options.entry;
 
 		// Add our custom DTS plugin that uses tsgo and emits through asset pipeline
 		// The plugin will generate the temp tsconfig itself since it needs access to api.context.rootPath
+		// Only enable API model generation for npm target (not dev)
+		const apiModelForTarget = target === "npm" ? options.apiModel : undefined;
+
 		plugins.push(
 			DtsPlugin({
 				tsconfigPath: options.tsconfigPath, // Pass through user's tsconfig if provided
 				abortOnError: true,
-				bundle: options.bundle,
+				bundle: true,
 				bundledPackages: options.dtsBundledPackages,
-				// Pass target and bundle mode so the plugin can generate the correct temp config
 				buildTarget: target,
+				apiModel: apiModelForTarget,
 			}),
 		);
 
 		const lib: LibConfig = {
 			id: target,
-			outBase,
+			outBase: outputDir,
 			output: {
 				target: "node",
 				module: true,
@@ -477,17 +330,17 @@ export class NodeLibraryBuilder {
 				},
 				externals: options.externals && options.externals.length > 0 ? options.externals : undefined,
 			},
-			format,
+			format: "esm",
 			experiments: {
 				advancedEsm: true,
 			},
-			bundle: options.bundle ?? true,
+			bundle: true,
 			plugins,
 			source: {
 				// Don't set tsconfigPath here - DtsPlugin will generate and use its own temp config
 				// RSLib will use its default tsconfig resolution for JS compilation
 				tsconfigPath: options.tsconfigPath, // Only pass through if user explicitly provided one
-				entry, // Only set entry if it has values, otherwise rslib won't compile anything in bundleless mode
+				entry,
 				define: {
 					"process.env.__PACKAGE_VERSION__": JSON.stringify(VERSION),
 					...options.define,

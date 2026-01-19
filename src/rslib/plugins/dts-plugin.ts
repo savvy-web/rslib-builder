@@ -16,9 +16,61 @@ import {
 	sys,
 } from "typescript";
 import { getWorkspaceRoot } from "workspace-tools";
-import { getApiExtractorPath } from "#utils/dependency-path-utils.js";
-import { createEnvLogger } from "#utils/logger-utils.js";
+import { createEnvLogger } from "#utils/build-logger.js";
+import { getApiExtractorPath } from "#utils/file-utils.js";
 import { TSConfigs } from "../../tsconfig/index.js";
+
+/**
+ * Options for API model generation.
+ * When enabled, generates an api.model.json file using API Extractor.
+ *
+ * @remarks
+ * API models are only generated for the main "index" entry point (the "." export).
+ * Additional entry points like "./hooks" or "./utils" do not generate separate API models.
+ * This prevents multiple conflicting API models and ensures a single source of truth
+ * for package documentation.
+ *
+ * @public
+ */
+export interface ApiModelOptions {
+	/**
+	 * Whether to enable API model generation.
+	 * @defaultValue false
+	 */
+	enabled?: boolean;
+
+	/**
+	 * Filename for the generated API model file.
+	 * @defaultValue "api.model.json"
+	 */
+	filename?: string;
+
+	/**
+	 * Whether to add a .npmignore file that excludes the API model file.
+	 * This is useful when the API model is for internal tooling only.
+	 * @defaultValue true
+	 */
+	npmIgnore?: boolean;
+
+	/**
+	 * Local paths to copy the API model and package.json to.
+	 * Used for local testing with documentation systems.
+	 *
+	 * @remarks
+	 * Each path must be a directory. The parent directory must exist,
+	 * but the final directory will be created if it doesn't exist.
+	 * Both api.model.json and the processed package.json will be copied.
+	 *
+	 * @example
+	 * ```typescript
+	 * apiModel: {
+	 *   enabled: true,
+	 *   localPaths: ["../docs-site/lib/packages/my-package"],
+	 * }
+	 * ```
+	 */
+	localPaths?: string[];
+}
 
 /**
  * Options for configuring the DTS plugin.
@@ -77,10 +129,17 @@ export interface DtsPluginOptions {
 	footer?: string;
 
 	/**
-	 * Build target (dev, npm, jsr).
+	 * Build target (dev, npm).
 	 * Used to generate the correct temp tsconfig when tsconfigPath is not provided.
 	 */
-	buildTarget?: "dev" | "npm" | "jsr";
+	buildTarget?: "dev" | "npm";
+
+	/**
+	 * Options for API model generation.
+	 * When enabled, generates an api.model.json file in the dist directory.
+	 * Only applies when bundle is true.
+	 */
+	apiModel?: ApiModelOptions | boolean;
 }
 
 /**
@@ -102,12 +161,14 @@ export function getTsgoBinPath(): string {
 	// If not found locally, use workspace-tools to find the workspace root
 	// This handles pnpm, npm, yarn, rush, and lerna workspaces
 	const workspaceRoot = getWorkspaceRoot(cwd);
+	/* v8 ignore start -- Workspace fallback difficult to test without mocking workspace-tools */
 	if (workspaceRoot) {
 		const workspaceTsgoBin = join(workspaceRoot, "node_modules", ".bin", "tsgo");
 		if (existsSync(workspaceTsgoBin)) {
 			return workspaceTsgoBin;
 		}
 	}
+	/* v8 ignore stop */
 
 	// Fallback to current directory (will error with a clear message if not found)
 	return localTsgoBin;
@@ -178,10 +239,22 @@ export async function collectDtsFiles(
 }
 
 /**
+ * Result of bundling declaration files.
+ */
+interface BundleDtsResult {
+	/** Map of entry names to their bundled file paths in temp */
+	bundledFiles: Map<string, string>;
+	/** Path to the generated API model file (if apiModel was enabled) */
+	apiModelPath?: string;
+}
+
+/**
  * Bundles TypeScript declaration files using API Extractor.
  * Writes bundled output to a temporary directory (not dist).
  * Returns a map of entry names to their bundled file paths in temp.
+ * @internal
  */
+/* v8 ignore start -- Integration function requiring API Extractor */
 async function bundleDtsFiles(options: {
 	cwd: string;
 	tempDtsDir: string;
@@ -191,10 +264,19 @@ async function bundleDtsFiles(options: {
 	entryPoints: Map<string, string>;
 	banner?: string;
 	footer?: string;
-}): Promise<Map<string, string>> {
-	const { cwd, tempDtsDir, tempOutputDir, tsconfigPath, bundledPackages, entryPoints, banner, footer } = options;
+	apiModel?: ApiModelOptions | boolean;
+}): Promise<BundleDtsResult> {
+	const { cwd, tempDtsDir, tempOutputDir, tsconfigPath, bundledPackages, entryPoints, banner, footer, apiModel } =
+		options;
 
 	const bundledFiles = new Map<string, string>();
+	let apiModelPath: string | undefined;
+
+	// Normalize apiModel options - enabled by default when apiModel is true or an object without enabled: false
+	const apiModelEnabled =
+		apiModel === true ||
+		(typeof apiModel === "object" && (apiModel.enabled === undefined || apiModel.enabled === true));
+	const apiModelFilename = typeof apiModel === "object" && apiModel.filename ? apiModel.filename : "api.model.json";
 
 	// Validate that API Extractor is installed before attempting import
 	getApiExtractorPath();
@@ -234,6 +316,10 @@ async function bundleDtsFiles(options: {
 		const outputFileName = `${entryName}.d.ts`;
 		const tempBundledPath = join(tempOutputDir, outputFileName);
 
+		// Only generate API model for the main "index" entry
+		const generateApiModel = apiModelEnabled && entryName === "index";
+		const tempApiModelPath = generateApiModel ? join(tempOutputDir, apiModelFilename) : undefined;
+
 		// Create API Extractor configuration
 		const extractorConfig = ExtractorConfig.prepare({
 			configObject: {
@@ -246,6 +332,12 @@ async function bundleDtsFiles(options: {
 					enabled: true,
 					untrimmedFilePath: tempBundledPath,
 				},
+				docModel: generateApiModel
+					? {
+							enabled: true,
+							apiJsonFilePath: tempApiModelPath,
+						}
+					: undefined,
 				bundledPackages: bundledPackages,
 			},
 			packageJsonFullPath: join(cwd, "package.json"),
@@ -277,6 +369,11 @@ async function bundleDtsFiles(options: {
 			throw new Error(`API Extractor failed for entry "${entryName}"`);
 		}
 
+		// Store the API model path if generated
+		if (generateApiModel && tempApiModelPath) {
+			apiModelPath = tempApiModelPath;
+		}
+
 		// Apply banner/footer if specified
 		if (banner || footer) {
 			let content = await readFile(tempBundledPath, "utf-8");
@@ -289,12 +386,13 @@ async function bundleDtsFiles(options: {
 		bundledFiles.set(entryName, tempBundledPath);
 	}
 
-	return bundledFiles;
+	return { bundledFiles, apiModelPath };
 }
+/* v8 ignore stop */
 
 /**
  * Strips sourceMappingURL comment from declaration file content.
- * This removes comments like: //# sourceMappingURL=index.d.ts.map
+ * This removes comments like: `//# source` + `MappingURL=index.d.ts.map`
  *
  * @remarks
  * Source maps are preserved in the temp directory for API Extractor documentation
@@ -338,7 +436,9 @@ export function findTsConfig(cwd: string, tsconfigPath?: string): string | null 
 
 /**
  * Loads and parses a TypeScript config file.
+ * @internal
  */
+/* v8 ignore start -- Integration function with TypeScript compiler API */
 function loadTsConfig(configPath: string): ParsedCommandLine {
 	const configContent = readConfigFile(configPath, sys.readFile.bind(sys));
 
@@ -356,10 +456,13 @@ function loadTsConfig(configPath: string): ParsedCommandLine {
 
 	return parsedConfig;
 }
+/* v8 ignore stop */
 
 /**
  * Runs tsgo to generate declaration files.
+ * @internal
  */
+/* v8 ignore start -- Integration function spawning external process */
 function runTsgo(options: {
 	configPath: string;
 	declarationDir: string;
@@ -411,6 +514,7 @@ function runTsgo(options: {
 		});
 	});
 }
+/* v8 ignore stop */
 
 /**
  * Plugin to generate TypeScript declaration files using tsgo and emit them through Rslib's asset pipeline.
@@ -497,11 +601,7 @@ export const DtsPlugin = (options: DtsPluginOptions = {}): RsbuildPlugin => {
 						const originalCwd = process.cwd();
 						try {
 							process.chdir(cwd);
-							if (options.bundle) {
-								configTsconfigPath = TSConfigs.node.ecma.lib.writeBundleTempConfig(options.buildTarget);
-							} else {
-								configTsconfigPath = TSConfigs.node.ecma.lib.writeBundlelessTempConfig(options.buildTarget);
-							}
+							configTsconfigPath = TSConfigs.node.ecma.lib.writeBundleTempConfig(options.buildTarget);
 							log.global.info(`Using tsconfig: ${configTsconfigPath}`);
 						} finally {
 							// Restore original working directory
@@ -650,60 +750,53 @@ export const DtsPlugin = (options: DtsPluginOptions = {}): RsbuildPlugin => {
 									packageJson = exposedPackageJson;
 								}
 
-								// Extract entry points from package.json exports
+								// Only process the main export (".") for API Extractor bundling
 								const entryPoints = new Map<string, string>();
 
 								if (packageJson.exports) {
-									for (const [exportPath, exportValue] of Object.entries(packageJson.exports)) {
+									const exports = packageJson.exports as Record<string, unknown>;
+									const mainExport = exports["."];
+
+									if (mainExport) {
 										// Handle both string and object export values
 										const sourcePath =
-											typeof exportValue === "string" ? exportValue : (exportValue as { default?: string })?.default;
+											typeof mainExport === "string" ? mainExport : (mainExport as { default?: string })?.default;
 
 										if (sourcePath && typeof sourcePath === "string") {
 											// Only process TypeScript source files (skip JSON, CSS, declaration files, etc.)
-											if (!sourcePath.match(/\.(ts|mts|cts|tsx)$/)) {
-												continue;
+											if (sourcePath.match(/\.(ts|mts|cts|tsx)$/)) {
+												// Skip test files
+												if (!sourcePath.includes(".test.") && !sourcePath.includes("__test__")) {
+													// Skip files outside the package root (e.g., temp files in /tmp/)
+													const resolvedSourcePath = sourcePath.startsWith(".") ? join(cwd, sourcePath) : sourcePath;
+													if (resolvedSourcePath.startsWith(cwd)) {
+														// If this is the temp api-extractor file, use the original path instead
+														let finalSourcePath = sourcePath;
+														if (apiExtractorMapping && resolvedSourcePath === apiExtractorMapping.tempPath) {
+															finalSourcePath = apiExtractorMapping.originalPath;
+															log.global.info(`Using original path for api-extractor: ${finalSourcePath}`);
+														}
+
+														// Store main export as "index" entry
+														entryPoints.set("index", finalSourcePath);
+													} else {
+														log.global.info(`Skipping main export (source outside package: ${sourcePath})`);
+													}
+												}
 											}
-
-											// Skip test files
-											if (sourcePath.includes(".test.") || sourcePath.includes("__test__")) {
-												continue;
-											}
-
-											// Skip files outside the package root (e.g., temp files in /tmp/)
-											// Resolve the source path and check if it's within the package
-											const resolvedSourcePath = sourcePath.startsWith(".") ? join(cwd, sourcePath) : sourcePath;
-											if (!resolvedSourcePath.startsWith(cwd)) {
-												log.global.info(`Skipping entry ${exportPath} (source outside package: ${sourcePath})`);
-												continue;
-											}
-
-											// Normalize export path to entry name
-											// "." -> "index", "./foo/bar" -> "foo/bar"
-											const entryName = exportPath === "." ? "index" : exportPath.replace(/^\.\//, "");
-
-											// If this is the temp api-extractor file, use the original path instead
-											let finalSourcePath = sourcePath;
-											if (apiExtractorMapping && resolvedSourcePath === apiExtractorMapping.tempPath) {
-												finalSourcePath = apiExtractorMapping.originalPath;
-												log.global.info(`Using original path for api-extractor: ${finalSourcePath}`);
-											}
-
-											// Store source path (will be converted to .d.ts path in bundleDtsFiles)
-											entryPoints.set(entryName, finalSourcePath);
 										}
 									}
 								}
 
 								if (entryPoints.size === 0) {
-									log.global.warn("No entry points found in package.json exports, skipping bundling");
+									log.global.warn("No main export found in package.json exports, skipping bundling");
 								} else {
 									// Create temp directory for bundled output
 									const tempBundledDir = join(tempDtsDir, "bundled");
 									await mkdir(tempBundledDir, { recursive: true });
 
 									// Bundle declarations using API Extractor (writes to temp directory)
-									const bundledFiles = await bundleDtsFiles({
+									const { bundledFiles, apiModelPath } = await bundleDtsFiles({
 										cwd,
 										tempDtsDir,
 										tempOutputDir: tempBundledDir,
@@ -712,6 +805,7 @@ export const DtsPlugin = (options: DtsPluginOptions = {}): RsbuildPlugin => {
 										entryPoints,
 										banner: options.banner,
 										footer: options.footer,
+										apiModel: options.apiModel,
 									});
 
 									// Emit bundled .d.ts files from temp directory through asset pipeline
@@ -737,6 +831,88 @@ export const DtsPlugin = (options: DtsPluginOptions = {}): RsbuildPlugin => {
 									logger.info(
 										`${color.dim(`[${envId}]`)} Emitted ${emittedCount} bundled declaration file${emittedCount === 1 ? "" : "s"} through asset pipeline`,
 									);
+
+									// Emit API model file if generated
+									if (apiModelPath) {
+										const apiModelFilename =
+											typeof options.apiModel === "object" && options.apiModel.filename
+												? options.apiModel.filename
+												: "api.model.json";
+										const apiModelContent = await readFile(apiModelPath, "utf-8");
+										const apiModelSource = new context.sources.OriginalSource(apiModelContent, apiModelFilename);
+										context.compilation.emitAsset(apiModelFilename, apiModelSource);
+
+										// Add to files array (the file will be in dist, but .npmignore will exclude from publish)
+										if (filesArray) {
+											filesArray.add(apiModelFilename);
+										}
+
+										logger.info(`${color.dim(`[${envId}]`)} Emitted API model: ${apiModelFilename}`);
+
+										// Emit .npmignore file to exclude api.model.json from npm publish
+										const shouldAddNpmIgnore =
+											options.apiModel === true ||
+											(typeof options.apiModel === "object" && options.apiModel.npmIgnore !== false);
+
+										if (shouldAddNpmIgnore) {
+											const npmIgnoreContent = `# Exclude API model from npm publish (used by internal tooling)\n${apiModelFilename}\n`;
+											const npmIgnoreSource = new context.sources.OriginalSource(npmIgnoreContent, ".npmignore");
+											context.compilation.emitAsset(".npmignore", npmIgnoreSource);
+
+											if (filesArray) {
+												filesArray.add(".npmignore");
+											}
+
+											logger.info(`${color.dim(`[${envId}]`)} Emitted .npmignore to exclude ${apiModelFilename}`);
+										}
+
+										// Copy API model and package.json to local paths if specified
+										// Skip in CI environments (GITHUB_ACTIONS or CI env vars)
+										const isCI = process.env.GITHUB_ACTIONS === "true" || process.env.CI === "true";
+										const localPaths = typeof options.apiModel === "object" ? options.apiModel.localPaths : undefined;
+
+										if (localPaths && localPaths.length > 0 && !isCI) {
+											for (const localPath of localPaths) {
+												const resolvedPath = join(cwd, localPath);
+												const parentDir = dirname(resolvedPath);
+
+												// Validate parent directory exists
+												if (!existsSync(parentDir)) {
+													logger.warn(
+														`${color.dim(`[${envId}]`)} Skipping local path: parent directory does not exist: ${parentDir}`,
+													);
+													continue;
+												}
+
+												// Create the target directory if it doesn't exist
+												await mkdir(resolvedPath, { recursive: true });
+
+												// Copy api.model.json
+												const apiModelDestPath = join(resolvedPath, apiModelFilename);
+												await writeFile(apiModelDestPath, apiModelContent, "utf-8");
+
+												// Get package.json from compilation assets and copy it
+												const packageJsonAsset = context.compilation.assets["package.json"];
+												if (packageJsonAsset) {
+													const rawContent =
+														typeof packageJsonAsset.source === "function"
+															? packageJsonAsset.source()
+															: packageJsonAsset.source;
+													// Convert to string if it's a Buffer
+													const packageJsonContent =
+														typeof rawContent === "string"
+															? rawContent
+															: rawContent instanceof Buffer
+																? rawContent.toString("utf-8")
+																: String(rawContent);
+													const packageJsonDestPath = join(resolvedPath, "package.json");
+													await writeFile(packageJsonDestPath, packageJsonContent, "utf-8");
+												}
+
+												logger.info(`${color.dim(`[${envId}]`)} Copied API model and package.json to: ${localPath}`);
+											}
+										}
+									}
 
 									// Remove .d.ts.map files that Rspack auto-generates for our emitted .d.ts assets
 									// We keep .d.ts.map files in the declarations directory for API Extractor, but dont want them in dist

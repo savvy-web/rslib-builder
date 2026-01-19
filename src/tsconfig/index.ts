@@ -101,7 +101,7 @@ export function transformStringsDeep<T>(value: T, transform: (str: string) => st
  * reading from disk.
  *
  * This base class is suitable for workspace-level configurations. For library
- * build configurations that require bundle/bundleless transformations, use
+ * build configurations that require bundle transformations, use
  * {@link LibraryTSConfigFile}.
  *
  * @example
@@ -327,17 +327,14 @@ export class TSConfigFile {
 }
 
 /**
- * Represents a TypeScript configuration file for library builds with bundle/bundleless support.
+ * Represents a TypeScript configuration file for library builds.
  *
  * @remarks
  * This class extends {@link TSConfigFile} to add library-specific build methods for
- * generating bundle and bundleless mode configurations. It provides methods to:
- * - Generate build-mode specific configurations (bundle/bundleless)
+ * generating bundled build configurations. It provides methods to:
+ * - Generate build-mode specific configurations
  * - Write temporary configuration files for build tools
  * - Transform paths and filter includes based on build mode
- *
- * Use this class for library build configurations that need to support both
- * bundle mode (single output file) and bundleless mode (individual file compilation).
  *
  * @example
  * Using bundle mode:
@@ -381,7 +378,7 @@ export class LibraryTSConfigFile extends TSConfigFile {
 	 * // Use in RSlib config
 	 * ```
 	 */
-	bundle(target: "dev" | "npm" | "jsr"): TSConfigJsonWithSchema {
+	bundle(target: "dev" | "npm"): TSConfigJsonWithSchema {
 		const config = transformStringsDeep(this.config, (str) =>
 			// biome-ignore lint/suspicious/noTemplateCurlyInString: replacing an actual literal
 			str.replace("${configDir}", "../../../../../.."),
@@ -415,57 +412,6 @@ export class LibraryTSConfigFile extends TSConfigFile {
 	}
 
 	/**
-	 * Get bundleless-mode configuration with transformed paths.
-	 *
-	 * @remarks
-	 * This method transforms the base configuration for bundleless mode by:
-	 * - Replacing `${configDir}` with absolute relative paths (../../../../../../)
-	 * - Filtering include to only src and public directories (no types)
-	 * - Only including .ts and .mts files (no .tsx, .cts)
-	 * - Setting rootDir to the src directory
-	 * - Setting outDir to just "dist"
-	 * - Changing tsBuildInfoFile to include target: `dist/.tsbuildinfo.{target}.bundleless`
-	 *
-	 * @param target - Build target (dev, npm, jsr)
-	 *
-	 * @example
-	 * ```typescript
-	 * const libConfig = TSConfigs.node.ecma.lib;
-	 * const bundlelessConfig = libConfig.bundleless("dev");
-	 * // Use in RSlib config
-	 * ```
-	 */
-	bundleless(target: "dev" | "npm" | "jsr"): TSConfigJsonWithSchema {
-		const config = transformStringsDeep(this.config, (str) =>
-			// biome-ignore lint/suspicious/noTemplateCurlyInString: replacing an actual literal
-			str.replace("${configDir}", "../../../../../.."),
-		);
-
-		// Filter include patterns for bundleless mode
-		const include = config.include
-			?.filter((pattern) => {
-				// Only include src/**/*.ts, src/**/*.mts, package.json, and public/**/*.json
-				// No types directory in bundleless mode
-				return pattern.includes("/src/") || pattern.includes("/public/") || pattern.includes("package.json");
-			})
-			.filter((pattern) => {
-				// Exclude .tsx and .cts files
-				return !pattern.includes(".tsx") && !pattern.includes(".cts");
-			});
-
-		return {
-			...config,
-			compilerOptions: {
-				...config.compilerOptions,
-				rootDir: "../../../../../../src",
-				outDir: "dist",
-				tsBuildInfoFile: `${process.cwd()}/dist/.tsbuildinfo.${target}.bundleless`,
-			},
-			include,
-		};
-	}
-
-	/**
 	 * Write the bundle-mode configuration to a temporary file.
 	 *
 	 * @remarks
@@ -485,7 +431,7 @@ export class LibraryTSConfigFile extends TSConfigFile {
 	 * // Use tmpPath with RSlib: { source: { tsconfigPath: tmpPath } }
 	 * ```
 	 */
-	writeBundleTempConfig(target: "dev" | "npm" | "jsr"): string {
+	writeBundleTempConfig(target: "dev" | "npm"): string {
 		const cwd = process.cwd();
 		const config = this.bundle(target);
 
@@ -524,67 +470,6 @@ export class LibraryTSConfigFile extends TSConfigFile {
 		};
 
 		const tmpFile = requireCJS("tmp").fileSync({ prefix: "tsconfig-bundle-", postfix: ".json" });
-		writeFileSync(tmpFile.name, JSON.stringify(absoluteConfig, null, "\t"));
-		return tmpFile.name;
-	}
-
-	/**
-	 * Write the bundleless-mode configuration to a temporary file.
-	 *
-	 * @remarks
-	 * Creates a temporary tsconfig.json file with the bundleless-mode transformations applied.
-	 * This is useful for passing to RSlib or other build tools that need a file path.
-	 *
-	 * The temporary file will be automatically cleaned up when the process exits.
-	 *
-	 * @param target - Build target (dev, npm, jsr)
-	 * @returns Absolute path to the temporary file
-	 *
-	 * @example
-	 * ```typescript
-	 * import { TSConfigs } from '@savvy-web/shared/tsconfig';
-	 *
-	 * const tmpPath = TSConfigs.node.ecma.lib.writeBundlelessTempConfig("dev");
-	 * // Use tmpPath with RSlib: { source: { tsconfigPath: tmpPath } }
-	 * ```
-	 */
-	writeBundlelessTempConfig(target: "dev" | "npm" | "jsr"): string {
-		const cwd = process.cwd();
-		const config = this.bundleless(target);
-
-		// Helper to convert relative paths to absolute
-		const toAbsolute = (path: string): string => {
-			if (path.startsWith("../") || path === "..") {
-				// Replace all leading ../ segments with cwd
-				// Handle paths like "../../.." (ending without slash) by adding optional ".." at end
-				return path.replace(/^((\.\.\/)+\.\.?|\.\.\/*)$/, cwd).replace(/^(\.\.\/)+/, `${cwd}/`);
-			}
-			/* v8 ignore next -- @preserve */
-			return path;
-		};
-
-		// Convert all relative paths to absolute paths since temp file is not in package
-		const absoluteConfig = {
-			...config,
-			compilerOptions: {
-				...config.compilerOptions,
-				// For bundleless, set rootDir to src directory to strip src/ prefix from output
-				rootDir: `${cwd}/src`,
-				// Override these settings for declaration generation since DtsPlugin uses this config
-				// and we need declarationMap enabled and emitDeclarationOnly explicitly false
-				// (DtsPlugin will pass --emitDeclarationOnly via CLI args)
-				declarationMap: true,
-				emitDeclarationOnly: false,
-				declarationDir: config.compilerOptions?.declarationDir
-					? toAbsolute(config.compilerOptions.declarationDir)
-					: undefined,
-				typeRoots: config.compilerOptions?.typeRoots?.map(toAbsolute),
-			},
-			include: config.include?.map(toAbsolute),
-			exclude: config.exclude?.map(toAbsolute),
-		};
-
-		const tmpFile = requireCJS("tmp").fileSync({ prefix: "tsconfig-bundleless-", postfix: ".json" });
 		writeFileSync(tmpFile.name, JSON.stringify(absoluteConfig, null, "\t"));
 		return tmpFile.name;
 	}
@@ -634,7 +519,7 @@ export const Root: TSConfigFile = new TSConfigFile(
  * file generation and module resolution settings suitable for npm packages.
  *
  * This configuration provides build-mode specific methods via {@link LibraryTSConfigFile}
- * for generating bundle and bundleless configurations.
+ * for generating bundled build configurations.
  *
  * @example
  * In a tsconfig.json file for a library project:
@@ -679,9 +564,7 @@ export const NodeEcmaLib: LibraryTSConfigFile = new LibraryTSConfigFile(
  *
  * The structure is organized as:
  * - `root`: Base workspace configuration
- * - `node.ecma.lib`: For Node.js libraries
- * - `node.ecma.bundle`: For Node.js applications with bundling
- * - `node.ecma.bundleless`: For Node.js projects without bundling
+ * - `node.ecma.lib`: For Node.js libraries (bundled ESM builds)
  *
  * All configurations support workspace-aware path resolution that handles cross-package
  * references correctly by using node_modules symlinks when appropriate.
@@ -712,8 +595,6 @@ export const NodeEcmaLib: LibraryTSConfigFile = new LibraryTSConfigFile(
  * }
  * // Output:
  * // lib: ECMAScript library build configuration
- * // bundle: Standard build configuration with bundle mode
- * // bundleless: Bundleless build configuration for individual file compilation
  * ```
  *
  * @see {@link TSConfigFile} for the structure of individual configuration objects

@@ -1,8 +1,8 @@
 import type { RsbuildPlugin, RsbuildPluginAPI } from "@rsbuild/core";
 import type { PackageJson } from "type-fest";
-import type { CacheEntry } from "#utils/asset-processor-utils.js";
-import { JsonAsset, TextAsset } from "#utils/json-asset-utils.js";
-import { buildPackageJson } from "#utils/package-json-builder-utils.js";
+import type { CacheEntry } from "#utils/asset-utils.js";
+import { JsonAsset, TextAsset } from "#utils/asset-utils.js";
+import { buildPackageJson } from "#utils/package-json-transformer.js";
 
 /**
  * @public
@@ -16,9 +16,7 @@ export interface PackageJsonTransformPluginOptions {
 	processTSExports?: boolean;
 	/** Whether the build is in bundle mode (affects export path transformation) */
 	bundle?: boolean;
-	/** Output format - 'esm' for ECMAScript modules or 'cjs' for CommonJS */
-	format?: "esm" | "cjs";
-	/** Build target (dev, npm, jsr) - used for custom transformations */
+	/** Build target (dev, npm) - used for custom transformations */
 	target?: string;
 	/** Optional transform function to modify package.json after standard transformations */
 	transform?: (pkg: PackageJson) => PackageJson;
@@ -87,7 +85,6 @@ export const PackageJsonTransformPlugin = (options: PackageJsonTransformPluginOp
 						entrypoints,
 						exportToOutputMap,
 						options.bundle,
-						options.format ?? "esm",
 						options.transform,
 					);
 					packageJson.data = processedPackageJson;
