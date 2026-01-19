@@ -23,6 +23,13 @@ import { TSConfigs } from "../../tsconfig/index.js";
 /**
  * Options for API model generation.
  * When enabled, generates an api.model.json file using API Extractor.
+ *
+ * @remarks
+ * API models are only generated for the main "index" entry point (the "." export).
+ * Additional entry points like "./hooks" or "./utils" do not generate separate API models.
+ * This prevents multiple conflicting API models and ensures a single source of truth
+ * for package documentation.
+ *
  * @public
  */
 export interface ApiModelOptions {
@@ -265,8 +272,10 @@ async function bundleDtsFiles(options: {
 	const bundledFiles = new Map<string, string>();
 	let apiModelPath: string | undefined;
 
-	// Normalize apiModel options
-	const apiModelEnabled = apiModel === true || (typeof apiModel === "object" && apiModel.enabled !== false);
+	// Normalize apiModel options - enabled by default when apiModel is true or an object without enabled: false
+	const apiModelEnabled =
+		apiModel === true ||
+		(typeof apiModel === "object" && (apiModel.enabled === undefined || apiModel.enabled === true));
 	const apiModelFilename = typeof apiModel === "object" && apiModel.filename ? apiModel.filename : "api.model.json";
 
 	// Validate that API Extractor is installed before attempting import
