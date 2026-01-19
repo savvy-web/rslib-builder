@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { clearCatalogCache, getCatalog } from "#utils/pnpm-catalog-utils.js";
+import { clearCatalogCache, getCatalog } from "#utils/pnpm-catalog.js";
 import { createMockStats } from "./test-types.js";
 
 // Mock external dependencies

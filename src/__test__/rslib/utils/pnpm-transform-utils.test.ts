@@ -2,12 +2,12 @@ import { createExportableManifest } from "@pnpm/exportable-manifest";
 import type { ProjectManifest } from "@pnpm/types";
 import type { PackageJson } from "type-fest";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { getCatalog } from "#utils/pnpm-catalog-utils.js";
+import { getCatalog } from "#utils/pnpm-catalog.js";
 import { applyPnpmTransformations } from "#utils/pnpm-transform-utils.js";
 
 // Mock dependencies
 vi.mock("@pnpm/exportable-manifest");
-vi.mock("#utils/pnpm-catalog-utils.js");
+vi.mock("#utils/pnpm-catalog.js");
 
 describe("pnpm-transform-utils", () => {
 	beforeEach(() => {

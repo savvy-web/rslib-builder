@@ -3,7 +3,7 @@ import type { ProjectManifest } from "@pnpm/types";
 import type { PackageJson } from "type-fest";
 import { createEnvLogger } from "#utils/logger-utils.js";
 import { CATALOG_PREFIX, WORKSPACE_PREFIX } from "#utils/package-json-types-utils.js";
-import { getCatalog } from "#utils/pnpm-catalog-utils.js";
+import { getCatalog } from "#utils/pnpm-catalog.js";
 
 /**
  * Applies pnpm-specific transformations to package.json for publishing compatibility.

@@ -61,4 +61,15 @@ export type * from "./rslib/plugins/jsr-bundleless-plugin.js";
 export * from "./rslib/plugins/jsr-bundleless-plugin.js";
 export type * from "./rslib/plugins/package-json-transform-plugin.js";
 export * from "./rslib/plugins/package-json-transform-plugin.js";
+// Utility classes for programmatic use
+export {
+	EntryExtractor,
+	type EntryExtractorOptions,
+	type ExtractedEntries,
+} from "./rslib/plugins/utils/entry-extractor.js";
+export {
+	type PackageJsonTransformOptions,
+	PackageJsonTransformer,
+} from "./rslib/plugins/utils/package-json-transformer.js";
+export { PnpmCatalog } from "./rslib/plugins/utils/pnpm-catalog.js";
 /* v8 ignore stop */

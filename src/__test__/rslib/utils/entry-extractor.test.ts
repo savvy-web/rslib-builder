@@ -1,6 +1,6 @@
 import type { PackageJson } from "type-fest";
 import { describe, expect, it } from "vitest";
-import { extractEntriesFromPackageJson } from "#utils/entry-extractor-utils.js";
+import { EntryExtractor, extractEntriesFromPackageJson } from "#utils/entry-extractor.js";
 
 describe("extractEntriesFromPackageJson", () => {
 	it("should extract entries from exports field with string export", () => {
@@ -310,6 +310,178 @@ describe("extractEntriesFromPackageJson", () => {
 		expect(result.entries).toEqual({
 			"bin/my-cli": "./src/cli.ts",
 			"bin/tsx-file": "./src/component.tsx",
+		});
+	});
+});
+
+describe("EntryExtractor class", () => {
+	describe("constructor", () => {
+		it("should create instance with default options", () => {
+			const extractor = new EntryExtractor();
+			const packageJson: PackageJson = {
+				name: "test-package",
+				version: "1.0.0",
+				exports: {
+					"./utils/helpers": "./src/utils/helpers.ts",
+				},
+			};
+
+			const result = extractor.extract(packageJson);
+
+			// Default behavior: path separators become hyphens
+			expect(result.entries).toEqual({
+				"utils-helpers": "./src/utils/helpers.ts",
+			});
+		});
+
+		it("should accept exportsAsIndexes option", () => {
+			const extractor = new EntryExtractor({ exportsAsIndexes: true });
+			const packageJson: PackageJson = {
+				name: "test-package",
+				version: "1.0.0",
+				exports: {
+					"./utils/helpers": "./src/utils/helpers.ts",
+				},
+			};
+
+			const result = extractor.extract(packageJson);
+
+			// With exportsAsIndexes: path structure preserved with /index suffix
+			expect(result.entries).toEqual({
+				"utils/helpers/index": "./src/utils/helpers.ts",
+			});
+		});
+	});
+
+	describe("extract method", () => {
+		it("should return ExtractedEntries object", () => {
+			const extractor = new EntryExtractor();
+			const packageJson: PackageJson = {
+				name: "test-package",
+				version: "1.0.0",
+				exports: "./src/index.ts",
+			};
+
+			const result = extractor.extract(packageJson);
+
+			expect(result).toHaveProperty("entries");
+			expect(typeof result.entries).toBe("object");
+		});
+
+		it("should handle empty package.json", () => {
+			const extractor = new EntryExtractor();
+			const packageJson: PackageJson = {
+				name: "test-package",
+				version: "1.0.0",
+			};
+
+			const result = extractor.extract(packageJson);
+
+			expect(result.entries).toEqual({});
+		});
+
+		it("should extract from both exports and bin", () => {
+			const extractor = new EntryExtractor();
+			const packageJson: PackageJson = {
+				name: "test-package",
+				version: "1.0.0",
+				exports: {
+					".": "./src/index.ts",
+				},
+				bin: {
+					cli: "./src/cli.ts",
+				},
+			};
+
+			const result = extractor.extract(packageJson);
+
+			expect(result.entries).toEqual({
+				index: "./src/index.ts",
+				"bin/cli": "./src/cli.ts",
+			});
+		});
+	});
+
+	describe("exportsAsIndexes option", () => {
+		it("should create nested index paths for deep exports", () => {
+			const extractor = new EntryExtractor({ exportsAsIndexes: true });
+			const packageJson: PackageJson = {
+				name: "test-package",
+				version: "1.0.0",
+				exports: {
+					".": "./src/index.ts",
+					"./api": "./src/api.ts",
+					"./api/v1": "./src/api/v1.ts",
+					"./utils/string/format": "./src/utils/string/format.ts",
+				},
+			};
+
+			const result = extractor.extract(packageJson);
+
+			expect(result.entries).toEqual({
+				index: "./src/index.ts",
+				"api/index": "./src/api.ts",
+				"api/v1/index": "./src/api/v1.ts",
+				"utils/string/format/index": "./src/utils/string/format.ts",
+			});
+		});
+
+		it("should use hyphenated names when exportsAsIndexes is false", () => {
+			const extractor = new EntryExtractor({ exportsAsIndexes: false });
+			const packageJson: PackageJson = {
+				name: "test-package",
+				version: "1.0.0",
+				exports: {
+					"./api/v1": "./src/api/v1.ts",
+					"./utils/string/format": "./src/utils/string/format.ts",
+				},
+			};
+
+			const result = extractor.extract(packageJson);
+
+			expect(result.entries).toEqual({
+				"api-v1": "./src/api/v1.ts",
+				"utils-string-format": "./src/utils/string/format.ts",
+			});
+		});
+	});
+
+	describe("functional interface compatibility", () => {
+		it("should produce same results as class-based API", () => {
+			const packageJson: PackageJson = {
+				name: "test-package",
+				version: "1.0.0",
+				exports: {
+					".": "./src/index.ts",
+					"./utils": "./src/utils.ts",
+				},
+				bin: "./src/cli.ts",
+			};
+
+			const extractor = new EntryExtractor();
+			const classResult = extractor.extract(packageJson);
+			const funcResult = extractEntriesFromPackageJson(packageJson);
+
+			expect(classResult).toEqual(funcResult);
+		});
+
+		it("should pass options through functional interface", () => {
+			const packageJson: PackageJson = {
+				name: "test-package",
+				version: "1.0.0",
+				exports: {
+					"./deep/nested/path": "./src/deep/nested/path.ts",
+				},
+			};
+
+			const extractor = new EntryExtractor({ exportsAsIndexes: true });
+			const classResult = extractor.extract(packageJson);
+			const funcResult = extractEntriesFromPackageJson(packageJson, { exportsAsIndexes: true });
+
+			expect(classResult).toEqual(funcResult);
+			expect(classResult.entries).toEqual({
+				"deep/nested/path/index": "./src/deep/nested/path.ts",
+			});
 		});
 	});
 });

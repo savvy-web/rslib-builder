@@ -1,9 +1,9 @@
-import type { SpyInstance } from "vitest";
+import type { MockInstance } from "vitest";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { debugLogger } from "#utils/debug-utils.js";
 
 // Mock console.log to capture output
-const mockConsoleLog: SpyInstance = vi.spyOn(console, "log").mockImplementation(() => {});
+const mockConsoleLog: MockInstance = vi.spyOn(console, "log").mockImplementation(() => {});
 
 describe("debugLogger", () => {
 	beforeEach(() => {

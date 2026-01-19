@@ -2,7 +2,7 @@
 import { readFile, writeFile } from "node:fs/promises";
 import type { RsbuildPlugin, RsbuildPluginAPI } from "@rsbuild/core";
 import type { PackageJson } from "type-fest";
-import { extractEntriesFromPackageJson } from "#utils/entry-extractor-utils.js";
+import { extractEntriesFromPackageJson } from "#utils/entry-extractor.js";
 import { fileExistAsync } from "#utils/file-utils.js";
 import { createEnvLogger } from "#utils/logger-utils.js";
 
