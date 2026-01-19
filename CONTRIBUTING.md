@@ -165,13 +165,43 @@ See `.claude/design/rslib-builder/architecture.md` for detailed plugin architect
 
 **Solution**: Check `processAssets` stage ordering
 
+## Developer Certificate of Origin (DCO)
+
+This project requires all contributions to be signed off under the
+[Developer Certificate of Origin (DCO)](./DCO). This certifies that you have
+the right to submit your contribution under the project's open source license.
+
+### How to Sign Off
+
+Add a `Signed-off-by` line to your commit messages:
+
+```text
+Signed-off-by: Your Name <your.email@example.com>
+```
+
+Git can do this automatically with the `-s` flag:
+
+```bash
+git commit -s -m "Your commit message"
+```
+
+### Configuring Git
+
+Ensure your Git identity matches your sign-off:
+
+```bash
+git config user.name "Your Name"
+git config user.email "your.email@example.com"
+```
+
 ## Pull Request Guidelines
 
 1. Create a feature branch from `main`
 2. Ensure all tests pass with 85%+ coverage
 3. Run `pnpm lint:fix` before committing
-4. Write clear commit messages
-5. Update documentation as needed
+4. Sign off all commits (see DCO above)
+5. Write clear commit messages
+6. Update documentation as needed
 
 ## External Resources
 
@@ -183,5 +213,6 @@ See `.claude/design/rslib-builder/architecture.md` for detailed plugin architect
 
 ## License
 
-By contributing, you agree that your contributions will be licensed under the
-MIT License.
+By contributing and signing off your commits, you agree that your contributions
+will be licensed under the MIT License and certify compliance with the
+[Developer Certificate of Origin](./DCO).

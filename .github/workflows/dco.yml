@@ -1,0 +1,17 @@
+name: DCO
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened]
+
+jobs:
+  dco:
+    name: DCO Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: DCO Check
+        uses: githubofkrishnadhas/dco-check@v1
+        with:
+          allow-merge-commits: false
+          allow-revert-commits: true

@@ -219,6 +219,14 @@ The builder automatically handles common build concerns:
 See the repository's own `rslib.config.ts` for a real-world example of the
 builder building itself.
 
+## Support
+
+This software is provided as-is under the MIT License with no warranty or
+support guarantees. While we welcome bug reports and feature requests via
+GitHub Issues, we cannot guarantee response times or resolution.
+
+For security vulnerabilities, please see [SECURITY.md](./SECURITY.md).
+
 ## License
 
 [MIT](./LICENSE)
