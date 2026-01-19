@@ -183,25 +183,6 @@ Available templates:
 - `tsconfig/root.json` - Base workspace configuration
 - `tsconfig/node/ecma/lib.json` - Node.js ESM library configuration
 
-## Development
-
-```bash
-# Install dependencies
-pnpm install
-
-# Build
-pnpm build
-
-# Run tests
-pnpm test
-
-# Type check
-pnpm typecheck
-
-# Lint
-pnpm lint
-```
-
 ## How It Works
 
 The builder automatically handles common build concerns:
