@@ -12,7 +12,7 @@
  * - **Package.json Transformation**: Automatic path updates, PNPM catalog resolution
  * - **TypeScript Declaration Bundling**: Using tsgo and API Extractor
  * - **File Array Generation**: Automatic files array creation for package.json
- * - **API Model Generation**: Optional api.model.json for documentation tooling
+ * - **API Model Generation**: Optional `<packageName>.api.json` for documentation tooling
  *
  * @example
  * Basic usage in rslib.config.ts:

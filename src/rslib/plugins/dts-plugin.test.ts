@@ -9,6 +9,7 @@ import {
 	findTsConfig,
 	generateTsgoArgs,
 	getTsgoBinPath,
+	getUnscopedPackageName,
 	stripSourceMapComment,
 } from "./dts-plugin.js";
 
@@ -75,6 +76,28 @@ ${SOURCE_MAP_PREFIX}index.d.ts.map`;
 export declare const foo: string;
 /** TSDoc comment */
 export declare const bar: number;`);
+		});
+	});
+
+	describe("getUnscopedPackageName", () => {
+		it("should extract name from scoped package", () => {
+			expect(getUnscopedPackageName("@scope/package-name")).toBe("package-name");
+		});
+
+		it("should return name unchanged for unscoped package", () => {
+			expect(getUnscopedPackageName("package-name")).toBe("package-name");
+		});
+
+		it("should handle scoped package with nested path", () => {
+			expect(getUnscopedPackageName("@my-org/my-package")).toBe("my-package");
+		});
+
+		it("should handle empty scope", () => {
+			expect(getUnscopedPackageName("@/package")).toBe("package");
+		});
+
+		it("should return original if no slash after @", () => {
+			expect(getUnscopedPackageName("@no-slash")).toBe("@no-slash");
 		});
 	});
 
