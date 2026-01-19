@@ -1,20 +1,27 @@
 # @savvy-web/rslib-builder
 
-RSlib-based build system for Node.js libraries with automatic package.json
-transformation, TypeScript declaration bundling, and multi-target support.
+[![npm version](https://img.shields.io/npm/v/@savvy-web/rslib-builder)](https://www.npmjs.com/package/@savvy-web/rslib-builder)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Node.js Version](https://img.shields.io/badge/node-%3E%3D24.0.0-brightgreen)](https://nodejs.org)
+
+Build modern ESM Node.js libraries with zero configuration. Handles TypeScript
+declarations, package.json transformations, and PNPM workspace resolution
+automatically.
 
 ## Features
 
-- **Multiple Build Targets** - dev and npm with different optimizations
-- **Bundled ESM Output** - Single-file outputs with rolled-up types
-- **Auto Package.json Transform** - Export paths, PNPM catalog resolution,
-  files array generation
-- **TypeScript Declaration Bundling** - Fast generation with tsgo and
-  API Extractor
-- **Source Map Handling** - Generates for debugging but excludes from
-  npm publishing
-- **Plugin System** - Extensible with custom RSlib/Rsbuild plugins
-- **API Model Generation** - Optional api.model.json for documentation tooling
+- **Zero Config** - Auto-detects entry points from package.json exports
+- **Fast Type Generation** - Uses tsgo (native TypeScript) for 10-100x faster
+  declaration generation
+- **Bundled Declarations** - Rolls up TypeScript types via API Extractor for
+  cleaner public APIs
+- **Multi-Target Builds** - Separate dev (source maps) and npm (optimized)
+  outputs
+- **PNPM Integration** - Automatically resolves `catalog:` and `workspace:`
+  references
+- **Package.json Transform** - Converts `.ts` exports and bin entries to `.js`,
+  generates files array, removes dev-only fields
+- **Extensible** - Add custom RSlib/Rsbuild plugins for advanced use cases
 
 ## Prerequisites
 
@@ -37,6 +44,18 @@ pnpm add -D @rslib/core @microsoft/api-extractor @typescript/native-preview
 ```
 
 ## Quick Start
+
+Extend the provided tsconfig for optimal settings:
+
+```jsonc
+// tsconfig.json
+{
+  "extends": "@savvy-web/rslib-builder/tsconfig/node/ecma/lib.json",
+  "compilerOptions": {
+    "outDir": "dist"
+  }
+}
+```
 
 Create an `rslib.config.ts` in your project root:
 
@@ -65,36 +84,7 @@ Add scripts to your `package.json`:
 }
 ```
 
-## Configuration
-
-### NodeLibraryBuilder Options
-
-```typescript
-interface BuilderOptions {
-  // Path to tsconfig.json for compilation
-  tsconfigPath?: string;
-
-  // Dependencies to exclude from bundling
-  externals?: (string | RegExp)[];
-
-  // Packages whose types should be inlined in declarations
-  dtsBundledPackages?: string[];
-
-  // Transform package.json per target
-  transform?: (context: TransformContext) => PackageJson;
-
-  // Export entries as index files (e.g., ./foo/index.js instead of ./foo.js)
-  exportsAsIndexes?: boolean;
-
-  // Generate API model file for documentation tooling
-  apiModel?: ApiModelOptions | boolean;
-
-  // Copy static files to dist
-  copyPatterns?: CopyPattern[];
-}
-```
-
-### Build Targets
+## Build Targets
 
 Two build targets available via `--env-mode`:
 
@@ -106,54 +96,7 @@ rslib build --env-mode dev
 rslib build --env-mode npm
 ```
 
-## Advanced Usage
-
-### TypeScript Declaration Bundling
-
-Inline type definitions from dependencies:
-
-```typescript
-NodeLibraryBuilder.create({
-  dtsBundledPackages: [
-    'picocolors',      // Exact package name
-    '@pnpm/**',        // Minimatch pattern
-    '@types/*',        // All @types packages
-  ],
-});
-```
-
-### Package.json Transformation
-
-Customize package.json per target:
-
-```typescript
-NodeLibraryBuilder.create({
-  transform({ pkg, target }) {
-    // Remove dev dependencies for npm
-    if (target === 'npm') {
-      delete pkg.devDependencies;
-      delete pkg.scripts;
-    }
-
-    return pkg;
-  },
-});
-```
-
-### Copy Static Files
-
-Copy non-compiled files to dist:
-
-```typescript
-NodeLibraryBuilder.create({
-  copyPatterns: [
-    {
-      from: 'config/**/*.json',
-      context: `${process.cwd()}/src`,
-    },
-  ],
-});
-```
+See [Configuration](./docs/guides/configuration.md) for all options.
 
 ## Plugins
 
@@ -164,36 +107,27 @@ The builder includes several built-in plugins:
 3. **DtsPlugin** - Generates TypeScript declarations with tsgo/API Extractor
 4. **FilesArrayPlugin** - Generates files array, excludes source maps
 
-## TypeScript Config Templates
-
-The package exports TypeScript config templates for different use cases:
-
-```typescript
-// In your tsconfig.json
-{
-  "extends": "@savvy-web/rslib-builder/tsconfig/node/ecma/lib.json",
-  "compilerOptions": {
-    "outDir": "dist"
-  }
-}
-```
-
-Available templates:
-
-- `tsconfig/root.json` - Base workspace configuration
-- `tsconfig/node/ecma/lib.json` - Node.js ESM library configuration
-
 ## How It Works
 
-The builder automatically handles common build concerns:
+The builder automatically transforms your source package.json for distribution:
 
 - **Entry Detection** - Extracts entry points from package.json exports
-- **Package.json Transformation** - Resolves PNPM `catalog:` protocol,
-  updates export paths from source to built, generates files array
-- **Source Maps** - Generates .map files for debugging but excludes them
-  from npm publishing to reduce package size
+- **Export Transformation** - Converts `.ts` paths to `.js` in exports field
+- **Bin Transformation** - Converts bin entries from `.ts` to `.js` scripts
+- **PNPM Resolution** - Resolves `catalog:` and `workspace:` to real versions
+- **Files Generation** - Creates accurate `files` array for npm publishing
 - **Declaration Bundling** - Uses tsgo for fast generation and API Extractor
   for bundling
+
+## Documentation
+
+For detailed documentation, see the [docs/](./docs/) directory:
+
+- [Getting Started](./docs/guides/getting-started.md) - Installation and setup
+- [Configuration](./docs/guides/configuration.md) - All options explained
+- [Plugin System](./docs/guides/plugins.md) - Built-in and custom plugins
+- [Architecture](./docs/architecture/overview.md) - How it works internally
+- [Troubleshooting](./docs/troubleshooting.md) - Common issues and solutions
 
 ## Examples
 
