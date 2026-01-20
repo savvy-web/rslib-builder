@@ -135,12 +135,15 @@ export class PackageJsonTransformer {
 		let transformedPath = path;
 
 		// Strip prefixes - RSLib handles the build output structure
+		// Order matters: strip ./src/ first, then check for nested prefixes
+		if (transformedPath.startsWith("./src/")) {
+			transformedPath = `./${transformedPath.slice("./src/".length)}`;
+		}
 		if (transformedPath.startsWith("./exports/")) {
 			transformedPath = `./${transformedPath.slice("./exports/".length)}`;
-		} else if (transformedPath.startsWith("./public/")) {
+		}
+		if (transformedPath.startsWith("./public/")) {
 			transformedPath = `./${transformedPath.slice("./public/".length)}`;
-		} else if (transformedPath.startsWith("./src/")) {
-			transformedPath = `./${transformedPath.slice("./src/".length)}`;
 		}
 
 		if (this.options.processTSExports) {
@@ -476,12 +479,15 @@ export function transformExportPath(
 	let transformedPath = path;
 
 	// Strip prefixes - RSLib handles the build output structure
+	// Order matters: strip ./src/ first, then check for nested prefixes
+	if (transformedPath.startsWith("./src/")) {
+		transformedPath = `./${transformedPath.slice("./src/".length)}`;
+	}
 	if (transformedPath.startsWith("./exports/")) {
 		transformedPath = `./${transformedPath.slice("./exports/".length)}`;
-	} else if (transformedPath.startsWith("./public/")) {
+	}
+	if (transformedPath.startsWith("./public/")) {
 		transformedPath = `./${transformedPath.slice("./public/".length)}`;
-	} else if (transformedPath.startsWith("./src/")) {
-		transformedPath = `./${transformedPath.slice("./src/".length)}`;
 	}
 
 	if (processTSExports) {
