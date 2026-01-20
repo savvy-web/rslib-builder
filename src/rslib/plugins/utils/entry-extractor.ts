@@ -33,7 +33,7 @@ export interface ExtractedEntries {
  * TypeScript source files.
  *
  * **Export Path Mapping:**
- * - Converts export keys to entry names (e.g., "./utils" -> "utils")
+ * - Converts export keys to entry names (e.g., "./utils" becomes "utils")
  * - Maps the root export "." to "index" entry
  * - Replaces path separators with hyphens for nested exports (default)
  * - When `exportsAsIndexes` is true, preserves path structure

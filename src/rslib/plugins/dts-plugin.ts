@@ -1,7 +1,9 @@
 import { spawn } from "node:child_process";
+import type { PathLike } from "node:fs";
 import { constants, existsSync } from "node:fs";
 import { access, copyFile, mkdir, readFile, readdir, rm, unlink, writeFile } from "node:fs/promises";
-import { dirname, join, relative } from "node:path";
+import { dirname, isAbsolute, join, relative } from "node:path";
+import { StandardTags, Standardization, TSDocTagSyntaxKind } from "@microsoft/tsdoc";
 import type { RsbuildPlugin, RsbuildPluginAPI } from "@rsbuild/core";
 import { logger } from "@rsbuild/core";
 import color from "picocolors";
@@ -19,6 +21,329 @@ import { getWorkspaceRoot } from "workspace-tools";
 import { createEnvLogger } from "#utils/build-logger.js";
 import { getApiExtractorPath } from "#utils/file-utils.js";
 import { TSConfigs } from "../../tsconfig/index.js";
+
+/**
+ * TSDoc tag definition for custom documentation tags.
+ * @public
+ */
+export interface TsDocTagDefinition {
+	/** The tag name including the at-sign prefix (e.g., `\@error`, `\@category`) */
+	tagName: string;
+	/** How the tag is parsed: "block" | "inline" | "modifier" */
+	syntaxKind: "block" | "inline" | "modifier";
+	/** Whether the tag can appear multiple times on a declaration */
+	allowMultiple?: boolean;
+}
+
+/**
+ * TSDoc standardization groups for predefined tag sets.
+ * @public
+ */
+export type TsDocTagGroup = "core" | "extended" | "discretionary";
+
+/**
+ * TSDoc configuration options for API Extractor.
+ * @remarks
+ * Provides ergonomic defaults - standard tags are auto-enabled via `groups`,
+ * custom tags are auto-supported, and `supportForTags` is only needed to
+ * disable specific tags.
+ *
+ * **Config optimization:** When all groups are enabled (default), the generated
+ * `tsdoc.json` uses `noStandardTags: false` to let TSDoc automatically load
+ * all standard tags, producing a minimal config file. When a subset of groups
+ * is specified, `noStandardTags: true` is used and only the enabled groups'
+ * tags are explicitly defined.
+ *
+ * @public
+ */
+export interface TsDocOptions {
+	/**
+	 * TSDoc tag groups to enable. Each group includes predefined standard tags
+	 * from the official `\@microsoft/tsdoc` package.
+	 * - "core": Essential TSDoc tags (\@param, \@returns, \@remarks, \@deprecated, etc.)
+	 * - "extended": Additional tags (\@example, \@defaultValue, \@see, \@throws, etc.)
+	 * - "discretionary": Release stage tags (\@alpha, \@beta, \@public, \@internal)
+	 *
+	 * @remarks
+	 * When all groups are enabled (the default), the generated config uses
+	 * `noStandardTags: false` and TSDoc loads standard tags automatically.
+	 * When a subset is specified, `noStandardTags: true` is used and only
+	 * the tags from enabled groups are defined.
+	 *
+	 * @defaultValue ["core", "extended", "discretionary"]
+	 */
+	groups?: TsDocTagGroup[];
+
+	/**
+	 * Custom TSDoc tag definitions beyond the standard groups.
+	 * These are automatically added to supportForTags (no need to declare twice).
+	 *
+	 * @example
+	 * ```typescript
+	 * tagDefinitions: [
+	 *   { tagName: "@error", syntaxKind: "inline" },
+	 *   { tagName: "@category", syntaxKind: "block", allowMultiple: false }
+	 * ]
+	 * ```
+	 */
+	tagDefinitions?: TsDocTagDefinition[];
+
+	/**
+	 * Override support for specific tags. Only needed to DISABLE tags.
+	 * Tags from enabled groups and custom tagDefinitions are auto-supported.
+	 *
+	 * @example
+	 * ```typescript
+	 * // Disable @beta even though "extended" group is enabled
+	 * supportForTags: { "@beta": false }
+	 * ```
+	 */
+	supportForTags?: Record<string, boolean>;
+
+	/**
+	 * Persist tsdoc.json to disk for tool integration (ESLint, IDEs).
+	 * - `true`: Write to project root as "tsdoc.json"
+	 * - `PathLike`: Write to specified path
+	 * - `false`: Clean up after API Extractor
+	 *
+	 * @defaultValue `true` when `CI` and `GITHUB_ACTIONS` env vars are not "true",
+	 *               `false` otherwise (CI environments)
+	 */
+	persistConfig?: boolean | PathLike;
+
+	/**
+	 * How to handle TSDoc validation warnings from API Extractor.
+	 * - `"log"`: Show warnings in the console but continue the build
+	 * - `"fail"`: Show warnings and fail the build if any are found
+	 * - `"none"`: Suppress TSDoc warnings entirely
+	 *
+	 * @remarks
+	 * TSDoc warnings include unknown tags, malformed syntax, and other
+	 * documentation issues detected by API Extractor during processing.
+	 *
+	 * @example
+	 * ```typescript
+	 * // Fail build on any TSDoc issues (CI default)
+	 * warnings: "fail"
+	 *
+	 * // Show warnings but continue build (local default)
+	 * warnings: "log"
+	 * ```
+	 *
+	 * @defaultValue `"fail"` in CI environments (`CI` or `GITHUB_ACTIONS` env vars),
+	 *               `"log"` otherwise
+	 */
+	warnings?: "log" | "fail" | "none";
+}
+
+/**
+ * Options for tsdoc-metadata.json generation.
+ * @public
+ */
+export interface TsDocMetadataOptions {
+	/**
+	 * Whether to generate tsdoc-metadata.json.
+	 * @defaultValue true (when apiModel is enabled)
+	 */
+	enabled?: boolean;
+
+	/**
+	 * Custom filename for the TSDoc metadata file.
+	 * @defaultValue "tsdoc-metadata.json"
+	 */
+	filename?: string;
+}
+
+/**
+ * Builder for TSDoc configuration files.
+ * Handles tag group expansion, config generation, and file persistence.
+ * @public
+ */
+// biome-ignore lint/complexity/noStaticOnlyClass: Intentional class-based API for co-located business logic
+export class TsDocConfigBuilder {
+	/** All available TSDoc tag groups. */
+	static readonly ALL_GROUPS: TsDocTagGroup[] = ["core", "extended", "discretionary"];
+
+	/** Maps group names to TSDoc Standardization enum values. */
+	private static readonly GROUP_TO_STANDARDIZATION: Record<TsDocTagGroup, Standardization> = {
+		core: Standardization.Core,
+		extended: Standardization.Extended,
+		discretionary: Standardization.Discretionary,
+	};
+
+	/**
+	 * Standard TSDoc tag definitions organized by standardization group.
+	 * Lazily computed from `\@microsoft/tsdoc` StandardTags.
+	 */
+	static readonly TAG_GROUPS: Record<TsDocTagGroup, TsDocTagDefinition[]> = {
+		get core(): TsDocTagDefinition[] {
+			return TsDocConfigBuilder.getTagsForGroup("core");
+		},
+		get extended(): TsDocTagDefinition[] {
+			return TsDocConfigBuilder.getTagsForGroup("extended");
+		},
+		get discretionary(): TsDocTagDefinition[] {
+			return TsDocConfigBuilder.getTagsForGroup("discretionary");
+		},
+	};
+
+	/**
+	 * Detects if running in a CI environment.
+	 * @returns true if CI or GITHUB_ACTIONS environment variable is "true"
+	 */
+	static isCI(): boolean {
+		return process.env.CI === "true" || process.env.GITHUB_ACTIONS === "true";
+	}
+
+	/**
+	 * Gets standard TSDoc tag definitions for a specific group.
+	 * Uses StandardTags from `\@microsoft/tsdoc` package.
+	 */
+	static getTagsForGroup(group: TsDocTagGroup): TsDocTagDefinition[] {
+		const standardization = TsDocConfigBuilder.GROUP_TO_STANDARDIZATION[group];
+		return StandardTags.allDefinitions
+			.filter((tag) => tag.standardization === standardization)
+			.map((tag) => ({
+				tagName: tag.tagName,
+				syntaxKind: TsDocConfigBuilder.syntaxKindToString(tag.syntaxKind),
+				...(tag.allowMultiple ? { allowMultiple: true } : {}),
+			}));
+	}
+
+	/**
+	 * Determines if the TSDoc config should be persisted to disk.
+	 * @param persistConfig - The persistConfig option value
+	 * @returns true if the config should be persisted
+	 */
+	static shouldPersist(persistConfig: boolean | PathLike | undefined): boolean {
+		if (persistConfig === false) return false;
+		if (persistConfig !== undefined) return true;
+		// Default: persist unless in CI
+		return !TsDocConfigBuilder.isCI();
+	}
+
+	/**
+	 * Gets the output path for the tsdoc.json file.
+	 * @param persistConfig - The persistConfig option value
+	 * @param cwd - The current working directory
+	 * @returns The absolute path where tsdoc.json should be written
+	 */
+	static getConfigPath(persistConfig: boolean | PathLike | undefined, cwd: string): string {
+		if (typeof persistConfig === "string") {
+			return isAbsolute(persistConfig) ? persistConfig : join(cwd, persistConfig);
+		}
+		if (persistConfig instanceof URL || Buffer.isBuffer(persistConfig)) {
+			const pathStr = persistConfig.toString();
+			return isAbsolute(pathStr) ? pathStr : join(cwd, pathStr);
+		}
+		// Default: project root
+		return join(cwd, "tsdoc.json");
+	}
+
+	/**
+	 * Builds the complete TSDoc configuration from options.
+	 *
+	 * @remarks
+	 * When all groups are enabled (default), returns `useStandardTags: true` to signal
+	 * that the generated config should use `noStandardTags: false` and let TSDoc
+	 * automatically load all standard tags. However, `supportForTags` is still populated
+	 * because API Extractor requires explicit support declarations for each tag.
+	 *
+	 * When a subset of groups is specified, returns `useStandardTags: false` to signal
+	 * that we must explicitly define which tags to include via `noStandardTags: true`.
+	 */
+	static build(options: TsDocOptions = {}): {
+		tagDefinitions: TsDocTagDefinition[];
+		supportForTags: Record<string, boolean>;
+		useStandardTags: boolean;
+	} {
+		// Default to all groups if not specified
+		const groups = options.groups ?? TsDocConfigBuilder.ALL_GROUPS;
+
+		// Check if all groups are enabled (allows TSDoc to load standard tags automatically)
+		const allGroupsEnabled = TsDocConfigBuilder.ALL_GROUPS.every((g) => groups.includes(g));
+
+		// Collect tag definitions from enabled groups
+		// When all groups enabled: only custom tags in tagDefinitions, but all standard tags in supportForTags
+		// When subset: both tagDefinitions and supportForTags contain only enabled group tags
+		const tagDefinitions: TsDocTagDefinition[] = [];
+		const supportForTags: Record<string, boolean> = {};
+
+		// Always populate supportForTags from enabled groups (API Extractor requires this)
+		for (const group of groups) {
+			for (const tag of TsDocConfigBuilder.TAG_GROUPS[group]) {
+				supportForTags[tag.tagName] = true;
+				// Only add to tagDefinitions when subset of groups (noStandardTags: true)
+				if (!allGroupsEnabled) {
+					tagDefinitions.push(tag);
+				}
+			}
+		}
+
+		// Add custom tag definitions (always needed in both tagDefinitions and supportForTags)
+		if (options.tagDefinitions) {
+			for (const tag of options.tagDefinitions) {
+				tagDefinitions.push(tag);
+				supportForTags[tag.tagName] = true;
+			}
+		}
+
+		// Apply user overrides (to disable specific tags)
+		if (options.supportForTags) {
+			Object.assign(supportForTags, options.supportForTags);
+		}
+
+		return { tagDefinitions, supportForTags, useStandardTags: allGroupsEnabled };
+	}
+
+	/**
+	 * Generates a tsdoc.json file from options.
+	 *
+	 * @remarks
+	 * When all groups are enabled (default), generates a minimal config with
+	 * `noStandardTags: false` so TSDoc automatically loads all standard tags.
+	 * Only custom tags need to be defined in this case.
+	 *
+	 * When a subset of groups is specified, generates a config with
+	 * `noStandardTags: true` and explicitly defines only the tags from
+	 * the enabled groups.
+	 */
+	static async writeConfigFile(options: TsDocOptions = {}, outputDir: string): Promise<string> {
+		const { tagDefinitions, supportForTags, useStandardTags } = TsDocConfigBuilder.build(options);
+
+		const tsdocConfig: Record<string, unknown> = {
+			$schema: "https://developer.microsoft.com/json-schemas/tsdoc/v0/tsdoc.schema.json",
+			noStandardTags: !useStandardTags,
+			reportUnsupportedHtmlElements: false,
+		};
+
+		// Only include tagDefinitions if there are any (custom tags or subset of groups)
+		if (tagDefinitions.length > 0) {
+			tsdocConfig.tagDefinitions = tagDefinitions;
+		}
+
+		// Only include supportForTags if there are any entries
+		if (Object.keys(supportForTags).length > 0) {
+			tsdocConfig.supportForTags = supportForTags;
+		}
+
+		const configPath = join(outputDir, "tsdoc.json");
+		await writeFile(configPath, JSON.stringify(tsdocConfig, null, 2));
+		return configPath;
+	}
+
+	/** Converts TSDocTagSyntaxKind enum to string format. */
+	private static syntaxKindToString(kind: TSDocTagSyntaxKind): "block" | "inline" | "modifier" {
+		switch (kind) {
+			case TSDocTagSyntaxKind.InlineTag:
+				return "inline";
+			case TSDocTagSyntaxKind.BlockTag:
+				return "block";
+			case TSDocTagSyntaxKind.ModifierTag:
+				return "modifier";
+		}
+	}
+}
 
 /**
  * Options for API model generation.
@@ -66,6 +391,33 @@ export interface ApiModelOptions {
 	 * ```
 	 */
 	localPaths?: string[];
+
+	/**
+	 * TSDoc configuration for custom tag definitions.
+	 * Passed to API Extractor for documentation processing.
+	 *
+	 * @remarks
+	 * By default, all standard tag groups (core, extended, discretionary) are
+	 * enabled. Custom tags defined in `tagDefinitions` are automatically
+	 * supported. Use `supportForTags` only to disable specific tags.
+	 *
+	 * @example
+	 * ```typescript
+	 * apiModel: {
+	 *   enabled: true,
+	 *   tsdoc: {
+	 *     tagDefinitions: [{ tagName: "@error", syntaxKind: "inline" }]
+	 *   }
+	 * }
+	 * ```
+	 */
+	tsdoc?: TsDocOptions;
+
+	/**
+	 * Options for tsdoc-metadata.json generation.
+	 * @defaultValue true (enabled when apiModel is enabled)
+	 */
+	tsdocMetadata?: TsDocMetadataOptions | boolean;
 }
 
 /**
@@ -117,7 +469,7 @@ export interface DtsPluginOptions {
 	/**
 	 * Packages whose types should be bundled (inlined) into the output .d.ts files.
 	 * Only applies when bundle is true.
-	 * Supports glob patterns (e.g., '@commitlint/*', 'type-fest')
+	 * Supports glob patterns (e.g., '\@commitlint/*', 'type-fest')
 	 * @defaultValue []
 	 */
 	bundledPackages?: string[];
@@ -254,6 +606,10 @@ interface BundleDtsResult {
 	bundledFiles: Map<string, string>;
 	/** Path to the generated API model file (if apiModel was enabled) */
 	apiModelPath?: string;
+	/** Path to the generated tsdoc-metadata.json file (if enabled) */
+	tsdocMetadataPath?: string;
+	/** Path to the persisted tsdoc.json file (if persistConfig was enabled) */
+	tsdocConfigPath?: string;
 }
 
 /**
@@ -279,6 +635,7 @@ async function bundleDtsFiles(options: {
 
 	const bundledFiles = new Map<string, string>();
 	let apiModelPath: string | undefined;
+	let tsdocMetadataPath: string | undefined;
 
 	// Normalize apiModel options - enabled by default when apiModel is true or an object without enabled: false
 	const apiModelEnabled =
@@ -287,8 +644,43 @@ async function bundleDtsFiles(options: {
 	// Temp filename for internal use - final output filename is determined at emission time
 	const apiModelFilename = typeof apiModel === "object" && apiModel.filename ? apiModel.filename : "api.json";
 
+	// TSDoc options from apiModel
+	const tsdocOptions = typeof apiModel === "object" ? apiModel.tsdoc : undefined;
+	const tsdocMetadataOption = typeof apiModel === "object" ? apiModel.tsdocMetadata : undefined;
+	// Default: "fail" in CI, "log" locally (user can override with explicit value)
+	const tsdocWarnings = tsdocOptions?.warnings ?? (TsDocConfigBuilder.isCI() ? "fail" : "log");
+
+	// tsdocMetadata defaults to enabled when apiModel is enabled
+	const tsdocMetadataEnabled =
+		apiModelEnabled &&
+		(tsdocMetadataOption === undefined ||
+			tsdocMetadataOption === true ||
+			(typeof tsdocMetadataOption === "object" && tsdocMetadataOption.enabled !== false));
+	const tsdocMetadataFilename =
+		typeof tsdocMetadataOption === "object" && tsdocMetadataOption.filename
+			? tsdocMetadataOption.filename
+			: "tsdoc-metadata.json";
+
 	// Validate that API Extractor is installed before attempting import
 	getApiExtractorPath();
+
+	// Determine TSDoc config persistence behavior
+	const persistConfig = tsdocOptions?.persistConfig;
+	const shouldPersist = TsDocConfigBuilder.shouldPersist(persistConfig);
+	const tsdocConfigOutputPath = TsDocConfigBuilder.getConfigPath(persistConfig, cwd);
+
+	// Generate tsdoc.json config file for API Extractor
+	// Write to the determined path (project root by default, or custom path)
+	let tsdocConfigPath: string | undefined;
+	let tsdocConfigFile: unknown; // TSDocConfigFile type from @microsoft/tsdoc-config
+	if (apiModelEnabled) {
+		tsdocConfigPath = await TsDocConfigBuilder.writeConfigFile(tsdocOptions ?? {}, dirname(tsdocConfigOutputPath));
+
+		// Load the TSDocConfigFile object for API Extractor
+		// Use loadForFolder to properly resolve the config from the project directory
+		const { TSDocConfigFile } = await import("@microsoft/tsdoc-config");
+		tsdocConfigFile = TSDocConfigFile.loadForFolder(dirname(tsdocConfigPath));
+	}
 
 	const { Extractor, ExtractorConfig } = await import("@microsoft/api-extractor");
 
@@ -329,6 +721,10 @@ async function bundleDtsFiles(options: {
 		const generateApiModel = apiModelEnabled && entryName === "index";
 		const tempApiModelPath = generateApiModel ? join(tempOutputDir, apiModelFilename) : undefined;
 
+		// Only generate tsdocMetadata for the main "index" entry (alongside API model)
+		const generateTsdocMetadata = tsdocMetadataEnabled && entryName === "index";
+		const tempTsdocMetadataPath = generateTsdocMetadata ? join(tempOutputDir, tsdocMetadataFilename) : undefined;
+
 		// Create API Extractor configuration
 		const extractorConfig = ExtractorConfig.prepare({
 			configObject: {
@@ -347,17 +743,41 @@ async function bundleDtsFiles(options: {
 							apiJsonFilePath: tempApiModelPath,
 						}
 					: undefined,
+				tsdocMetadata: generateTsdocMetadata
+					? {
+							enabled: true,
+							tsdocMetadataFilePath: tempTsdocMetadataPath,
+						}
+					: undefined,
 				bundledPackages: bundledPackages,
 			},
 			packageJsonFullPath: join(cwd, "package.json"),
 			configObjectFullPath: undefined,
+			tsdocConfigFile: tsdocConfigFile as Parameters<typeof ExtractorConfig.prepare>[0]["tsdocConfigFile"],
 		});
+
+		// Collect TSDoc warnings if needed
+		interface TsDocWarning {
+			text: string;
+			sourceFilePath?: string;
+			sourceFileLine?: number;
+			sourceFileColumn?: number;
+		}
+		const collectedTsdocWarnings: TsDocWarning[] = [];
 
 		// Run API Extractor
 		const extractorResult = Extractor.invoke(extractorConfig, {
 			localBuild: true,
 			showVerboseMessages: false,
-			messageCallback: (message: { text?: string; logLevel?: string }) => {
+			messageCallback: (message: {
+				text?: string;
+				logLevel?: string;
+				messageId?: string;
+				category?: string;
+				sourceFilePath?: string;
+				sourceFileLine?: number;
+				sourceFileColumn?: number;
+			}) => {
 				// Suppress TypeScript version mismatch warnings
 				if (
 					message.text?.includes("Analysis will use the bundled TypeScript version") ||
@@ -370,6 +790,26 @@ async function bundleDtsFiles(options: {
 				// Suppress API signature change warnings
 				if (message.text?.includes("You have changed the public API signature")) {
 					message.logLevel = "none";
+					return;
+				}
+
+				// Handle TSDoc warnings based on the warnings option
+				// TSDoc messages have messageId starting with "tsdoc-"
+				const isTsdocMessage = message.messageId?.startsWith("tsdoc-");
+				if (isTsdocMessage && message.text) {
+					if (tsdocWarnings === "none") {
+						message.logLevel = "none";
+					} else {
+						// Collect for logging or failing (with location info if available)
+						collectedTsdocWarnings.push({
+							text: message.text,
+							sourceFilePath: message.sourceFilePath,
+							sourceFileLine: message.sourceFileLine,
+							sourceFileColumn: message.sourceFileColumn,
+						});
+						// Still suppress from API Extractor's default output - we'll handle it ourselves
+						message.logLevel = "none";
+					}
 				}
 			},
 		});
@@ -378,9 +818,32 @@ async function bundleDtsFiles(options: {
 			throw new Error(`API Extractor failed for entry "${entryName}"`);
 		}
 
+		// Handle collected TSDoc warnings
+		if (collectedTsdocWarnings.length > 0) {
+			// Format warnings with location info when available
+			const formatWarning = (warning: TsDocWarning): string => {
+				const location = warning.sourceFilePath
+					? `${color.cyan(relative(cwd, warning.sourceFilePath))}${warning.sourceFileLine ? `:${warning.sourceFileLine}` : ""}${warning.sourceFileColumn ? `:${warning.sourceFileColumn}` : ""}`
+					: null;
+				return location ? `${location}: ${color.yellow(warning.text)}` : color.yellow(warning.text);
+			};
+
+			const warningMessages = collectedTsdocWarnings.map(formatWarning).join("\n  ");
+			if (tsdocWarnings === "fail") {
+				throw new Error(`TSDoc validation failed for entry "${entryName}":\n  ${warningMessages}`);
+			} else if (tsdocWarnings === "log") {
+				logger.warn(`TSDoc warnings for entry "${entryName}":\n  ${warningMessages}`);
+			}
+		}
+
 		// Store the API model path if generated
 		if (generateApiModel && tempApiModelPath) {
 			apiModelPath = tempApiModelPath;
+		}
+
+		// Store the tsdoc-metadata.json path if generated
+		if (generateTsdocMetadata && tempTsdocMetadataPath) {
+			tsdocMetadataPath = tempTsdocMetadataPath;
 		}
 
 		// Apply banner/footer if specified
@@ -395,7 +858,23 @@ async function bundleDtsFiles(options: {
 		bundledFiles.set(entryName, tempBundledPath);
 	}
 
-	return { bundledFiles, apiModelPath };
+	// Clean up or persist the generated tsdoc.json based on configuration
+	let persistedTsdocConfigPath: string | undefined;
+	if (tsdocConfigPath) {
+		if (shouldPersist) {
+			// Keep the file on disk for tool integration
+			persistedTsdocConfigPath = tsdocConfigPath;
+		} else {
+			// Clean up the temporary file
+			try {
+				await unlink(tsdocConfigPath);
+			} catch {
+				// Ignore cleanup errors
+			}
+		}
+	}
+
+	return { bundledFiles, apiModelPath, tsdocMetadataPath, tsdocConfigPath: persistedTsdocConfigPath };
 }
 /* v8 ignore stop */
 
@@ -529,7 +1008,7 @@ function runTsgo(options: {
  * Plugin to generate TypeScript declaration files using tsgo and emit them through Rslib's asset pipeline.
  *
  * @remarks
- * This plugin uses tsgo (@typescript/native-preview) for faster declaration file generation
+ * This plugin uses tsgo (`\@typescript/native-preview`) for faster declaration file generation
  * and integrates with Rslib's build system by emitting generated files as compilation assets.
  *
  * ## Features
@@ -805,7 +1284,7 @@ export const DtsPlugin = (options: DtsPluginOptions = {}): RsbuildPlugin => {
 									await mkdir(tempBundledDir, { recursive: true });
 
 									// Bundle declarations using API Extractor (writes to temp directory)
-									const { bundledFiles, apiModelPath } = await bundleDtsFiles({
+									const { bundledFiles, apiModelPath, tsdocMetadataPath, tsdocConfigPath } = await bundleDtsFiles({
 										cwd,
 										tempDtsDir,
 										tempOutputDir: tempBundledDir,
@@ -890,6 +1369,19 @@ export const DtsPlugin = (options: DtsPluginOptions = {}): RsbuildPlugin => {
 												const apiModelDestPath = join(resolvedPath, apiModelFilename);
 												await writeFile(apiModelDestPath, apiModelContent, "utf-8");
 
+												// Copy tsdoc-metadata.json if it was generated
+												if (tsdocMetadataPath) {
+													const tsdocMetadataOption =
+														typeof options.apiModel === "object" ? options.apiModel.tsdocMetadata : undefined;
+													const localTsdocFilename =
+														typeof tsdocMetadataOption === "object" && tsdocMetadataOption.filename
+															? tsdocMetadataOption.filename
+															: "tsdoc-metadata.json";
+													const tsdocContent = await readFile(tsdocMetadataPath, "utf-8");
+													const tsdocDestPath = join(resolvedPath, localTsdocFilename);
+													await writeFile(tsdocDestPath, tsdocContent, "utf-8");
+												}
+
 												// Get package.json from compilation assets and copy it
 												const packageJsonAsset = context.compilation.assets["package.json"];
 												if (packageJsonAsset) {
@@ -908,9 +1400,51 @@ export const DtsPlugin = (options: DtsPluginOptions = {}): RsbuildPlugin => {
 													await writeFile(packageJsonDestPath, packageJsonContent, "utf-8");
 												}
 
-												logger.info(`${color.dim(`[${envId}]`)} Copied API model and package.json to: ${localPath}`);
+												const copiedFiles = tsdocMetadataPath
+													? "API model, tsdoc-metadata.json, and package.json"
+													: "API model and package.json";
+												logger.info(`${color.dim(`[${envId}]`)} Copied ${copiedFiles} to: ${localPath}`);
 											}
 										}
+									}
+
+									// Emit tsdoc-metadata.json file if generated
+									if (tsdocMetadataPath) {
+										const tsdocMetadataOption =
+											typeof options.apiModel === "object" ? options.apiModel.tsdocMetadata : undefined;
+										const tsdocMetadataFilename =
+											typeof tsdocMetadataOption === "object" && tsdocMetadataOption.filename
+												? tsdocMetadataOption.filename
+												: "tsdoc-metadata.json";
+										const tsdocMetadataContent = await readFile(tsdocMetadataPath, "utf-8");
+										const tsdocMetadataSource = new context.sources.OriginalSource(
+											tsdocMetadataContent,
+											tsdocMetadataFilename,
+										);
+										context.compilation.emitAsset(tsdocMetadataFilename, tsdocMetadataSource);
+
+										// Add to files array for npm publish (TSDoc spec requires this file to be published)
+										if (filesArray) {
+											filesArray.add(tsdocMetadataFilename);
+										}
+
+										logger.info(`${color.dim(`[${envId}]`)} Emitted TSDoc metadata: ${tsdocMetadataFilename}`);
+									}
+
+									// Emit tsdoc.json to dist (excluded from npm publish, but available for tooling)
+									if (tsdocConfigPath) {
+										const tsdocConfigContent = await readFile(tsdocConfigPath, "utf-8");
+										const tsdocConfigSource = new context.sources.OriginalSource(tsdocConfigContent, "tsdoc.json");
+										context.compilation.emitAsset("tsdoc.json", tsdocConfigSource);
+
+										// Add negated pattern to exclude from npm publish
+										if (filesArray) {
+											filesArray.add("!tsdoc.json");
+										}
+
+										logger.info(
+											`${color.dim(`[${envId}]`)} Emitted TSDoc config: tsdoc.json (excluded from npm publish)`,
+										);
 									}
 
 									// Remove .d.ts.map files that Rspack auto-generates for our emitted .d.ts assets

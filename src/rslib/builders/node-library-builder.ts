@@ -94,7 +94,7 @@ export interface NodeLibraryBuilderOptions {
 	 * specify which packages (including transitive dependencies) should have their types bundled.
 	 * This is particularly useful for ensuring devDependencies are fully inlined without external imports.
 	 *
-	 * Supports minimatch patterns (e.g., '@pnpm/**', 'picocolors')
+	 * Supports minimatch patterns (e.g., '\@pnpm/**', 'picocolors')
 	 *
 	 * @example
 	 * ```typescript
@@ -108,10 +108,10 @@ export interface NodeLibraryBuilderOptions {
 	 * Optional callback to transform files after they're built but before the files array is finalized.
 	 * Useful for copying/renaming files or adding additional files to the build output.
 	 *
-	 * @param context - Transform context containing compilation context and files set
-	 * @param context.compilation - Rspack compilation object with assets
-	 * @param context.filesArray - Set of files that will be included in package.json files field
-	 * @param context.target - Current build target (dev/npm/jsr)
+	 * @param context - Transform context with properties:
+	 *   - `compilation`: Rspack compilation object with assets
+	 *   - `filesArray`: Set of files that will be included in package.json files field
+	 *   - `target`: Current build target (dev/npm/jsr)
 	 *
 	 * @example
 	 * ```typescript

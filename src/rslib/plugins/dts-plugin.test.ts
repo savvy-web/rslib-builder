@@ -1,9 +1,10 @@
 import { existsSync } from "node:fs";
-import { mkdir, rm, writeFile } from "node:fs/promises";
+import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
+	TsDocConfigBuilder,
 	collectDtsFiles,
 	ensureTempDeclarationDir,
 	findTsConfig,
@@ -351,6 +352,326 @@ export declare const bar: number;`);
 
 			const result = findTsConfig(testDir, configPath);
 			expect(result).toBe(configPath);
+		});
+	});
+
+	describe("TsDocConfigBuilder.build", () => {
+		it("should use standard tags when all groups enabled (default)", () => {
+			const result = TsDocConfigBuilder.build({});
+
+			// When all groups enabled, useStandardTags is true (noStandardTags: false)
+			expect(result.useStandardTags).toBe(true);
+			// No tag definitions needed - TSDoc loads them automatically
+			expect(result.tagDefinitions).toHaveLength(0);
+			// supportForTags must be populated (API Extractor requires explicit support)
+			expect(Object.keys(result.supportForTags).length).toBeGreaterThan(0);
+			expect(result.supportForTags["@param"]).toBe(true);
+			expect(result.supportForTags["@public"]).toBe(true);
+		});
+
+		it("should explicitly define tags when subset of groups specified", () => {
+			const result = TsDocConfigBuilder.build({ groups: ["core"] });
+
+			// When subset, useStandardTags is false (noStandardTags: true)
+			expect(result.useStandardTags).toBe(false);
+			// Core tags should be present
+			expect(result.tagDefinitions).toContainEqual(expect.objectContaining({ tagName: "@param" }));
+			// Extended tags should NOT be present (e.g., @example is extended in official TSDoc)
+			expect(result.tagDefinitions).not.toContainEqual(expect.objectContaining({ tagName: "@example" }));
+			// Discretionary tags should NOT be present (release stages like @public, @beta)
+			expect(result.tagDefinitions).not.toContainEqual(expect.objectContaining({ tagName: "@public" }));
+		});
+
+		it("should add custom tag definitions with all groups", () => {
+			const result = TsDocConfigBuilder.build({
+				tagDefinitions: [{ tagName: "@error", syntaxKind: "inline" }],
+			});
+
+			// Still uses standard tags (all groups enabled)
+			expect(result.useStandardTags).toBe(true);
+			// Only custom tag is in tagDefinitions
+			expect(result.tagDefinitions).toHaveLength(1);
+			expect(result.tagDefinitions).toContainEqual(
+				expect.objectContaining({ tagName: "@error", syntaxKind: "inline" }),
+			);
+			// Custom tag should be in supportForTags
+			expect(result.supportForTags["@error"]).toBe(true);
+		});
+
+		it("should auto-derive supportForTags from tag definitions", () => {
+			const result = TsDocConfigBuilder.build({
+				groups: ["core"],
+				tagDefinitions: [{ tagName: "@error", syntaxKind: "inline" }],
+			});
+
+			// Core tags should be supported (from explicit definitions)
+			expect(result.supportForTags["@param"]).toBe(true);
+			// Custom tags should be supported
+			expect(result.supportForTags["@error"]).toBe(true);
+			// Extended tags should NOT be in supportForTags (not in enabled groups)
+			expect(result.supportForTags["@example"]).toBeUndefined();
+		});
+
+		it("should allow disabling tags via supportForTags override", () => {
+			const result = TsDocConfigBuilder.build({
+				groups: ["core", "extended", "discretionary"],
+				supportForTags: { "@beta": false },
+			});
+
+			// @beta should be disabled even with all groups
+			expect(result.supportForTags["@beta"]).toBe(false);
+		});
+
+		it("should combine groups and custom tags correctly", () => {
+			const result = TsDocConfigBuilder.build({
+				groups: ["core"],
+				tagDefinitions: [{ tagName: "@custom", syntaxKind: "block" }],
+				supportForTags: { "@deprecated": false },
+			});
+
+			// Subset of groups, so useStandardTags is false
+			expect(result.useStandardTags).toBe(false);
+
+			// Only core tags + custom tag
+			const tagNames = result.tagDefinitions.map((t) => t.tagName);
+			expect(tagNames).toContain("@param");
+			expect(tagNames).toContain("@custom");
+			expect(tagNames).not.toContain("@public"); // discretionary
+
+			// supportForTags
+			expect(result.supportForTags["@param"]).toBe(true);
+			expect(result.supportForTags["@custom"]).toBe(true);
+			expect(result.supportForTags["@deprecated"]).toBe(false); // overridden
+		});
+
+		it("should use standard tags when all groups explicitly specified", () => {
+			const result = TsDocConfigBuilder.build({
+				groups: ["core", "extended", "discretionary"],
+			});
+
+			// All groups = use standard tags
+			expect(result.useStandardTags).toBe(true);
+			expect(result.tagDefinitions).toHaveLength(0);
+			// supportForTags must still be populated
+			expect(Object.keys(result.supportForTags).length).toBeGreaterThan(0);
+		});
+	});
+
+	describe("TsDocConfigBuilder.writeConfigFile", () => {
+		it("should generate config with supportForTags when all groups enabled", async () => {
+			const testDir = createTestDir();
+			await mkdir(testDir, { recursive: true });
+
+			const configPath = await TsDocConfigBuilder.writeConfigFile({}, testDir);
+			const content = JSON.parse(await readFile(configPath, "utf-8"));
+
+			// All groups = noStandardTags: false (TSDoc loads standard tag definitions)
+			expect(content.noStandardTags).toBe(false);
+			// No tagDefinitions needed - TSDoc loads them automatically
+			expect(content.tagDefinitions).toBeUndefined();
+			// supportForTags must be populated (API Extractor requires explicit support)
+			expect(content.supportForTags).toBeDefined();
+			expect(content.supportForTags["@param"]).toBe(true);
+			expect(content.supportForTags["@public"]).toBe(true);
+		});
+
+		it("should generate full config when subset of groups specified", async () => {
+			const testDir = createTestDir();
+			await mkdir(testDir, { recursive: true });
+
+			const configPath = await TsDocConfigBuilder.writeConfigFile({ groups: ["core"] }, testDir);
+			const content = JSON.parse(await readFile(configPath, "utf-8"));
+
+			// Subset = noStandardTags: true (explicit tags)
+			expect(content.noStandardTags).toBe(true);
+			// tagDefinitions should contain core tags
+			expect(content.tagDefinitions).toBeDefined();
+			expect(content.tagDefinitions.some((t: { tagName: string }) => t.tagName === "@param")).toBe(true);
+			// supportForTags should be defined
+			expect(content.supportForTags).toBeDefined();
+			expect(content.supportForTags["@param"]).toBe(true);
+		});
+
+		it("should include custom tags in minimal config", async () => {
+			const testDir = createTestDir();
+			await mkdir(testDir, { recursive: true });
+
+			const configPath = await TsDocConfigBuilder.writeConfigFile(
+				{
+					tagDefinitions: [{ tagName: "@error", syntaxKind: "inline" }],
+				},
+				testDir,
+			);
+			const content = JSON.parse(await readFile(configPath, "utf-8"));
+
+			// All groups = noStandardTags: false
+			expect(content.noStandardTags).toBe(false);
+			// Only custom tag in tagDefinitions
+			expect(content.tagDefinitions).toHaveLength(1);
+			expect(content.tagDefinitions[0].tagName).toBe("@error");
+			// Only custom tag in supportForTags
+			expect(content.supportForTags["@error"]).toBe(true);
+		});
+	});
+
+	describe("TsDocConfigBuilder.TAG_GROUPS", () => {
+		it("should have core group with essential tags (from @microsoft/tsdoc)", () => {
+			const coreTagNames = TsDocConfigBuilder.TAG_GROUPS.core.map((t) => t.tagName);
+			// Core tags per official TSDoc spec
+			expect(coreTagNames).toContain("@param");
+			expect(coreTagNames).toContain("@returns");
+			expect(coreTagNames).toContain("@remarks");
+			expect(coreTagNames).toContain("@deprecated");
+			expect(coreTagNames).toContain("@privateRemarks");
+			// @example is NOT core - it's extended in official TSDoc
+			expect(coreTagNames).not.toContain("@example");
+		});
+
+		it("should have extended group with API Extractor tags (from @microsoft/tsdoc)", () => {
+			const extendedTagNames = TsDocConfigBuilder.TAG_GROUPS.extended.map((t) => t.tagName);
+			// Extended tags per official TSDoc spec
+			expect(extendedTagNames).toContain("@example");
+			expect(extendedTagNames).toContain("@defaultValue");
+			expect(extendedTagNames).toContain("@throws");
+			expect(extendedTagNames).toContain("@see");
+			expect(extendedTagNames).toContain("@virtual");
+			expect(extendedTagNames).toContain("@override");
+			// Release stage tags are NOT extended - they're discretionary
+			expect(extendedTagNames).not.toContain("@public");
+		});
+
+		it("should have discretionary group with release stage tags (from @microsoft/tsdoc)", () => {
+			const discretionaryTagNames = TsDocConfigBuilder.TAG_GROUPS.discretionary.map((t) => t.tagName);
+			// Discretionary tags are release stage indicators in official TSDoc
+			expect(discretionaryTagNames).toContain("@alpha");
+			expect(discretionaryTagNames).toContain("@beta");
+			expect(discretionaryTagNames).toContain("@public");
+			expect(discretionaryTagNames).toContain("@internal");
+			expect(discretionaryTagNames).toContain("@experimental");
+		});
+	});
+
+	describe("TsDocConfigBuilder.isCI", () => {
+		const originalEnv = process.env;
+
+		beforeEach(() => {
+			vi.resetModules();
+			process.env = { ...originalEnv };
+			delete process.env.CI;
+			delete process.env.GITHUB_ACTIONS;
+		});
+
+		afterEach(() => {
+			process.env = originalEnv;
+		});
+
+		it("should return false when no CI env vars are set", () => {
+			expect(TsDocConfigBuilder.isCI()).toBe(false);
+		});
+
+		it("should return true when CI=true", () => {
+			process.env.CI = "true";
+			expect(TsDocConfigBuilder.isCI()).toBe(true);
+		});
+
+		it("should return true when GITHUB_ACTIONS=true", () => {
+			process.env.GITHUB_ACTIONS = "true";
+			expect(TsDocConfigBuilder.isCI()).toBe(true);
+		});
+
+		it("should return false when CI=false", () => {
+			process.env.CI = "false";
+			expect(TsDocConfigBuilder.isCI()).toBe(false);
+		});
+
+		it("should return false when CI is set to non-true value", () => {
+			process.env.CI = "1";
+			expect(TsDocConfigBuilder.isCI()).toBe(false);
+		});
+	});
+
+	describe("TsDocConfigBuilder.shouldPersist", () => {
+		const originalEnv = process.env;
+
+		beforeEach(() => {
+			vi.resetModules();
+			process.env = { ...originalEnv };
+			delete process.env.CI;
+			delete process.env.GITHUB_ACTIONS;
+		});
+
+		afterEach(() => {
+			process.env = originalEnv;
+		});
+
+		it("should return false when persistConfig is false", () => {
+			expect(TsDocConfigBuilder.shouldPersist(false)).toBe(false);
+		});
+
+		it("should return true when persistConfig is true", () => {
+			expect(TsDocConfigBuilder.shouldPersist(true)).toBe(true);
+		});
+
+		it("should return true when persistConfig is a string path", () => {
+			expect(TsDocConfigBuilder.shouldPersist("./config/tsdoc.json")).toBe(true);
+		});
+
+		it("should return true when undefined and not in CI", () => {
+			expect(TsDocConfigBuilder.shouldPersist(undefined)).toBe(true);
+		});
+
+		it("should return false when undefined and CI=true", () => {
+			process.env.CI = "true";
+			expect(TsDocConfigBuilder.shouldPersist(undefined)).toBe(false);
+		});
+
+		it("should return false when undefined and GITHUB_ACTIONS=true", () => {
+			process.env.GITHUB_ACTIONS = "true";
+			expect(TsDocConfigBuilder.shouldPersist(undefined)).toBe(false);
+		});
+
+		it("should return true when true even in CI", () => {
+			process.env.CI = "true";
+			expect(TsDocConfigBuilder.shouldPersist(true)).toBe(true);
+		});
+	});
+
+	describe("TsDocConfigBuilder.getConfigPath", () => {
+		it("should return project root path when persistConfig is true", () => {
+			const result = TsDocConfigBuilder.getConfigPath(true, "/project");
+			expect(result).toBe("/project/tsdoc.json");
+		});
+
+		it("should return project root path when persistConfig is undefined", () => {
+			const result = TsDocConfigBuilder.getConfigPath(undefined, "/project");
+			expect(result).toBe("/project/tsdoc.json");
+		});
+
+		it("should return custom path when relative string provided", () => {
+			const result = TsDocConfigBuilder.getConfigPath("./config/tsdoc.json", "/project");
+			expect(result).toBe("/project/config/tsdoc.json");
+		});
+
+		it("should return custom path when string without ./ provided", () => {
+			const result = TsDocConfigBuilder.getConfigPath("config/tsdoc.json", "/project");
+			expect(result).toBe("/project/config/tsdoc.json");
+		});
+
+		it("should return absolute path unchanged", () => {
+			const result = TsDocConfigBuilder.getConfigPath("/absolute/path/tsdoc.json", "/project");
+			expect(result).toBe("/absolute/path/tsdoc.json");
+		});
+
+		it("should handle URL objects", () => {
+			const url = new URL("file:///custom/path/tsdoc.json");
+			const result = TsDocConfigBuilder.getConfigPath(url, "/project");
+			expect(result).toContain("tsdoc.json");
+		});
+
+		it("should handle Buffer objects", () => {
+			const buffer = Buffer.from("custom/tsdoc.json");
+			const result = TsDocConfigBuilder.getConfigPath(buffer, "/project");
+			expect(result).toBe("/project/custom/tsdoc.json");
 		});
 	});
 });

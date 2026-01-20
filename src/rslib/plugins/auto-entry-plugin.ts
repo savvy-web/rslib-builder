@@ -8,8 +8,8 @@ import { fileExistAsync } from "#utils/file-utils.js";
 /**
  * Plugin to read package.json and configure entry points based on exports.
  *
- * @param options - Plugin configuration options
- * @param options.exportsAsIndexes - When true, export paths create index files in nested directories
+ * @param options - Plugin configuration options with properties:
+ *   - `exportsAsIndexes`: When true, export paths create index files in nested directories
  * @public
  */
 export const AutoEntryPlugin = (options?: { exportsAsIndexes?: boolean }): RsbuildPlugin => {
