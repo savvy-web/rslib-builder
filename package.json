@@ -22,10 +22,7 @@
 	"exports": {
 		".": "./src/index.ts",
 		"./tsconfig/root.json": "./src/public/tsconfig/root.json",
-		"./tsconfig/node/ecma/lib.json": "./src/public/tsconfig/node/ecma/lib.json",
-		"./tsconfig/node/ecma/lib-compat.json": "./src/public/tsconfig/node/ecma/lib-compat.json",
-		"./tsconfig/node/ecma/bundle.json": "./src/public/tsconfig/node/ecma/bundle.json",
-		"./tsconfig/node/ecma/bundleless.json": "./src/public/tsconfig/node/ecma/bundleless.json"
+		"./tsconfig/ecma/lib.json": "./src/public/tsconfig/ecma/lib.json"
 	},
 	"scripts": {
 		"build": "turbo run build:dev build:npm",
@@ -51,7 +48,6 @@
 		"@microsoft/tsdoc-config": "^0.18.0",
 		"@pnpm/exportable-manifest": "^1000.3.0",
 		"glob": "^13.0.0",
-		"markdownlint-cli2": "^0.20.0",
 		"picocolors": "^1.1.1",
 		"sort-package-json": "^3.6.0",
 		"tmp": "^0.2.5",

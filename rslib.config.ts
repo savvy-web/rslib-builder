@@ -29,6 +29,8 @@ export default NodeLibraryBuilder.create({
 		delete pkg.devDependencies;
 		delete pkg.bundleDependencies;
 		delete pkg.scripts;
+		delete pkg.publishConfig;
+		delete pkg.devEngines;
 		return pkg;
 	},
 });

@@ -3,15 +3,13 @@ status: current
 module: rslib-builder
 category: integration
 created: 2026-01-19
-updated: 2026-01-19
+updated: 2026-01-20
 last-synced: 2026-01-19
 completeness: 95
 related:
   - rslib-builder/architecture.md
+  - rslib-builder/api-model-options.md
 dependencies: []
-implementation-plans:
-  - ../plans/tsdoc-configuration-support.md
-  - ../plans/tsdoc-persist-config.md
 ---
 
 # API Extraction

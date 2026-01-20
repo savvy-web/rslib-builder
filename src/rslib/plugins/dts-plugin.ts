@@ -1344,67 +1344,27 @@ export const DtsPlugin = (options: DtsPluginOptions = {}): RsbuildPlugin => {
 											`${color.dim(`[${envId}]`)} Emitted API model: ${apiModelFilename} (excluded from npm publish)`,
 										);
 
-										// Copy API model and package.json to local paths if specified
-										// Skip in CI environments (GITHUB_ACTIONS or CI env vars)
-										const isCI = process.env.GITHUB_ACTIONS === "true" || process.env.CI === "true";
+										// Expose data needed for localPaths copying in onCloseBuild
+										// (files are read from dist after build completes, ensuring transformed package.json)
 										const localPaths = typeof options.apiModel === "object" ? options.apiModel.localPaths : undefined;
+										const isCI = process.env.GITHUB_ACTIONS === "true" || process.env.CI === "true";
 
 										if (localPaths && localPaths.length > 0 && !isCI) {
-											for (const localPath of localPaths) {
-												const resolvedPath = join(cwd, localPath);
-												const parentDir = dirname(resolvedPath);
+											const tsdocMetadataOption =
+												typeof options.apiModel === "object" ? options.apiModel.tsdocMetadata : undefined;
+											const localTsdocFilename =
+												typeof tsdocMetadataOption === "object" && tsdocMetadataOption.filename
+													? tsdocMetadataOption.filename
+													: "tsdoc-metadata.json";
 
-												// Validate parent directory exists
-												if (!existsSync(parentDir)) {
-													logger.warn(
-														`${color.dim(`[${envId}]`)} Skipping local path: parent directory does not exist: ${parentDir}`,
-													);
-													continue;
-												}
-
-												// Create the target directory if it doesn't exist
-												await mkdir(resolvedPath, { recursive: true });
-
-												// Copy API model file
-												const apiModelDestPath = join(resolvedPath, apiModelFilename);
-												await writeFile(apiModelDestPath, apiModelContent, "utf-8");
-
-												// Copy tsdoc-metadata.json if it was generated
-												if (tsdocMetadataPath) {
-													const tsdocMetadataOption =
-														typeof options.apiModel === "object" ? options.apiModel.tsdocMetadata : undefined;
-													const localTsdocFilename =
-														typeof tsdocMetadataOption === "object" && tsdocMetadataOption.filename
-															? tsdocMetadataOption.filename
-															: "tsdoc-metadata.json";
-													const tsdocContent = await readFile(tsdocMetadataPath, "utf-8");
-													const tsdocDestPath = join(resolvedPath, localTsdocFilename);
-													await writeFile(tsdocDestPath, tsdocContent, "utf-8");
-												}
-
-												// Get package.json from compilation assets and copy it
-												const packageJsonAsset = context.compilation.assets["package.json"];
-												if (packageJsonAsset) {
-													const rawContent =
-														typeof packageJsonAsset.source === "function"
-															? packageJsonAsset.source()
-															: packageJsonAsset.source;
-													// Convert to string if it's a Buffer
-													const packageJsonContent =
-														typeof rawContent === "string"
-															? rawContent
-															: rawContent instanceof Buffer
-																? rawContent.toString("utf-8")
-																: String(rawContent);
-													const packageJsonDestPath = join(resolvedPath, "package.json");
-													await writeFile(packageJsonDestPath, packageJsonContent, "utf-8");
-												}
-
-												const copiedFiles = tsdocMetadataPath
-													? "API model, tsdoc-metadata.json, and package.json"
-													: "API model and package.json";
-												logger.info(`${color.dim(`[${envId}]`)} Copied ${copiedFiles} to: ${localPath}`);
-											}
+											api.expose("dts-local-paths-data", {
+												localPaths,
+												apiModelFilename,
+												localTsdocFilename,
+												hasTsdocMetadata: !!tsdocMetadataPath,
+												cwd,
+												distPath: `dist/${envId}`,
+											});
 										}
 									}
 
@@ -1569,6 +1529,82 @@ export const DtsPlugin = (options: DtsPluginOptions = {}): RsbuildPlugin => {
 					}
 				},
 			);
+
+			// Copy files to localPaths after build completes (all files written to dist)
+			api.onCloseBuild(async () => {
+				const localPathsData = api.useExposed<{
+					localPaths: string[];
+					apiModelFilename: string;
+					localTsdocFilename: string;
+					hasTsdocMetadata: boolean;
+					cwd: string;
+					distPath: string;
+				}>("dts-local-paths-data");
+
+				if (!localPathsData) {
+					return;
+				}
+
+				const { localPaths, apiModelFilename, localTsdocFilename, hasTsdocMetadata, cwd, distPath } = localPathsData;
+				const distDir = join(cwd, distPath);
+
+				for (const localPath of localPaths) {
+					const resolvedPath = join(cwd, localPath);
+					const parentDir = dirname(resolvedPath);
+
+					// Validate parent directory exists
+					if (!existsSync(parentDir)) {
+						logger.warn(`Skipping local path: parent directory does not exist: ${parentDir}`);
+						continue;
+					}
+
+					// Collect all files to copy
+					const filesToCopy: Array<{ src: string; dest: string; name: string }> = [];
+
+					// API model
+					const apiModelSrc = join(distDir, apiModelFilename);
+					if (existsSync(apiModelSrc)) {
+						filesToCopy.push({
+							src: apiModelSrc,
+							dest: join(resolvedPath, apiModelFilename),
+							name: apiModelFilename,
+						});
+					}
+
+					// tsdoc-metadata.json
+					if (hasTsdocMetadata) {
+						const tsdocSrc = join(distDir, localTsdocFilename);
+						if (existsSync(tsdocSrc)) {
+							filesToCopy.push({
+								src: tsdocSrc,
+								dest: join(resolvedPath, localTsdocFilename),
+								name: localTsdocFilename,
+							});
+						}
+					}
+
+					// package.json (transformed version from dist)
+					const packageJsonSrc = join(distDir, "package.json");
+					if (existsSync(packageJsonSrc)) {
+						filesToCopy.push({
+							src: packageJsonSrc,
+							dest: join(resolvedPath, "package.json"),
+							name: "package.json",
+						});
+					}
+
+					// Create target directory and copy all files
+					await mkdir(resolvedPath, { recursive: true });
+
+					for (const file of filesToCopy) {
+						const content = await readFile(file.src, "utf-8");
+						await writeFile(file.dest, content, "utf-8");
+					}
+
+					const fileNames = filesToCopy.map((f) => f.name).join(", ");
+					logger.info(`Copied ${fileNames} to: ${localPath}`);
+				}
+			});
 		},
 	};
 };
