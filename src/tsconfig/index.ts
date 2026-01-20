@@ -5,7 +5,7 @@ import type { InspectOptions } from "node:util";
 import { inspect } from "node:util";
 import type { TSConfigJsonWithSchema } from "#types/tsconfig-json.js";
 // biome-ignore lint/correctness/useImportExtensions: we can import JSON files directly
-import nodeEcmaLibJson from "../public/tsconfig/node/ecma/lib.json" with { type: "json" };
+import nodeEcmaLibJson from "../public/tsconfig/ecma/lib.json" with { type: "json" };
 // biome-ignore lint/correctness/useImportExtensions: we can import JSON files directly
 import rootJson from "../public/tsconfig/root.json" with { type: "json" };
 
@@ -15,7 +15,7 @@ const requireCJS: (id: string) => any = createRequire(import.meta.url);
 
 // Map of imported JSON files by their file path
 const jsonImports: Map<string, TSConfigJsonWithSchema> = new Map<string, TSConfigJsonWithSchema>([
-	[join(import.meta.dirname, "../public/tsconfig/node/ecma/lib.json"), nodeEcmaLibJson as TSConfigJsonWithSchema],
+	[join(import.meta.dirname, "../public/tsconfig/ecma/lib.json"), nodeEcmaLibJson as TSConfigJsonWithSchema],
 	[join(import.meta.dirname, "../public/tsconfig/root.json"), rootJson as TSConfigJsonWithSchema],
 ]);
 
@@ -526,7 +526,7 @@ export const Root: TSConfigFile = new TSConfigFile(
  * ```json
  * {
  *   "$schema": "https://json.schemastore.org/tsconfig",
- *   "extends": "./node_modules/@savvy-web/shared/tsconfig/node/ecma/lib.json",
+ *   "extends": "./node_modules/@savvy-web/shared/tsconfig/ecma/lib.json",
  *   "compilerOptions": {
  *     "outDir": "./dist"
  *   }
@@ -551,7 +551,7 @@ export const Root: TSConfigFile = new TSConfigFile(
  */
 export const NodeEcmaLib: LibraryTSConfigFile = new LibraryTSConfigFile(
 	"ECMAScript library build configuration",
-	join(import.meta.dirname, "../public/tsconfig/node/ecma/lib.json"),
+	join(import.meta.dirname, "../public/tsconfig/ecma/lib.json"),
 );
 
 /**

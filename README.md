@@ -50,7 +50,7 @@ Extend the provided tsconfig for optimal settings:
 ```jsonc
 // tsconfig.json
 {
-  "extends": "@savvy-web/rslib-builder/tsconfig/node/ecma/lib.json",
+  "extends": "@savvy-web/rslib-builder/tsconfig/ecma/lib.json",
   "compilerOptions": {
     "outDir": "dist"
   }

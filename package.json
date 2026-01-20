@@ -22,7 +22,7 @@
 	"exports": {
 		".": "./src/index.ts",
 		"./tsconfig/root.json": "./src/public/tsconfig/root.json",
-		"./tsconfig/node/ecma/lib.json": "./src/public/tsconfig/node/ecma/lib.json"
+		"./tsconfig/ecma/lib.json": "./src/public/tsconfig/ecma/lib.json"
 	},
 	"scripts": {
 		"build": "turbo run build:dev build:npm",

@@ -6,7 +6,7 @@
 			"#utils/*": ["./src/rslib/plugins/utils/*"]
 		}
 	},
-	"extends": "./src/public/tsconfig/node/ecma/lib.json",
+	"extends": "./src/public/tsconfig/ecma/lib.json",
 	"include": [
 		"${configDir}/types/*.ts",
 		"${configDir}/package.json",
