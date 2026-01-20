@@ -6,7 +6,8 @@ describe("bin-transform-utils", () => {
 	describe("transformPackageBin", () => {
 		it("should transform string bin field", () => {
 			const result = transformPackageBin("./src/cli.ts");
-			expect(result).toBe("./cli.js");
+			// Single TypeScript bin entry compiles to ./bin/cli.js
+			expect(result).toBe("./bin/cli.js");
 		});
 
 		it("should transform object bin field", () => {
@@ -14,9 +15,10 @@ describe("bin-transform-utils", () => {
 				"my-cli": "./src/cli.ts",
 				"my-tool": "./src/tool.ts",
 			});
+			// TypeScript bin entries are compiled to ./bin/{command}.js
 			expect(result).toEqual({
-				"my-cli": "./cli.js",
-				"my-tool": "./tool.js",
+				"my-cli": "./bin/my-cli.js",
+				"my-tool": "./bin/my-tool.js",
 			});
 		});
 
@@ -28,8 +30,9 @@ describe("bin-transform-utils", () => {
 
 			const result = transformPackageBin(bin);
 
+			// TypeScript bin entries are compiled to ./bin/{command}.js
 			expect(result).toEqual({
-				"my-cli": "./cli.js",
+				"my-cli": "./bin/my-cli.js",
 			});
 		});
 
@@ -38,6 +41,7 @@ describe("bin-transform-utils", () => {
 				"my-cli": "./scripts/cli.sh",
 				"my-tool": "./dist/tool.js",
 			});
+			// Non-TypeScript entries are preserved as-is
 			expect(result).toEqual({
 				"my-cli": "./scripts/cli.sh",
 				"my-tool": "./dist/tool.js",
@@ -46,20 +50,24 @@ describe("bin-transform-utils", () => {
 
 		it("should handle string bin field with non-TypeScript file", () => {
 			const result = transformPackageBin("./scripts/cli.sh");
+			// Non-TypeScript entries are preserved as-is
 			expect(result).toBe("./scripts/cli.sh");
 		});
 
 		it("should handle string bin field with shell script", () => {
 			const result = transformPackageBin("./bin/start.sh");
+			// Shell scripts are preserved as-is
 			expect(result).toBe("./bin/start.sh");
 		});
 
-		it("should not transform when processTSExports is false", () => {
+		it("should transform TypeScript even when processTSExports is false (deprecated param)", () => {
+			// The processTSExports parameter is deprecated and no longer affects bin transformation
 			const result = transformPackageBin("./src/cli.ts", false);
-			expect(result).toBe("./cli.ts");
+			expect(result).toBe("./bin/cli.js");
 		});
 
-		it("should not transform object bin when processTSExports is false", () => {
+		it("should transform object bin TypeScript even when processTSExports is false (deprecated param)", () => {
+			// The processTSExports parameter is deprecated and no longer affects bin transformation
 			const result = transformPackageBin(
 				{
 					"my-cli": "./src/cli.ts",
@@ -68,8 +76,8 @@ describe("bin-transform-utils", () => {
 				false,
 			);
 			expect(result).toEqual({
-				"my-cli": "./cli.ts",
-				"my-tool": "./tool.ts",
+				"my-cli": "./bin/my-cli.js",
+				"my-tool": "./bin/my-tool.js",
 			});
 		});
 
@@ -78,7 +86,8 @@ describe("bin-transform-utils", () => {
 			expect(transformPackageBin(undefined)).toBeUndefined();
 		});
 
-		it("should preserve bin/ prefix", () => {
+		it("should transform bin/ prefix TypeScript to ./bin/{command}.js", () => {
+			// Even if source is already in bin/, the TypeScript file is compiled to ./bin/cli.js
 			const result = transformPackageBin("./bin/cli.ts");
 			expect(result).toBe("./bin/cli.js");
 		});

@@ -224,9 +224,10 @@ describe("rslib-transform-utils", () => {
 
 			const result = applyRslibTransformations(packageJson, packageJson);
 
+			// TypeScript bin entries are compiled to ./bin/{command}.js
 			expect(result.bin).toEqual({
-				"my-cli": "./cli.js",
-				"my-tool": "./tool.js",
+				"my-cli": "./bin/my-cli.js",
+				"my-tool": "./bin/my-tool.js",
 			});
 		});
 
@@ -239,7 +240,8 @@ describe("rslib-transform-utils", () => {
 
 			const result = applyRslibTransformations(packageJson, packageJson);
 
-			expect(result.bin).toBe("./cli.js");
+			// Single TypeScript bin entry compiles to ./bin/cli.js
+			expect(result.bin).toBe("./bin/cli.js");
 		});
 
 		it("should transform files array", () => {

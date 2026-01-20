@@ -216,19 +216,34 @@ export class PackageJsonTransformer {
 	/**
 	 * Transforms the bin field for build output.
 	 *
+	 * @remarks
+	 * TypeScript bin entries are compiled to `./bin/{command-name}.js` by RSlib.
+	 * Non-TypeScript entries (shell scripts, compiled JS) are preserved as-is.
+	 *
 	 * @param bin - The bin field from package.json
 	 * @returns The transformed bin field
 	 */
 	transformBin(bin: PackageJson["bin"]): PackageJson["bin"] {
 		if (typeof bin === "string") {
-			return this.transformExportPath(bin);
+			// Only transform TypeScript files to ./bin/cli.js
+			if (bin.endsWith(".ts") || bin.endsWith(".tsx")) {
+				return "./bin/cli.js";
+			}
+			// Non-TypeScript entries preserved as-is
+			return bin;
 		}
 
 		if (bin && typeof bin === "object") {
 			const transformed: Record<string, string> = {};
 			for (const [command, path] of Object.entries(bin)) {
 				if (path !== undefined) {
-					transformed[command] = this.transformExportPath(path);
+					// Only transform TypeScript files to ./bin/{command}.js
+					if (path.endsWith(".ts") || path.endsWith(".tsx")) {
+						transformed[command] = `./bin/${command}.js`;
+					} else {
+						// Non-TypeScript entries preserved as-is
+						transformed[command] = path;
+					}
 				}
 			}
 			return transformed;
@@ -511,26 +526,42 @@ export function createTypePath(jsPath: string, collapseIndex: boolean = true): s
 /**
  * Transforms the package.json bin field for build output compatibility.
  *
+ * @remarks
+ * TypeScript bin entries are compiled to `./bin/{command-name}.js` by RSlib.
+ * Non-TypeScript entries (shell scripts, compiled JS) are preserved as-is.
+ *
  * @param bin - The bin field value from package.json
- * @param processTSExports - Whether to process TypeScript file extensions
+ * @param _processTSExports - Deprecated, kept for backwards compatibility
  * @returns The transformed bin field with updated paths
  *
  * @example
  * ```typescript
- * transformPackageBin("./src/cli.ts"); // "./cli.js"
- * transformPackageBin({ "my-tool": "./src/cli.ts" }); // { "my-tool": "./cli.js" }
+ * transformPackageBin("./src/cli.ts"); // "./bin/cli.js"
+ * transformPackageBin({ "my-tool": "./src/cli.ts" }); // { "my-tool": "./bin/my-tool.js" }
+ * transformPackageBin("./scripts/cli.sh"); // "./scripts/cli.sh" (preserved)
  * ```
  */
-export function transformPackageBin(bin: PackageJson["bin"], processTSExports: boolean = true): PackageJson["bin"] {
+export function transformPackageBin(bin: PackageJson["bin"], _processTSExports: boolean = true): PackageJson["bin"] {
 	if (typeof bin === "string") {
-		return transformExportPath(bin, processTSExports);
+		// Only transform TypeScript files to ./bin/cli.js
+		if (bin.endsWith(".ts") || bin.endsWith(".tsx")) {
+			return "./bin/cli.js";
+		}
+		// Non-TypeScript entries preserved as-is
+		return bin;
 	}
 
 	if (bin && typeof bin === "object") {
 		const transformed: Record<string, string> = {};
 		for (const [command, path] of Object.entries(bin)) {
 			if (path !== undefined) {
-				transformed[command] = transformExportPath(path, processTSExports);
+				// Only transform TypeScript files to ./bin/{command}.js
+				if (path.endsWith(".ts") || path.endsWith(".tsx")) {
+					transformed[command] = `./bin/${command}.js`;
+				} else {
+					// Non-TypeScript entries preserved as-is
+					transformed[command] = path;
+				}
 			}
 		}
 		return transformed;

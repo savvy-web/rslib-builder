@@ -225,7 +225,8 @@ describe("PackageJsonTransformer", () => {
 	describe("transformBin", () => {
 		it("should transform string bin path", () => {
 			const transformer = new PackageJsonTransformer();
-			expect(transformer.transformBin("./src/cli.ts")).toBe("./cli.js");
+			// Single TypeScript bin entry compiles to ./bin/cli.js
+			expect(transformer.transformBin("./src/cli.ts")).toBe("./bin/cli.js");
 		});
 
 		it("should transform object bin paths", () => {
@@ -237,8 +238,9 @@ describe("PackageJsonTransformer", () => {
 
 			const result = transformer.transformBin(bin);
 
+			// TypeScript bin entries are compiled to ./bin/{command}.js
 			expect(result).toEqual({
-				cli: "./cli.js",
+				cli: "./bin/cli.js",
 				tool: "./bin/tool.js",
 			});
 		});
@@ -257,8 +259,9 @@ describe("PackageJsonTransformer", () => {
 
 			const result = transformer.transformBin(bin);
 
+			// TypeScript bin entries are compiled to ./bin/{command}.js
 			expect(result).toEqual({
-				cli: "./cli.js",
+				cli: "./bin/cli.js",
 			});
 		});
 	});
@@ -294,7 +297,8 @@ describe("PackageJsonTransformer", () => {
 
 			const result = await transformer.transform(pkg);
 
-			expect(result.bin).toBe("./cli.js");
+			// Single TypeScript bin entry compiles to ./bin/cli.js
+			expect(result.bin).toBe("./bin/cli.js");
 		});
 
 		it("should remove publishConfig and scripts", async () => {
