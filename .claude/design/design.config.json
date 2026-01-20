@@ -17,7 +17,7 @@
 		"rslib-builder": {
 			"path": ".",
 			"designDocsPath": ".claude/design/rslib-builder",
-			"categories": ["architecture", "performance", "testing", "integration"],
+			"categories": ["architecture", "performance", "testing", "integration", "reference"],
 			"maintainer": "Spencer Beggs",
 			"userDocs": {
 				"readme": "README.md",

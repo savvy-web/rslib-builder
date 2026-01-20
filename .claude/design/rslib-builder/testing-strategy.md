@@ -3,11 +3,11 @@ status: current
 module: rslib-builder
 category: testing
 created: 2026-01-18
-updated: 2026-01-18
+updated: 2026-01-20
 last-synced: 2026-01-18
 completeness: 85
 related:
-  - ./architecture.md
+  - rslib-builder/architecture.md
 dependencies: []
 ---
 
