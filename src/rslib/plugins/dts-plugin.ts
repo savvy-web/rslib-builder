@@ -121,6 +121,15 @@ export interface TsDocOptions {
 	 * TSDoc warnings include unknown tags, malformed syntax, and other
 	 * documentation issues detected by API Extractor during processing.
 	 *
+	 * @example
+	 * ```typescript
+	 * // Fail build on any TSDoc issues (CI default)
+	 * warnings: "fail"
+	 *
+	 * // Show warnings but continue build (local default)
+	 * warnings: "log"
+	 * ```
+	 *
 	 * @defaultValue `"fail"` in CI environments (`CI` or `GITHUB_ACTIONS` env vars),
 	 *               `"log"` otherwise
 	 */
@@ -208,7 +217,7 @@ export class TsDocConfigBuilder {
 	 */
 	static shouldPersist(persistConfig: boolean | PathLike | undefined): boolean {
 		if (persistConfig === false) return false;
-		if (persistConfig === true || persistConfig !== undefined) return true;
+		if (persistConfig !== undefined) return true;
 		// Default: persist unless in CI
 		return !TsDocConfigBuilder.isCI();
 	}
