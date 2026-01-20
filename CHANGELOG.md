@@ -1,5 +1,27 @@
 # @savvy-web/rslib-builder
 
+## 0.2.1
+
+### Patch Changes
+
+- a106f73: Fix path transformations for bin entries and nested public exports.
+
+  **Bin entries**: TypeScript bin entries are now correctly transformed to
+  `./bin/{command}.js` instead of stripping the `./src/` prefix. This matches
+  RSlib's actual output structure where `"test": "./src/cli/index.ts"` compiles
+  to `./bin/test.js`. Non-TypeScript entries are preserved as-is.
+
+  **Public exports**: Paths like `./src/public/tsconfig/root.json` now correctly
+  strip both `./src/` and `./public/` prefixes, resulting in `./tsconfig/root.json`
+  instead of `./public/tsconfig/root.json`.
+
+- a106f73: Fix localPaths to copy transformed package.json after build completes.
+
+  Previously, when using `apiModel.localPaths`, the package.json was copied during
+  the `pre-process` stage before transformations were applied. Now files are copied
+  in `onCloseBuild` after the build completes, ensuring the transformed package.json
+  (with resolved pnpm references, transformed exports, etc.) is exported.
+
 ## 0.2.0
 
 ### Minor Changes
