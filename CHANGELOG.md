@@ -1,5 +1,11 @@
 # @savvy-web/rslib-builder
 
+## 0.2.2
+
+### Patch Changes
+
+- 4eb48b7: Unlocks @typescript/native-preview peerDependency version. We just need a newish version.
+
 ## 0.2.1
 
 ### Patch Changes
