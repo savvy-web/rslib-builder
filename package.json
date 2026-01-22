@@ -46,7 +46,7 @@
 	"dependencies": {
 		"@microsoft/tsdoc": "^0.16.0",
 		"@microsoft/tsdoc-config": "^0.18.0",
-		"@pnpm/exportable-manifest": "^1000.3.0",
+		"@pnpm/exportable-manifest": "^1000.3.1",
 		"glob": "^13.0.0",
 		"picocolors": "^1.1.1",
 		"sort-package-json": "^3.6.0",
@@ -60,13 +60,13 @@
 		"@commitlint/cli": "^20.3.1",
 		"@commitlint/config-conventional": "^20.3.1",
 		"@microsoft/api-extractor": "^7.55.2",
-		"@pnpm/types": "^1001.2.0",
+		"@pnpm/types": "^1001.3.0",
 		"@rsbuild/core": "^1.7.2",
-		"@rslib/core": "^0.19.2",
-		"@rspack/binding": "^1.7.2",
-		"@types/node": "^25.0.9",
+		"@rslib/core": "^0.19.3",
+		"@rspack/binding": "^1.7.3",
+		"@types/node": "^25.0.10",
 		"@types/tmp": "^0.2.6",
-		"@typescript/native-preview": "7.0.0-dev.20260118.1",
+		"@typescript/native-preview": "^7.0.0-dev.20260120.1",
 		"@vitest/coverage-v8": "^4.0.17",
 		"husky": "^9.1.7",
 		"lint-staged": "^16.2.7",
@@ -83,10 +83,14 @@
 		"@microsoft/api-extractor": "^7.55.2",
 		"@rslib/core": "^0.19.2",
 		"@types/node": "^25.0.9",
-		"@typescript/native-preview": "7.0.0-dev.20260118.1"
+		"@typescript/native-preview": "^7.0.0-dev.20260120.1",
+		"typescript": "^5.9.3"
 	},
 	"peerDependenciesMeta": {
 		"@microsoft/api-extractor": {
+			"optional": false
+		},
+		"@rslib/core": {
 			"optional": false
 		},
 		"@typescript/native-preview": {
