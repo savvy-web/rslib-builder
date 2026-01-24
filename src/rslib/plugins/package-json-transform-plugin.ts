@@ -1,29 +1,161 @@
 import type { RsbuildPlugin, RsbuildPluginAPI } from "@rsbuild/core";
 import type { PackageJson } from "type-fest";
-import type { CacheEntry } from "#utils/asset-utils.js";
-import { JsonAsset, TextAsset } from "#utils/asset-utils.js";
-import { buildPackageJson } from "#utils/package-json-transformer.js";
+import type { CacheEntry } from "./utils/asset-utils.js";
+import { JsonAsset, TextAsset } from "./utils/asset-utils.js";
+import { buildPackageJson } from "./utils/package-json-transformer.js";
 
 /**
+ * Options for the PackageJsonTransformPlugin.
+ *
  * @public
  */
 export interface PackageJsonTransformPluginOptions {
-	/** Override the name property of the source package.json when building to a target */
+	/**
+	 * Override the package name in the output package.json.
+	 *
+	 * @remarks
+	 * - When a string is provided, the package name is replaced with that value
+	 * - When `true`, the original name is preserved (no override)
+	 * - When undefined, the original name is preserved
+	 *
+	 * @example
+	 * ```typescript
+	 * import type { PackageJsonTransformPluginOptions } from '@savvy-web/rslib-builder';
+	 *
+	 * const options: PackageJsonTransformPluginOptions = {
+	 *   name: '@scope/my-package-dist',
+	 * };
+	 * ```
+	 */
 	name?: string | true;
-	/** Whether to force include private packages (with "private": true) in the output */
+
+	/**
+	 * Force the output package.json to have `"private": true`.
+	 *
+	 * @remarks
+	 * Useful for development builds that should never be published.
+	 * When true, overrides the `publishConfig.access` setting.
+	 *
+	 * @defaultValue false
+	 */
 	forcePrivate?: boolean;
-	/** Whether to process package.json exports of into  */
+
+	/**
+	 * Whether to process TypeScript exports and generate type conditions.
+	 *
+	 * @remarks
+	 * When enabled, transforms export paths from `.ts` to `.js` and adds
+	 * `types` conditions pointing to the corresponding `.d.ts` files.
+	 *
+	 * @example
+	 * Input: `"./src/index.ts"`
+	 * Output: `{ "types": "./index.d.ts", "import": "./index.js" }`
+	 */
 	processTSExports?: boolean;
-	/** Whether the build is in bundle mode (affects export path transformation) */
+
+	/**
+	 * Whether the build is in bundle mode.
+	 *
+	 * @remarks
+	 * Affects export path transformations - in bundle mode, nested index files
+	 * are collapsed (e.g., `./utils/index.ts` becomes `./utils.js`).
+	 *
+	 * @defaultValue false
+	 */
 	bundle?: boolean;
-	/** Build target (dev, npm) - used for custom transformations */
+
+	/**
+	 * Build target identifier for custom transformations.
+	 *
+	 * @remarks
+	 * Passed to the transform function to allow target-specific modifications.
+	 * Common values: "dev", "npm"
+	 */
 	target?: string;
-	/** Optional transform function to modify package.json after standard transformations */
+
+	/**
+	 * Custom transform function to modify package.json after standard transformations.
+	 *
+	 * @remarks
+	 * Called after all built-in transformations (path updates, pnpm resolution, etc.)
+	 * are applied. Mutations to the object are also supported.
+	 *
+	 * @param pkg - The package.json object after standard transformations
+	 * @returns The modified package.json object
+	 *
+	 * @example
+	 * ```typescript
+	 * import type { PackageJsonTransformPluginOptions } from '@savvy-web/rslib-builder';
+	 *
+	 * const options: PackageJsonTransformPluginOptions = {
+	 *   transform(pkg) {
+	 *     delete pkg.devDependencies;
+	 *     pkg.publishConfig = { access: 'public' };
+	 *     return pkg;
+	 *   },
+	 * };
+	 * ```
+	 */
 	transform?: (pkg: PackageJson) => PackageJson;
 }
 
 /**
- * Plugin to process package.json for distribution
+ * Plugin to transform package.json for distribution.
+ *
+ * @remarks
+ * This plugin processes the source package.json and transforms it for the build output.
+ * It handles path transformations, pnpm catalog/workspace resolution, and field cleanup.
+ *
+ * ## Transformations Applied
+ *
+ * - **Path Updates**: Converts source paths to output paths (e.g., `./src/index.ts` → `./index.js`)
+ * - **Type Conditions**: Adds `types` fields to exports pointing to `.d.ts` files
+ * - **pnpm Resolution**: Resolves `catalog:` and `workspace:*` dependency versions
+ * - **Field Cleanup**: Removes `scripts`, `publishConfig`, and other dev-only fields
+ * - **Private Flag**: Sets based on `publishConfig.access` or `forcePrivate` option
+ *
+ * ## Plugin Interoperability
+ *
+ * - Consumes `entrypoints` map from AutoEntryPlugin
+ * - Consumes `exportToOutputMap` for exportsAsIndexes mode
+ * - Exposes `files-cache` for asset caching
+ * - Consumes `use-rollup-types` flag from DtsPlugin
+ *
+ * @param options - Plugin configuration options
+ *
+ * @example
+ * Basic usage:
+ * ```typescript
+ * import { PackageJsonTransformPlugin } from '@savvy-web/rslib-builder';
+ *
+ * export default {
+ *   plugins: [
+ *     PackageJsonTransformPlugin({
+ *       bundle: true,
+ *       processTSExports: true,
+ *     }),
+ *   ],
+ * };
+ * ```
+ *
+ * @example
+ * With custom transform:
+ * ```typescript
+ * import { PackageJsonTransformPlugin } from '@savvy-web/rslib-builder';
+ *
+ * export default {
+ *   plugins: [
+ *     PackageJsonTransformPlugin({
+ *       target: 'npm',
+ *       transform(pkg) {
+ *         delete pkg.devDependencies;
+ *         return pkg;
+ *       },
+ *     }),
+ *   ],
+ * };
+ * ```
+ *
  * @public
  */
 export const PackageJsonTransformPlugin = (options: PackageJsonTransformPluginOptions = {}): RsbuildPlugin => {

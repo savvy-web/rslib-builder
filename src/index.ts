@@ -40,25 +40,30 @@
  */
 
 /* v8 ignore start - Export module, tested through consuming packages */
-export type * from "./rslib/builders/node-library-builder.js";
-export * from "./rslib/builders/node-library-builder.js";
-export type * from "./rslib/plugins/auto-entry-plugin.js";
-export * from "./rslib/plugins/auto-entry-plugin.js";
-export type * from "./rslib/plugins/dts-plugin.js";
-export * from "./rslib/plugins/dts-plugin.js";
-export type * from "./rslib/plugins/files-array-plugin.js";
-export * from "./rslib/plugins/files-array-plugin.js";
-export type * from "./rslib/plugins/package-json-transform-plugin.js";
-export * from "./rslib/plugins/package-json-transform-plugin.js";
-// Utility classes for programmatic use
-export {
-	EntryExtractor,
-	type EntryExtractorOptions,
-	type ExtractedEntries,
-} from "./rslib/plugins/utils/entry-extractor.js";
-export {
-	type PackageJsonTransformOptions,
-	PackageJsonTransformer,
-} from "./rslib/plugins/utils/package-json-transformer.js";
-export { PnpmCatalog } from "./rslib/plugins/utils/pnpm-catalog.js";
+
+// Core builder
+export type {
+	BuildTarget,
+	NodeLibraryBuilderOptions,
+	TransformPackageJsonFn,
+} from "./rslib/builders/node-library-builder.js";
+
+export { NodeLibraryBuilder } from "./rslib/builders/node-library-builder.js";
+export type { AutoEntryPluginOptions } from "./rslib/plugins/auto-entry-plugin.js";
+// Plugins
+export { AutoEntryPlugin } from "./rslib/plugins/auto-entry-plugin.js";
+export type {
+	ApiModelOptions,
+	DtsPluginOptions,
+	TsDocMetadataOptions,
+	TsDocOptions,
+	TsDocTagDefinition,
+	TsDocTagGroup,
+} from "./rslib/plugins/dts-plugin.js";
+export { DtsPlugin, TsDocConfigBuilder } from "./rslib/plugins/dts-plugin.js";
+export type { FilesArrayPluginOptions } from "./rslib/plugins/files-array-plugin.js";
+export { FilesArrayPlugin } from "./rslib/plugins/files-array-plugin.js";
+export type { PackageJsonTransformPluginOptions } from "./rslib/plugins/package-json-transform-plugin.js";
+export { PackageJsonTransformPlugin } from "./rslib/plugins/package-json-transform-plugin.js";
+
 /* v8 ignore stop */

@@ -18,7 +18,7 @@ const mockReadFile: ReturnType<typeof vi.mocked<typeof readFile>> = vi.mocked(re
 const mockJoin: ReturnType<typeof vi.mocked<typeof join>> = vi.mocked(join);
 
 // Static import after mocks are set up
-import { JsonAsset, TextAsset } from "#utils/asset-utils.js";
+import { JsonAsset, TextAsset } from "./asset-utils.js";
 
 // Helper function to create mock compilation context
 function createMockContext(assets: MockAssetRegistry = {}): Parameters<ProcessAssetsHandler>[0] {

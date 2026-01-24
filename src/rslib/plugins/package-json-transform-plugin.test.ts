@@ -9,17 +9,15 @@ vi.mock("node:fs/promises", () => ({
 }));
 
 // Mock dependencies
-vi.mock("#utils/file-utils.js");
-vi.mock("#utils/package-json-transformer.js");
-vi.mock("#utils/asset-utils.js");
+vi.mock("./utils/file-utils.js");
+vi.mock("./utils/package-json-transformer.js");
+vi.mock("./utils/asset-utils.js");
 
-import { JsonAsset, TextAsset } from "#utils/asset-utils.js";
-// Static imports after mocks are set up
-import { fileExistAsync } from "#utils/file-utils.js";
-import { buildPackageJson } from "#utils/package-json-transformer.js";
 import { PackageJsonTransformPlugin } from "./package-json-transform-plugin.js";
+import { JsonAsset, TextAsset } from "./utils/asset-utils.js";
+// Static imports after mocks are set up
+import { buildPackageJson } from "./utils/package-json-transformer.js";
 
-const _mockFileExistAsync: ReturnType<typeof vi.mocked<typeof fileExistAsync>> = vi.mocked(fileExistAsync);
 const mockBuildPackageJson: ReturnType<typeof vi.mocked<typeof buildPackageJson>> = vi.mocked(buildPackageJson);
 const mockJsonAssetCreate: ReturnType<typeof vi.mocked<typeof JsonAsset.create>> = vi.mocked(JsonAsset.create);
 const mockTextAssetCreate: ReturnType<typeof vi.mocked<typeof TextAsset.create>> = vi.mocked(TextAsset.create);

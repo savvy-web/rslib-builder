@@ -2,7 +2,7 @@ import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { getWorkspaceRoot } from "workspace-tools";
-import { getApiExtractorPath } from "#utils/file-utils.js";
+import { getApiExtractorPath } from "./file-utils.js";
 
 vi.mock("node:fs", () => ({
 	existsSync: vi.fn(),

@@ -22,7 +22,7 @@ import { readFile, stat } from "node:fs/promises";
 import { createExportableManifest } from "@pnpm/exportable-manifest";
 import { getWorkspaceRoot } from "workspace-tools";
 import { parse } from "yaml";
-import { PnpmCatalog } from "#utils/pnpm-catalog.js";
+import { PnpmCatalog } from "./pnpm-catalog.js";
 
 describe("PnpmCatalog", () => {
 	let catalog: PnpmCatalog;

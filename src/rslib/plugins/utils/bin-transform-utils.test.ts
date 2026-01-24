@@ -1,6 +1,6 @@
 import type { PackageJson } from "type-fest";
 import { describe, expect, it } from "vitest";
-import { transformPackageBin } from "#utils/package-json-transformer.js";
+import { transformPackageBin } from "./package-json-transformer.js";
 
 describe("bin-transform-utils", () => {
 	describe("transformPackageBin", () => {

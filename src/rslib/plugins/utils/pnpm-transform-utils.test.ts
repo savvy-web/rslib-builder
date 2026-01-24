@@ -2,11 +2,11 @@ import type { PackageJson } from "type-fest";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 // Mock the pnpm-catalog module
-vi.mock("#utils/pnpm-catalog.js");
+vi.mock("./pnpm-catalog.js");
 
-import { applyPnpmTransformations } from "#utils/package-json-transformer.js";
-import type { PnpmCatalog } from "#utils/pnpm-catalog.js";
-import { getDefaultPnpmCatalog } from "#utils/pnpm-catalog.js";
+import { applyPnpmTransformations } from "./package-json-transformer.js";
+import type { PnpmCatalog } from "./pnpm-catalog.js";
+import { getDefaultPnpmCatalog } from "./pnpm-catalog.js";
 
 describe("pnpm-transform-utils", () => {
 	let mockPnpmCatalog: {

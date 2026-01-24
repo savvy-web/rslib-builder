@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createTypePath, transformExportPath } from "#utils/package-json-transformer.js";
+import { createTypePath, transformExportPath } from "./package-json-transformer.js";
 
 describe("path-transform-utils", () => {
 	describe("transformExportPath", () => {

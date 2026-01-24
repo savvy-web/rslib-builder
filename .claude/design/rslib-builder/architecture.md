@@ -3,7 +3,7 @@ status: current
 module: rslib-builder
 category: architecture
 created: 2026-01-18
-updated: 2026-01-19
+updated: 2026-01-24
 last-synced: 2026-01-19
 completeness: 90
 related:
@@ -161,7 +161,9 @@ transformations. Consolidated from 14 files to 6 focused modules.
      `path-transform-utils.ts`, `rslib-transform-utils.ts`,
      `pnpm-transform-utils.ts`, `package-json-builder-utils.ts`,
      `package-json-types-utils.ts`
-   - Exports: `PackageJsonTransformer` class plus standalone functions
+   - Exports: `buildPackageJson()`, `transformExportPath()`, `createTypePath()`,
+     `transformPackageExports()`, `transformPackageBin()`,
+     `applyRslibTransformations()`, `applyPnpmTransformations()`
    - Orchestrates pnpm + RSlib transformation pipeline, handles exports/bin
      fields, path transformations, type conditions
 
