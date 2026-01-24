@@ -113,7 +113,7 @@ export class TSConfigFile {
 	}
 
 	/**
-	 * Get configuration with ${configDir} variables replaced.
+	 * Get configuration with `$\{configDir\}` variables replaced.
 	 *
 	 * @remarks
 	 * Returns the configuration with all `${configDir}` template variables replaced
@@ -141,7 +141,7 @@ export class TSConfigFile {
 	 *
 	 * @returns The parsed TypeScript configuration as a {@link TSConfigJsonWithSchema} object
 	 *
-	 * @throws {Error} If the configuration file is not found in imports
+	 * @throws If the configuration file is not found in imports
 	 *
 	 * @see {@link TSConfigJsonWithSchema} for the configuration type definition
 	 */

@@ -62,7 +62,6 @@ export type BuildTarget = "dev" | "npm";
  *   return pkg;
  * };
  * ```
- *
  * @public
  */
 export type TransformPackageJsonFn = (context: { target: BuildTarget; pkg: PackageJson }) => PackageJson;

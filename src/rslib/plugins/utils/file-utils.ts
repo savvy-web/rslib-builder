@@ -52,7 +52,7 @@ export async function fileExistAsync(assetName: string): Promise<FileExistResult
  * Reads the version from package.json in the current working directory.
  *
  * @returns Promise resolving to the package version string
- * @throws {Error} If package.json is not found or version cannot be read
+ * @throws If package.json is not found or version cannot be read
  *
  * @example
  * ```typescript
@@ -75,7 +75,7 @@ export async function packageJsonVersion(): Promise<string> {
 }
 
 /**
- * Gets the path to the @microsoft/api-extractor package.
+ * Gets the path to the `@microsoft/api-extractor` package.
  *
  * @remarks
  * Uses workspace-tools to find the workspace root and searches for the package.

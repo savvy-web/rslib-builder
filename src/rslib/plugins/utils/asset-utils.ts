@@ -43,7 +43,7 @@ export class TextAsset {
 	 *
 	 * @param compiler - The Rsbuild compilation context containing assets and sources
 	 * @param _fileName - The name of the asset file to wrap
-	 * @throws {Error} Throws if the asset doesn't exist in the compilation context
+	 * @throws Throws if the asset doesn't exist in the compilation context
 	 */
 	constructor(
 		protected compiler: Parameters<ProcessAssetsHandler>[0],
@@ -103,7 +103,7 @@ export class TextAsset {
 	 * @param fileName - The name of the file to load (relative to project root)
 	 * @param required - Whether the file is required (defaults to true)
 	 * @returns Promise resolving to TextAsset instance, or null if not required and missing
-	 * @throws {Error} Throws if required file cannot be loaded or parsed
+	 * @throws Throws if required file cannot be loaded or parsed
 	 *
 	 * @example
 	 * ```typescript
@@ -184,7 +184,7 @@ export class JsonAsset<T> extends TextAsset {
 	 *
 	 * @param compiler - The Rsbuild compilation context containing assets and sources
 	 * @param fileName - The name of the JSON file to wrap
-	 * @throws {Error} Throws if the JSON content cannot be parsed
+	 * @throws Throws if the JSON content cannot be parsed
 	 */
 	constructor(compiler: Parameters<ProcessAssetsHandler>[0], fileName: string) {
 		super(compiler, fileName);
@@ -237,7 +237,7 @@ export class JsonAsset<T> extends TextAsset {
 	 * @param fileName - The name of the JSON file to load (relative to project root)
 	 * @param required - Whether the file is required (defaults to false for JSON files)
 	 * @returns Promise resolving to JsonAsset instance, or null if not required and missing
-	 * @throws {Error} Throws if required file cannot be loaded, or if JSON parsing fails
+	 * @throws Throws if required file cannot be loaded, or if JSON parsing fails
 	 *
 	 * @example
 	 * ```typescript
