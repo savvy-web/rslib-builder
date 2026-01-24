@@ -5,12 +5,12 @@ import type { ConfigParams, LibConfig, RslibConfig } from "@rslib/core";
 import { defineConfig } from "@rslib/core";
 import type { RawCopyPattern } from "@rspack/binding";
 import type { PackageJson } from "type-fest";
-import { packageJsonVersion } from "#utils/file-utils.js";
 import { AutoEntryPlugin } from "../plugins/auto-entry-plugin.js";
 import type { ApiModelOptions } from "../plugins/dts-plugin.js";
 import { DtsPlugin } from "../plugins/dts-plugin.js";
 import { FilesArrayPlugin } from "../plugins/files-array-plugin.js";
 import { PackageJsonTransformPlugin } from "../plugins/package-json-transform-plugin.js";
+import { packageJsonVersion } from "../plugins/utils/file-utils.js";
 
 /**
  * Async RSLib configuration function type.
@@ -19,11 +19,49 @@ import { PackageJsonTransformPlugin } from "../plugins/package-json-transform-pl
 export type RslibConfigAsyncFn = (env: ConfigParams) => Promise<RslibConfig>;
 
 /**
+ * Build target environment for library output.
+ *
+ * @remarks
+ * Each target produces different output optimizations:
+ * - `"dev"`: Development build with source maps for debugging
+ * - `"npm"`: Production build optimized for npm publishing
+ *
+ * @example
+ * Specifying targets via CLI:
+ * ```bash
+ * rslib build --env-mode dev
+ * rslib build --env-mode npm
+ * ```
+ *
  * @public
  */
 export type BuildTarget = "dev" | "npm";
 
 /**
+ * Function to transform package.json during the build process.
+ *
+ * @remarks
+ * This function is called after all standard transformations are applied,
+ * allowing you to modify the package.json before it's written to the output directory.
+ * Mutations to the `pkg` object are also supported.
+ *
+ * @param context - Transform context containing:
+ *   - `target`: The current build target ("dev" or "npm")
+ *   - `pkg`: The package.json object to transform
+ * @returns The modified package.json object
+ *
+ * @example
+ * ```typescript
+ * import type { TransformPackageJsonFn } from '@savvy-web/rslib-builder';
+ *
+ * const transform: TransformPackageJsonFn = ({ target, pkg }) => {
+ *   if (target === 'npm') {
+ *     delete pkg.devDependencies;
+ *     delete pkg.scripts;
+ *   }
+ *   return pkg;
+ * };
+ * ```
  * @public
  */
 export type TransformPackageJsonFn = (context: { target: BuildTarget; pkg: PackageJson }) => PackageJson;
@@ -80,9 +118,11 @@ export interface NodeLibraryBuilderOptions {
 	 *
 	 * @example
 	 * ```typescript
-	 * NodeLibraryBuilder.create({
-	 *   externals: ['@rslib/core', '@rsbuild/core']
-	 * })
+	 * import { NodeLibraryBuilder } from '@savvy-web/rslib-builder';
+	 *
+	 * export default NodeLibraryBuilder.create({
+	 *   externals: ['@rslib/core', '@rsbuild/core'],
+	 * });
 	 * ```
 	 */
 	externals?: (string | RegExp)[];
@@ -98,9 +138,11 @@ export interface NodeLibraryBuilderOptions {
 	 *
 	 * @example
 	 * ```typescript
-	 * NodeLibraryBuilder.create({
-	 *   dtsBundledPackages: ['@pnpm/lockfile.types', '@pnpm/types', 'picocolors']
-	 * })
+	 * import { NodeLibraryBuilder } from '@savvy-web/rslib-builder';
+	 *
+	 * export default NodeLibraryBuilder.create({
+	 *   dtsBundledPackages: ['@pnpm/lockfile.types', '@pnpm/types', 'picocolors'],
+	 * });
 	 * ```
 	 */
 	dtsBundledPackages?: string[];
@@ -115,16 +157,18 @@ export interface NodeLibraryBuilderOptions {
 	 *
 	 * @example
 	 * ```typescript
-	 * NodeLibraryBuilder.create({
-	 *   transformFiles({ compilation, filesArray, target }) {
+	 * import { NodeLibraryBuilder } from '@savvy-web/rslib-builder';
+	 *
+	 * export default NodeLibraryBuilder.create({
+	 *   transformFiles({ compilation, filesArray }) {
 	 *     // Copy index.cjs to .pnpmfile.cjs
 	 *     const indexAsset = compilation.assets['index.cjs'];
 	 *     if (indexAsset) {
 	 *       compilation.assets['.pnpmfile.cjs'] = indexAsset;
 	 *       filesArray.add('.pnpmfile.cjs');
 	 *     }
-	 *   }
-	 * })
+	 *   },
+	 * });
 	 * ```
 	 */
 	transformFiles?: (context: {
@@ -144,16 +188,17 @@ export interface NodeLibraryBuilderOptions {
 	 *
 	 * @example
 	 * ```typescript
-	 * NodeLibraryBuilder.create({
+	 * import { NodeLibraryBuilder } from '@savvy-web/rslib-builder';
+	 *
+	 * export default NodeLibraryBuilder.create({
 	 *   transform({ target, pkg }) {
 	 *     if (target === 'npm') {
-	 *       // Mutation approach
 	 *       delete pkg.devDependencies;
 	 *       delete pkg.scripts;
 	 *     }
 	 *     return pkg;
-	 *   }
-	 * })
+	 *   },
+	 * });
 	 * ```
 	 */
 	transform?: TransformPackageJsonFn;
@@ -168,27 +213,83 @@ export interface NodeLibraryBuilderOptions {
 	 * The file is emitted to dist but excluded from npm publish (added as negated pattern in `files` array).
 	 *
 	 * @example
+	 * Enable API model generation with defaults:
 	 * ```typescript
-	 * // Enable API model generation with defaults
-	 * NodeLibraryBuilder.create({
-	 *   apiModel: true,
-	 * })
+	 * import { NodeLibraryBuilder } from '@savvy-web/rslib-builder';
 	 *
-	 * // Enable with custom filename
-	 * NodeLibraryBuilder.create({
+	 * export default NodeLibraryBuilder.create({
+	 *   apiModel: true,
+	 * });
+	 * ```
+	 *
+	 * @example
+	 * Enable with custom filename:
+	 * ```typescript
+	 * import { NodeLibraryBuilder } from '@savvy-web/rslib-builder';
+	 *
+	 * export default NodeLibraryBuilder.create({
 	 *   apiModel: {
 	 *     enabled: true,
-	 *     filename: "my-package.api.json",
+	 *     filename: 'my-package.api.json',
 	 *   },
-	 * })
+	 * });
 	 * ```
 	 */
 	apiModel?: ApiModelOptions | boolean;
 }
 
 /**
+ * Builder for Node.js ESM libraries using RSlib.
+ *
+ * @remarks
+ * NodeLibraryBuilder provides a high-level API for building modern ESM Node.js libraries.
+ * It handles TypeScript compilation, declaration bundling, package.json transformation,
+ * and multi-target builds (dev and npm).
+ *
+ * Features:
+ * - Automatic entry point detection from package.json exports
+ * - TypeScript declarations via tsgo + API Extractor
+ * - pnpm catalog and workspace protocol resolution
+ * - Source maps for development builds
+ * - Configurable external dependencies and type bundling
+ *
+ * @example
+ * Basic usage in `rslib.config.ts`:
+ * ```typescript
+ * import { NodeLibraryBuilder } from '@savvy-web/rslib-builder';
+ *
+ * export default NodeLibraryBuilder.create();
+ * ```
+ *
+ * @example
+ * With custom options:
+ * ```typescript
+ * import { NodeLibraryBuilder } from '@savvy-web/rslib-builder';
+ *
+ * export default NodeLibraryBuilder.create({
+ *   externals: ['@rslib/core', '@rsbuild/core'],
+ *   dtsBundledPackages: ['picocolors'],
+ *   apiModel: true,
+ *   transform({ target, pkg }) {
+ *     if (target === 'npm') {
+ *       delete pkg.devDependencies;
+ *     }
+ *     return pkg;
+ *   },
+ * });
+ * ```
+ *
+ * @example
+ * Build commands:
+ * ```bash
+ * # Development build (with source maps)
+ * rslib build --env-mode dev
+ *
+ * # Production build (for npm publishing)
+ * rslib build --env-mode npm
+ * ```
+ *
  * @public
- * Node library builder class
  */
 /* v8 ignore next -- @preserve */
 // biome-ignore lint/complexity/noStaticOnlyClass: <This is a nicety for the API>

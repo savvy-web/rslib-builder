@@ -15,10 +15,6 @@
 		"url": "https://savvyweb.systems"
 	},
 	"type": "module",
-	"imports": {
-		"#utils/*": "./src/rslib/plugins/utils/*",
-		"#types/*": "./src/types/*"
-	},
 	"exports": {
 		".": "./src/index.ts",
 		"./tsconfig/root.json": "./src/public/tsconfig/root.json",
@@ -37,6 +33,7 @@
 		"lint:fix:unsafe": "biome check --write --unsafe --max-diagnostics=none",
 		"lint:md": "markdownlint-cli2 '**/*.{md,mdx}' --config './lib/configs/.markdownlint-cli2.jsonc'",
 		"lint:md:fix": "markdownlint-cli2  --config './lib/configs/.markdownlint-cli2.jsonc' --fix",
+		"lint:tsdoc": "eslint --config ./lib/configs/eslint.config.ts --ignore-pattern '**/*.test.ts'",
 		"prepare": "husky",
 		"test": "vitest run",
 		"test:coverage": "vitest run --coverage",
@@ -66,8 +63,11 @@
 		"@rspack/binding": "^1.7.3",
 		"@types/node": "^25.0.10",
 		"@types/tmp": "^0.2.6",
+		"@typescript-eslint/parser": "^8.53.1",
 		"@typescript/native-preview": "^7.0.0-dev.20260120.1",
 		"@vitest/coverage-v8": "^4.0.17",
+		"eslint": "^9.39.2",
+		"eslint-plugin-tsdoc": "^0.5.0",
 		"husky": "^9.1.7",
 		"lint-staged": "^16.2.7",
 		"markdownlint-cli2": "^0.20.0",

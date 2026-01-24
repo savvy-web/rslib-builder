@@ -33,7 +33,10 @@
 		"editor.formatOnSave": true,
 		"editor.formatOnPaste": true
 	},
-	"eslint.enable": false,
+	"eslint.enable": true,
+	"eslint.options": {
+		"overrideConfigFile": "lib/configs/eslint.config.ts"
+	},
 	"explorer.sortOrder": "foldersNestsFiles",
 	"explorer.sortOrderLexicographicOptions": "unicode",
 	"geminicodeassist.enable": false,
@@ -46,6 +49,7 @@
 		"**/dist": false,
 		"**/node_modules": false
 	},
+	"typescript.preferences.preferTypeOnlyAutoImports": true,
 	"gitlens.statusBar.pullRequests.enabled": true,
 	"typescript.experimental.useTsgo": true,
 	"gitlens.gitkraken.cli.integration.enabled": true,

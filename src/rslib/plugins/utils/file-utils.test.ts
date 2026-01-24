@@ -1,7 +1,7 @@
 import type { Stats } from "node:fs";
 import { readFile, stat } from "node:fs/promises";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { fileExistAsync, packageJsonVersion } from "#utils/file-utils.js";
+import { fileExistAsync, packageJsonVersion } from "./file-utils.js";
 
 vi.mock("node:fs/promises", () => ({
 	stat: vi.fn(),

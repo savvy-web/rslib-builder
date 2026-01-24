@@ -42,7 +42,8 @@
 	},
 	"linter": {
 		"domains": {
-			"project": "all"
+			"project": "all",
+			"turborepo": "recommended"
 		},
 		"enabled": true,
 		"rules": {

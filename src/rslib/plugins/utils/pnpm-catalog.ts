@@ -5,7 +5,7 @@ import type { ProjectManifest } from "@pnpm/types";
 import type { PackageJson } from "type-fest";
 import { getWorkspaceRoot } from "workspace-tools";
 import { parse } from "yaml";
-import { createEnvLogger } from "#utils/build-logger.js";
+import { createEnvLogger } from "./build-logger.js";
 
 /**
  * Configuration structure for pnpm workspace files (pnpm-workspace.yaml).

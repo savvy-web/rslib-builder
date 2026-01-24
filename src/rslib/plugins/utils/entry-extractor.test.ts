@@ -1,6 +1,6 @@
 import type { PackageJson } from "type-fest";
 import { describe, expect, it } from "vitest";
-import { EntryExtractor, extractEntriesFromPackageJson } from "#utils/entry-extractor.js";
+import { EntryExtractor, extractEntriesFromPackageJson } from "./entry-extractor.js";
 
 describe("extractEntriesFromPackageJson", () => {
 	it("should extract entries from exports field with string export", () => {

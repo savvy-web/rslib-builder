@@ -312,7 +312,7 @@ export function createEnvLogger(envId: string): EnvLogger {
 		 *
 		 * @remarks
 		 * This method is specifically designed for displaying entry point configurations
-		 * during build processes. It formats the mappings as "key => value" pairs with
+		 * during build processes. It formats the mappings as "key =\> value" pairs with
 		 * cyan highlighting for better readability.
 		 *
 		 * @param message - The message describing the entry mappings

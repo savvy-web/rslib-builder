@@ -18,9 +18,9 @@ import {
 	sys,
 } from "typescript";
 import { getWorkspaceRoot } from "workspace-tools";
-import { createEnvLogger } from "#utils/build-logger.js";
-import { getApiExtractorPath } from "#utils/file-utils.js";
 import { TSConfigs } from "../../tsconfig/index.js";
+import { createEnvLogger } from "./utils/build-logger.js";
+import { getApiExtractorPath } from "./utils/file-utils.js";
 
 /**
  * TSDoc tag definition for custom documentation tags.
@@ -37,6 +37,27 @@ export interface TsDocTagDefinition {
 
 /**
  * TSDoc standardization groups for predefined tag sets.
+ *
+ * @remarks
+ * These groups correspond to the TSDoc specification's standardization levels
+ * as defined in `\@microsoft/tsdoc`. Each group contains a set of related tags:
+ *
+ * - `"core"`: Essential tags for basic documentation
+ *   (`\@param`, `\@returns`, `\@remarks`, `\@deprecated`, `\@privateRemarks`, etc.)
+ *
+ * - `"extended"`: Additional tags for richer documentation
+ *   (`\@example`, `\@defaultValue`, `\@see`, `\@throws`, `\@typeParam`, etc.)
+ *
+ * - `"discretionary"`: Release stage and visibility modifiers
+ *   (`\@alpha`, `\@beta`, `\@public`, `\@internal`, `\@experimental`)
+ *
+ * @example
+ * ```typescript
+ * import type { TsDocTagGroup } from '@savvy-web/rslib-builder';
+ *
+ * const groups: TsDocTagGroup[] = ['core', 'extended'];
+ * ```
+ *
  * @public
  */
 export type TsDocTagGroup = "core" | "extended" | "discretionary";
@@ -80,10 +101,12 @@ export interface TsDocOptions {
 	 *
 	 * @example
 	 * ```typescript
-	 * tagDefinitions: [
-	 *   { tagName: "@error", syntaxKind: "inline" },
-	 *   { tagName: "@category", syntaxKind: "block", allowMultiple: false }
-	 * ]
+	 * import type { TsDocTagDefinition } from '@savvy-web/rslib-builder';
+	 *
+	 * const tagDefinitions: TsDocTagDefinition[] = [
+	 *   { tagName: '@error', syntaxKind: 'inline' },
+	 *   { tagName: '@category', syntaxKind: 'block', allowMultiple: false },
+	 * ];
 	 * ```
 	 */
 	tagDefinitions?: TsDocTagDefinition[];
@@ -93,9 +116,9 @@ export interface TsDocOptions {
 	 * Tags from enabled groups and custom tagDefinitions are auto-supported.
 	 *
 	 * @example
+	 * Disable \@beta even though "extended" group is enabled:
 	 * ```typescript
-	 * // Disable @beta even though "extended" group is enabled
-	 * supportForTags: { "@beta": false }
+	 * const supportForTags: Record<string, boolean> = { '@beta': false };
 	 * ```
 	 */
 	supportForTags?: Record<string, boolean>;
@@ -120,15 +143,6 @@ export interface TsDocOptions {
 	 * @remarks
 	 * TSDoc warnings include unknown tags, malformed syntax, and other
 	 * documentation issues detected by API Extractor during processing.
-	 *
-	 * @example
-	 * ```typescript
-	 * // Fail build on any TSDoc issues (CI default)
-	 * warnings: "fail"
-	 *
-	 * // Show warnings but continue build (local default)
-	 * warnings: "log"
-	 * ```
 	 *
 	 * @defaultValue `"fail"` in CI environments (`CI` or `GITHUB_ACTIONS` env vars),
 	 *               `"log"` otherwise
@@ -155,8 +169,50 @@ export interface TsDocMetadataOptions {
 }
 
 /**
- * Builder for TSDoc configuration files.
- * Handles tag group expansion, config generation, and file persistence.
+ * Builder for TSDoc configuration files used by API Extractor.
+ *
+ * @remarks
+ * This class provides utilities for generating `tsdoc.json` configuration files
+ * that control TSDoc tag support during API documentation generation.
+ *
+ * ## Features
+ *
+ * - Expands tag groups into individual tag definitions
+ * - Generates properly formatted tsdoc.json files
+ * - Handles config persistence based on environment (CI vs local)
+ * - Supports custom tag definitions
+ *
+ * ## Tag Groups
+ *
+ * The builder supports three standardization groups from `\@microsoft/tsdoc`:
+ * - `core`: Essential tags (`\@param`, `\@returns`, `\@remarks`, etc.)
+ * - `extended`: Additional tags (`\@example`, `\@defaultValue`, `\@see`, etc.)
+ * - `discretionary`: Release tags (`\@alpha`, `\@beta`, `\@public`, `\@internal`)
+ *
+ * @example
+ * Build tag configuration from options:
+ * ```typescript
+ * import { TsDocConfigBuilder } from '@savvy-web/rslib-builder';
+ *
+ * const config = TsDocConfigBuilder.build({
+ *   groups: ['core', 'extended'],
+ *   tagDefinitions: [
+ *     { tagName: '@error', syntaxKind: 'inline' },
+ *   ],
+ * });
+ * ```
+ *
+ * @example
+ * Write a tsdoc.json file:
+ * ```typescript
+ * import { TsDocConfigBuilder } from '@savvy-web/rslib-builder';
+ *
+ * const configPath = await TsDocConfigBuilder.writeConfigFile(
+ *   { groups: ['core', 'extended', 'discretionary'] },
+ *   process.cwd(),
+ * );
+ * ```
+ *
  * @public
  */
 // biome-ignore lint/complexity/noStaticOnlyClass: Intentional class-based API for co-located business logic
@@ -384,10 +440,12 @@ export interface ApiModelOptions {
 	 *
 	 * @example
 	 * ```typescript
-	 * apiModel: {
+	 * import type { ApiModelOptions } from '@savvy-web/rslib-builder';
+	 *
+	 * const apiModel: ApiModelOptions = {
 	 *   enabled: true,
-	 *   localPaths: ["../docs-site/lib/packages/my-package"],
-	 * }
+	 *   localPaths: ['../docs-site/lib/packages/my-package'],
+	 * };
 	 * ```
 	 */
 	localPaths?: string[];
@@ -403,12 +461,14 @@ export interface ApiModelOptions {
 	 *
 	 * @example
 	 * ```typescript
-	 * apiModel: {
+	 * import type { ApiModelOptions } from '@savvy-web/rslib-builder';
+	 *
+	 * const apiModel: ApiModelOptions = {
 	 *   enabled: true,
 	 *   tsdoc: {
-	 *     tagDefinitions: [{ tagName: "@error", syntaxKind: "inline" }]
-	 *   }
-	 * }
+	 *     tagDefinitions: [{ tagName: '@error', syntaxKind: 'inline' }],
+	 *   },
+	 * };
 	 * ```
 	 */
 	tsdoc?: TsDocOptions;
@@ -537,7 +597,7 @@ export function getTsgoBinPath(): string {
 /**
  * Generates command-line arguments for tsgo.
  *
- * @public
+ * @internal
  */
 export function generateTsgoArgs(options: {
 	configPath: string;
@@ -571,7 +631,7 @@ export function generateTsgoArgs(options: {
 /**
  * Recursively collects all .d.ts and .d.ts.map files from a directory.
  *
- * @public
+ * @internal
  */
 export async function collectDtsFiles(
 	dir: string,
@@ -886,7 +946,7 @@ async function bundleDtsFiles(options: {
  * Source maps are preserved in the temp directory for API Extractor documentation
  * but are excluded from the final dist output to reduce package size.
  *
- * @public
+ * @internal
  */
 export function stripSourceMapComment(content: string): string {
 	return content.replace(/\/\/# sourceMappingURL=\S+\.d\.ts\.map\s*$/gm, "").trim();
@@ -1040,7 +1100,7 @@ function runTsgo(options: {
  *
  * @example
  * ```typescript
- * import { DtsPlugin } from "@savvy-web/shared/rslib";
+ * import { DtsPlugin } from "@savvy-web/rslib-builder";
  *
  * export default {
  *   plugins: [

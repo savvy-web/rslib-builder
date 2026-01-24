@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { createEnvLogger } from "#utils/build-logger.js";
+import { createEnvLogger } from "./build-logger.js";
 
 vi.mock("@rsbuild/core", () => ({
 	logger: {
@@ -92,7 +92,7 @@ describe("logger-utils", () => {
 			vi.resetModules();
 
 			// Dynamically import the module to get fresh instance
-			const { createEnvLogger: freshCreateEnvLogger } = await import("#utils/build-logger.js");
+			const { createEnvLogger: freshCreateEnvLogger } = await import("./build-logger.js");
 
 			const logger = freshCreateEnvLogger(envId);
 

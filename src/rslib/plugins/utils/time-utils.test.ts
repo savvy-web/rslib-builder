@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { createTimer, formatTime } from "#utils/build-logger.js";
+import { createTimer, formatTime } from "./build-logger.js";
 
 describe("time-utils", () => {
 	beforeEach(() => {

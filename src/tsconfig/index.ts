@@ -3,11 +3,9 @@ import { createRequire } from "node:module";
 import { join, relative } from "node:path";
 import type { InspectOptions } from "node:util";
 import { inspect } from "node:util";
-import type { TSConfigJsonWithSchema } from "#types/tsconfig-json.js";
 // biome-ignore lint/correctness/useImportExtensions: we can import JSON files directly
 import nodeEcmaLibJson from "../public/tsconfig/ecma/lib.json" with { type: "json" };
-// biome-ignore lint/correctness/useImportExtensions: we can import JSON files directly
-import rootJson from "../public/tsconfig/root.json" with { type: "json" };
+import type { TSConfigJsonWithSchema } from "../types/tsconfig-json.js";
 
 // Create require for CJS dependencies like tmp
 // biome-ignore lint/suspicious/noExplicitAny: createRequire returns a require function with any type
@@ -16,7 +14,6 @@ const requireCJS: (id: string) => any = createRequire(import.meta.url);
 // Map of imported JSON files by their file path
 const jsonImports: Map<string, TSConfigJsonWithSchema> = new Map<string, TSConfigJsonWithSchema>([
 	[join(import.meta.dirname, "../public/tsconfig/ecma/lib.json"), nodeEcmaLibJson as TSConfigJsonWithSchema],
-	[join(import.meta.dirname, "../public/tsconfig/root.json"), rootJson as TSConfigJsonWithSchema],
 ]);
 
 /**
@@ -32,27 +29,7 @@ const jsonImports: Map<string, TSConfigJsonWithSchema> = new Map<string, TSConfi
  * @param value - The value to transform (can be any type)
  * @param transform - Function to apply to each string
  * @returns The transformed value with the same structure
- *
- * @example
- * ```typescript
- * const config = {
- *   paths: ["${configDir}/src", "${configDir}/lib"],
- *   options: {
- *     outDir: "${configDir}/dist"
- *   }
- * };
- *
- * const result = transformStringsDeep(config, (str) =>
- *   str.replace("${configDir}", "/absolute/path")
- * );
- * // Result:
- * // {
- * //   paths: ["/absolute/path/src", "/absolute/path/lib"],
- * //   options: { outDir: "/absolute/path/dist" }
- * // }
- * ```
- *
- * @public
+ * @internal
  */
 export function transformStringsDeep<T>(value: T, transform: (str: string) => string): T {
 	// Handle null and undefined
@@ -104,26 +81,8 @@ export function transformStringsDeep<T>(value: T, transform: (str: string) => st
  * build configurations that require bundle transformations, use
  * {@link LibraryTSConfigFile}.
  *
- * @example
- * Basic usage with a local configuration file:
- * ```typescript
- * import { TSConfigs } from '@savvy-web/shared/tsconfig';
- *
- * const rootConfig = TSConfigs.root;
- * console.log(rootConfig.path);        // Relative path: ./root.json
- * console.log(rootConfig.config);      // Parsed configuration object
- * console.log(rootConfig.description); // Human-readable description
- * ```
- *
- * @example
- * Using with console.log for debugging:
- * ```typescript
- * const rootConfig = TSConfigs.root;
- * console.log(rootConfig); // Pretty-printed with colors and full depth
- * ```
- *
  * @see {@link LibraryTSConfigFile} for library build configurations
- * @public
+ * @internal
  */
 export class TSConfigFile {
 	/**
@@ -132,13 +91,6 @@ export class TSConfigFile {
 	 * @remarks
 	 * This description helps developers understand the purpose and intended use
 	 * case for this particular TypeScript configuration.
-	 *
-	 * @example
-	 * ```typescript
-	 * const libConfig = TSConfigs.node.ecma.lib;
-	 * console.log(libConfig.description);
-	 * // "ECMAScript library build configuration"
-	 * ```
 	 */
 	public readonly description: string;
 
@@ -153,13 +105,7 @@ export class TSConfigFile {
 	 * The path is computed lazily each time it's accessed, so it will reflect
 	 * changes if the current working directory changes during execution.
 	 *
-	 * @returns A relative path string with `./` prefix (e.g., `./tsconfig/root.json`)
-	 *
-	 * @example
-	 * ```typescript
-	 * const rootConfig = TSConfigs.root;
-	 * console.log(rootConfig.path); // "./tsconfig/root.json" or similar
-	 * ```
+	 * @returns A relative path string with `./` prefix (e.g., `./tsconfig/ecma/lib.json`)
 	 */
 	/* v8 ignore next -- @preserve */
 	get path(): string {
@@ -167,7 +113,7 @@ export class TSConfigFile {
 	}
 
 	/**
-	 * Get configuration with ${configDir} variables replaced.
+	 * Get configuration with `$\{configDir\}` variables replaced.
 	 *
 	 * @remarks
 	 * Returns the configuration with all `${configDir}` template variables replaced
@@ -175,12 +121,6 @@ export class TSConfigFile {
 	 * that use template variables for path resolution.
 	 *
 	 * @returns The configuration with transformed paths
-	 *
-	 * @example
-	 * ```typescript
-	 * const config = TSConfigs.root.bundled;
-	 * // All ${configDir} replaced with ../../../../../../..
-	 * ```
 	 */
 	/* v8 ignore next -- @preserve */
 	get bundled(): TSConfigJsonWithSchema {
@@ -201,17 +141,7 @@ export class TSConfigFile {
 	 *
 	 * @returns The parsed TypeScript configuration as a {@link TSConfigJsonWithSchema} object
 	 *
-	 * @throws {Error} If the configuration file is not found in imports
-	 *
-	 * @example
-	 * ```typescript
-	 * const libConfig = TSConfigs.node.ecma.lib;
-	 * const config = libConfig.config;
-	 *
-	 * console.log(config.$schema);           // JSON schema URL
-	 * console.log(config.compilerOptions);   // Compiler options object
-	 * console.log(config.extends);           // Extended configs
-	 * ```
+	 * @throws If the configuration file is not found in imports
 	 *
 	 * @see {@link TSConfigJsonWithSchema} for the configuration type definition
 	 */
@@ -243,65 +173,12 @@ export class TSConfigFile {
 	 *
 	 * @param description - Human-readable description of what this configuration is used for
 	 * @param pathname - Absolute path to the TypeScript configuration file
-	 *
-	 * @example
-	 * ```typescript
-	 * import { TSConfigFile } from '@savvy-web/shared/tsconfig';
-	 * import { fileURLToPath } from 'node:url';
-	 *
-	 * // Create instance with absolute path
-	 * const customConfig = new TSConfigFile(
-	 *   'My custom configuration',
-	 * );
-	 * ```
-	 *
-	 * @example
-	 * Custom inspection in action:
-	 * ```typescript
-	 * const rootConfig = TSConfigs.root;
-	 * console.log(rootConfig);
-	 * // Output shows pretty-printed object with:
-	 * // - description: human-readable description
-	 * // - pathname: absolute path
-	 * // - path: relative path
-	 * // - config: full parsed configuration
-	 * ```
 	 */
 	constructor(
 		description: string,
 		public pathname: string,
 	) {
 		this.description = description;
-
-		Object.defineProperty(this, "path", {
-			enumerable: true,
-			get: () => `./${relative(process.cwd(), this.pathname)}`,
-		});
-
-		Object.defineProperty(this, "config", {
-			enumerable: true,
-			get: () => {
-				const imported = jsonImports.get(this.pathname);
-				if (!imported) {
-					throw new Error(`Config file not found in imports: ${this.pathname}`);
-				}
-				return imported;
-			},
-		});
-
-		Object.defineProperty(this, "bundled", {
-			enumerable: true,
-			get: () => {
-				const imported = jsonImports.get(this.pathname);
-				if (!imported) {
-					throw new Error(`Config file not found in imports: ${this.pathname}`);
-				}
-				return transformStringsDeep(imported, (str) =>
-					// biome-ignore lint/suspicious/noTemplateCurlyInString: replacing an actual literal
-					str.replace("${configDir}", "../../../../../.."),
-				);
-			},
-		});
 
 		// Define custom inspect for Node.js console.log with deep inspection
 		Object.defineProperty(this, inspect.custom, {
@@ -336,25 +213,8 @@ export class TSConfigFile {
  * - Write temporary configuration files for build tools
  * - Transform paths and filter includes based on build mode
  *
- * @example
- * Using bundle mode:
- * ```typescript
- * import { TSConfigs } from '@savvy-web/shared/tsconfig';
- *
- * const libConfig = TSConfigs.node.ecma.lib;
- * const bundleConfig = libConfig.bundle("dev");
- * // Use bundleConfig in your build tool
- * ```
- *
- * @example
- * Writing temporary config for build tools:
- * ```typescript
- * const tmpPath = TSConfigs.node.ecma.lib.writeBundleTempConfig("npm");
- * // Pass tmpPath to RSlib: { source: { tsconfigPath: tmpPath } }
- * ```
- *
  * @see {@link TSConfigFile} for the base class
- * @public
+ * @internal
  */
 export class LibraryTSConfigFile extends TSConfigFile {
 	/**
@@ -369,14 +229,7 @@ export class LibraryTSConfigFile extends TSConfigFile {
 	 * - Setting outDir to just "dist"
 	 * - Changing tsBuildInfoFile to include target: `dist/.tsbuildinfo.{target}.bundle`
 	 *
-	 * @param target - Build target (dev, npm, jsr)
-	 *
-	 * @example
-	 * ```typescript
-	 * const libConfig = TSConfigs.node.ecma.lib;
-	 * const bundleConfig = libConfig.bundle("dev");
-	 * // Use in RSlib config
-	 * ```
+	 * @param target - Build target (dev, npm)
 	 */
 	bundle(target: "dev" | "npm"): TSConfigJsonWithSchema {
 		const config = transformStringsDeep(this.config, (str) =>
@@ -420,16 +273,8 @@ export class LibraryTSConfigFile extends TSConfigFile {
 	 *
 	 * The temporary file will be automatically cleaned up when the process exits.
 	 *
-	 * @param target - Build target (dev, npm, jsr)
+	 * @param target - Build target (dev, npm)
 	 * @returns Absolute path to the temporary file
-	 *
-	 * @example
-	 * ```typescript
-	 * import { TSConfigs } from '@savvy-web/shared/tsconfig';
-	 *
-	 * const tmpPath = TSConfigs.node.ecma.lib.writeBundleTempConfig("dev");
-	 * // Use tmpPath with RSlib: { source: { tsconfigPath: tmpPath } }
-	 * ```
 	 */
 	writeBundleTempConfig(target: "dev" | "npm"): string {
 		const cwd = process.cwd();
@@ -476,41 +321,6 @@ export class LibraryTSConfigFile extends TSConfigFile {
 }
 
 /**
- * Root TypeScript configuration for workspace setup.
- *
- * @remarks
- * This configuration provides base compiler options and settings that are shared
- * across all packages in the workspace. It includes workspace-aware path resolution
- * that handles cross-package references correctly by using node_modules symlinks
- * when crossing package boundaries.
- *
- * @example
- * In a tsconfig.json file:
- * ```json
- * {
- *   "$schema": "https://json.schemastore.org/tsconfig",
- *   "extends": "./node_modules/@savvy-web/shared/tsconfig/root.json"
- * }
- * ```
- *
- * @example
- * Accessing programmatically:
- * ```typescript
- * import { Root } from '@savvy-web/shared/tsconfig';
- *
- * console.log(Root.description); // "Root configuration for workspace setup"
- * console.log(Root.config.compilerOptions);
- * ```
- *
- * @see {@link TSConfigFile} for the class definition
- * @public
- */
-export const Root: TSConfigFile = new TSConfigFile(
-	"Root configuration for workspace setup",
-	join(import.meta.dirname, "../public/tsconfig/root.json"),
-);
-
-/**
  * ECMAScript library build configuration for Node.js environments.
  *
  * @remarks
@@ -521,33 +331,19 @@ export const Root: TSConfigFile = new TSConfigFile(
  * This configuration provides build-mode specific methods via {@link LibraryTSConfigFile}
  * for generating bundled build configurations.
  *
- * @example
- * In a tsconfig.json file for a library project:
+ * The JSON config can be extended in a tsconfig.json file:
  * ```json
  * {
  *   "$schema": "https://json.schemastore.org/tsconfig",
- *   "extends": "./node_modules/@savvy-web/shared/tsconfig/ecma/lib.json",
+ *   "extends": "./node_modules/@savvy-web/rslib-builder/tsconfig/ecma/lib.json",
  *   "compilerOptions": {
  *     "outDir": "./dist"
  *   }
  * }
  * ```
  *
- * @example
- * Accessing programmatically:
- * ```typescript
- * import { NodeEcmaLib } from '@savvy-web/shared/tsconfig';
- *
- * console.log(NodeEcmaLib.description);
- * console.log(NodeEcmaLib.config);
- *
- * // Use build-specific methods
- * const bundleConfig = NodeEcmaLib.bundle("dev");
- * const tmpPath = NodeEcmaLib.writeBundleTempConfig("npm");
- * ```
- *
  * @see {@link LibraryTSConfigFile} for available build methods
- * @public
+ * @internal
  */
 export const NodeEcmaLib: LibraryTSConfigFile = new LibraryTSConfigFile(
 	"ECMAScript library build configuration",
@@ -558,53 +354,20 @@ export const NodeEcmaLib: LibraryTSConfigFile = new LibraryTSConfigFile(
  * Collection of all TypeScript configuration files provided by this package.
  *
  * @remarks
- * This is the main export that provides access to all available TypeScript configurations.
- * It organizes configurations by target environment and build strategy, making it easy
- * to select the appropriate configuration for your project type.
+ * This is an internal registry that provides access to available TypeScript configurations.
+ * It organizes configurations by target environment and build strategy.
  *
  * The structure is organized as:
- * - `root`: Base workspace configuration
  * - `node.ecma.lib`: For Node.js libraries (bundled ESM builds)
  *
  * All configurations support workspace-aware path resolution that handles cross-package
  * references correctly by using node_modules symlinks when appropriate.
  *
- * @example
- * Importing and using the configurations:
- * ```typescript
- * import { TSConfigs } from '@savvy-web/shared/tsconfig';
- *
- * // Get the root configuration
- * const rootConfig = TSConfigs.root;
- * console.log(rootConfig.description);
- * console.log(rootConfig.config);
- *
- * // Get a library configuration
- * const libConfig = TSConfigs.node.ecma.lib;
- * console.log(libConfig.description);
- * console.log(libConfig.config);
- * ```
- *
- * @example
- * Iterating over all Node.js ECMAScript configurations:
- * ```typescript
- * import { TSConfigs } from '@savvy-web/shared/tsconfig';
- *
- * for (const [name, config] of Object.entries(TSConfigs.node.ecma)) {
- *   console.log(`${name}: ${config.description}`);
- * }
- * // Output:
- * // lib: ECMAScript library build configuration
- * ```
- *
  * @see {@link TSConfigFile} for the structure of individual configuration objects
- * @see {@link Root} for the root workspace configuration
  * @see {@link NodeEcmaLib} for library configuration
- * @public
+ * @internal
  */
 export const TSConfigs = {
-	/** Root workspace configuration */
-	root: Root,
 	/** Node.js environment configurations */
 	node: {
 		/** ECMAScript configurations for Node.js */

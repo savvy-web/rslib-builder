@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import type { FlexibleExports } from "#utils/package-json-transformer.js";
-import { isConditionsObject, transformPackageExports } from "#utils/package-json-transformer.js";
+import type { FlexibleExports } from "./package-json-transformer.js";
+import { isConditionsObject, transformPackageExports } from "./package-json-transformer.js";
 
 // Helper functions for backwards compatibility with the test structure
 // These are now internal to package-json-transformer.ts but we test through the public API

@@ -1,11 +1,5 @@
 {
 	"$schema": "https://json.schemastore.org/tsconfig.json",
-	"compilerOptions": {
-		"paths": {
-			"#types/*": ["./src/types/*"],
-			"#utils/*": ["./src/rslib/plugins/utils/*"]
-		}
-	},
 	"extends": "./src/public/tsconfig/ecma/lib.json",
 	"include": [
 		"${configDir}/types/*.ts",
