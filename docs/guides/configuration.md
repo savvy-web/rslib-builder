@@ -12,6 +12,7 @@ Complete reference for all `NodeLibraryBuilder` configuration options.
 - [File Handling](#file-handling)
 - [Build Targets](#build-targets)
 - [API Model Generation](#api-model-generation)
+- [TSDoc Linting](#tsdoc-linting)
 
 ## Basic Options
 
@@ -31,6 +32,7 @@ interface NodeLibraryBuilderOptions {
   transformFiles?: TransformFilesCallback;
   transform?: TransformPackageJsonFn;
   apiModel?: ApiModelOptions | boolean;
+  tsdocLint?: TsDocLintPluginOptions | boolean;
 }
 
 type BuildTarget = 'dev' | 'npm';
@@ -304,7 +306,7 @@ rslib build --env-mode npm   # Build npm target
 
 ### apiModel
 
-Generate an `api.model.json` file for documentation tooling:
+Generate an API model file for documentation tooling using API Extractor:
 
 ```typescript
 // Enable with defaults
@@ -317,7 +319,14 @@ NodeLibraryBuilder.create({
   apiModel: {
     enabled: true,
     filename: 'my-package.api.json',
-    localPaths: ['/path/to/local/package'],
+    localPaths: ['../docs-site/lib/packages/my-package'],
+    tsdoc: {
+      tagDefinitions: [
+        { tagName: '@error', syntaxKind: 'block' },
+      ],
+      warnings: 'fail',
+    },
+    tsdocMetadata: true,
   },
 });
 ```
@@ -327,10 +336,123 @@ NodeLibraryBuilder.create({
 | Option | Type | Default | Description |
 | :----- | :--- | :------ | :---------- |
 | `enabled` | `boolean` | `true` | Enable API model generation |
-| `filename` | `string` | `api.model.json` | Output filename |
-| `localPaths` | `string[]` | `[]` | Local package paths for resolution |
+| `filename` | `string` | `<package>.api.json` | Output filename |
+| `localPaths` | `string[]` | `[]` | Local paths to copy API model files |
+| `tsdoc` | `TsDocOptions` | All groups | TSDoc configuration |
+| `tsdocMetadata` | `boolean \| object` | `true` | Generate tsdoc-metadata.json |
+
+### TSDoc Configuration
+
+The `tsdoc` option configures custom TSDoc tags and validation:
+
+```typescript
+interface TsDocOptions {
+  groups?: ('core' | 'extended' | 'discretionary')[];
+  tagDefinitions?: TsDocTagDefinition[];
+  supportForTags?: Record<string, boolean>;
+  persistConfig?: boolean | string;
+  warnings?: 'log' | 'fail' | 'none';
+}
+```
+
+**Tag Groups:**
+
+| Group | Tags Included |
+| :---- | :------------ |
+| `core` | `@param`, `@returns`, `@remarks`, `@deprecated`, `@typeParam` |
+| `extended` | `@example`, `@defaultValue`, `@throws`, `@see`, `@inheritDoc` |
+| `discretionary` | `@alpha`, `@beta`, `@public`, `@internal`, `@experimental` |
+
+**Custom Tag Definitions:**
+
+```typescript
+apiModel: {
+  tsdoc: {
+    tagDefinitions: [
+      { tagName: '@error', syntaxKind: 'block' },
+      { tagName: '@category', syntaxKind: 'block', allowMultiple: false },
+    ],
+  },
+}
+```
+
+**TSDoc Warnings Behavior:**
+
+| Value | Behavior |
+| :---- | :------- |
+| `'log'` | Show warnings, continue build (local default) |
+| `'fail'` | Show warnings and fail build (CI default) |
+| `'none'` | Suppress TSDoc warnings |
 
 **Note:** API model is only generated for the `npm` target, not `dev`.
+
+## TSDoc Linting
+
+### tsdocLint
+
+Validate TSDoc comments before build using ESLint:
+
+```typescript
+// Enable with defaults
+NodeLibraryBuilder.create({
+  tsdocLint: true,
+});
+
+// Enable with custom options
+NodeLibraryBuilder.create({
+  tsdocLint: {
+    enabled: true,
+    onError: 'throw',
+    include: ['src/**/*.ts', '!**/*.test.ts'],
+    persistConfig: true,
+    tsdoc: {
+      tagDefinitions: [
+        { tagName: '@error', syntaxKind: 'block' },
+      ],
+    },
+  },
+});
+```
+
+**Required Dependencies:**
+
+```bash
+pnpm add -D eslint @typescript-eslint/parser eslint-plugin-tsdoc
+```
+
+**TSDoc Lint Options:**
+
+| Option | Type | Default | Description |
+| :----- | :--- | :------ | :---------- |
+| `enabled` | `boolean` | `true` | Enable TSDoc linting |
+| `onError` | `'warn' \| 'error' \| 'throw'` | CI: `'throw'`, Local: `'error'` | Error handling |
+| `include` | `string[]` | `['src/**/*.ts', '!**/*.test.ts']` | Files to lint |
+| `persistConfig` | `boolean \| string` | CI: `false`, Local: `true` | Keep tsdoc.json |
+| `tsdoc` | `TsDocOptions` | Shared with apiModel | TSDoc configuration |
+
+**Configuration Sharing:**
+
+When both `tsdocLint` and `apiModel` are enabled, TSDoc configuration is
+automatically shared from `apiModel.tsdoc` if `tsdocLint.tsdoc` is not set:
+
+```typescript
+NodeLibraryBuilder.create({
+  apiModel: {
+    enabled: true,
+    tsdoc: {
+      tagDefinitions: [{ tagName: '@error', syntaxKind: 'block' }],
+    },
+  },
+  tsdocLint: true,  // Automatically uses apiModel.tsdoc
+});
+```
+
+**Error Handling Matrix:**
+
+| Environment | Default `onError` | Lint Errors | Build Result         |
+| :---------- | :---------------- | :---------- | :------------------- |
+| Local       | `'error'`         | Yes         | Continue, log errors |
+| CI          | `'throw'`         | Yes         | Fail build           |
 
 ## Define Constants
 
@@ -384,7 +506,18 @@ export default NodeLibraryBuilder.create({
   // API documentation
   apiModel: {
     enabled: true,
-    filename: 'api.model.json',
+    tsdoc: {
+      tagDefinitions: [
+        { tagName: '@error', syntaxKind: 'block' },
+      ],
+      warnings: 'fail',
+    },
+  },
+
+  // TSDoc validation (optional - requires eslint dependencies)
+  tsdocLint: {
+    onError: 'throw',
+    persistConfig: true,
   },
 
   // Build constants

@@ -4,9 +4,14 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Node.js Version](https://img.shields.io/badge/node-%3E%3D24.0.0-brightgreen)](https://nodejs.org)
 
-Build modern ESM Node.js libraries with zero configuration. Handles TypeScript
-declarations, package.json transformations, and PNPM workspace resolution
-automatically.
+Build modern ESM Node.js libraries with minimal configuration. Handles
+TypeScript declarations, package.json transformations, and PNPM workspace
+resolution automatically.
+
+Building TypeScript packages for npm involves repetitive setup: configuring
+bundlers, generating declarations, transforming package.json exports, and
+resolving workspace references. rslib-builder handles these tasks so you can
+focus on your code.
 
 ## Features
 
@@ -19,8 +24,10 @@ automatically.
   outputs
 - **PNPM Integration** - Automatically resolves `catalog:` and `workspace:`
   references
-- **Package.json Transform** - Converts `.ts` exports and bin entries to `.js`,
-  generates files array, removes dev-only fields
+- **Package.json Transform** - Converts `.ts` exports to `.js`, generates files
+  array, removes dev-only fields
+- **TSDoc Validation** - Optional pre-build TSDoc comment validation via ESLint
+- **API Model Generation** - Optional API model output for documentation tooling
 - **Extensible** - Add custom RSlib/Rsbuild plugins for advanced use cases
 
 ## Prerequisites
@@ -41,6 +48,12 @@ Install the required peer dependencies:
 
 ```bash
 pnpm add -D @rslib/core @microsoft/api-extractor @typescript/native-preview
+```
+
+For TSDoc validation (optional):
+
+```bash
+pnpm add -D eslint @typescript-eslint/parser eslint-plugin-tsdoc
 ```
 
 ## Quick Start
@@ -96,16 +109,31 @@ rslib build --env-mode dev
 rslib build --env-mode npm
 ```
 
+## API Overview
+
+The package exports a main builder and several plugins:
+
+| Export                       | Description                                   |
+| ---------------------------- | --------------------------------------------- |
+| `NodeLibraryBuilder`         | Main API for building Node.js libraries       |
+| `AutoEntryPlugin`            | Auto-extracts entry points from package.json  |
+| `DtsPlugin`                  | Generates TypeScript declarations with tsgo   |
+| `PackageJsonTransformPlugin` | Transforms package.json for distribution      |
+| `FilesArrayPlugin`           | Generates files array for npm publishing      |
+| `TsDocLintPlugin`            | Validates TSDoc comments before build         |
+| `TsDocConfigBuilder`         | Utility for TSDoc configuration               |
+
 See [Configuration](./docs/guides/configuration.md) for all options.
 
 ## Plugins
 
 The builder includes several built-in plugins:
 
-1. **AutoEntryPlugin** - Auto-extracts entry points from package.json exports
-2. **PackageJsonTransformPlugin** - Transforms package.json for targets
+1. **TsDocLintPlugin** - Validates TSDoc comments before build (optional)
+2. **AutoEntryPlugin** - Auto-extracts entry points from package.json exports
 3. **DtsPlugin** - Generates TypeScript declarations with tsgo/API Extractor
-4. **FilesArrayPlugin** - Generates files array, excludes source maps
+4. **PackageJsonTransformPlugin** - Transforms package.json for targets
+5. **FilesArrayPlugin** - Generates files array, excludes source maps
 
 ## How It Works
 
@@ -131,8 +159,13 @@ For detailed documentation, see the [docs/](./docs/) directory:
 
 ## Examples
 
-See the repository's own `rslib.config.ts` for a real-world example of the
-builder building itself.
+This package builds itself using its own `NodeLibraryBuilder`. See
+[`rslib.config.ts`](./rslib.config.ts) for a production example demonstrating:
+
+- API model generation for documentation tooling
+- External package configuration
+- Custom package.json transformations
+- Copy patterns for static files
 
 ## Support
 
@@ -142,15 +175,6 @@ GitHub Issues, we cannot guarantee response times or resolution.
 
 For security vulnerabilities, please see [SECURITY.md](./SECURITY.md).
 
-## License
-
-[MIT](./LICENSE)
-
-## Contributing
-
-Contributions welcome! See [CONTRIBUTING.md](./CONTRIBUTING.md) for setup
-and guidelines.
-
 ## Links
 
 - [RSlib Documentation](https://rslib.dev/)
@@ -158,3 +182,12 @@ and guidelines.
 - [API Extractor](https://api-extractor.com/)
 - [PNPM Workspace](https://pnpm.io/workspaces)
 - [PNPM Catalogs](https://pnpm.io/catalogs)
+
+## Contributing
+
+Contributions welcome! See [CONTRIBUTING.md](./CONTRIBUTING.md) for setup
+and guidelines.
+
+## License
+
+[MIT](./LICENSE)

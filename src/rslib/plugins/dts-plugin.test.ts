@@ -512,6 +512,74 @@ export declare const bar: number;`);
 			// Only custom tag in supportForTags
 			expect(content.supportForTags["@error"]).toBe(true);
 		});
+
+		it("should format with tabs and trailing newline", async () => {
+			const testDir = createTestDir();
+			await mkdir(testDir, { recursive: true });
+
+			const configPath = await TsDocConfigBuilder.writeConfigFile({}, testDir);
+			const rawContent = await readFile(configPath, "utf-8");
+
+			// Should use tabs for indentation
+			expect(rawContent).toContain("\t");
+			expect(rawContent).not.toMatch(/^ {2}/m); // No 2-space indentation
+			// Should have trailing newline
+			expect(rawContent.endsWith("\n")).toBe(true);
+		});
+
+		it("should not rewrite file if content is identical", async () => {
+			const testDir = createTestDir();
+			await mkdir(testDir, { recursive: true });
+
+			// Write initial file
+			const configPath = await TsDocConfigBuilder.writeConfigFile({}, testDir);
+			const initialContent = await readFile(configPath, "utf-8");
+
+			// Get file stats before second write
+			const { stat } = await import("node:fs/promises");
+			const statsBefore = await stat(configPath);
+
+			// Small delay to ensure mtime would change if file is rewritten
+			await new Promise((resolve) => setTimeout(resolve, 10));
+
+			// Write again with same options
+			await TsDocConfigBuilder.writeConfigFile({}, testDir);
+			const statsAfter = await stat(configPath);
+
+			// Content should be identical
+			const finalContent = await readFile(configPath, "utf-8");
+			expect(finalContent).toBe(initialContent);
+
+			// File should not have been modified (mtime unchanged)
+			expect(statsAfter.mtimeMs).toBe(statsBefore.mtimeMs);
+		});
+
+		it("should rewrite file if content differs", async () => {
+			const testDir = createTestDir();
+			await mkdir(testDir, { recursive: true });
+
+			// Write initial file with all groups
+			await TsDocConfigBuilder.writeConfigFile({}, testDir);
+			const configPath = join(testDir, "tsdoc.json");
+
+			// Get file stats before second write
+			const { stat } = await import("node:fs/promises");
+			const statsBefore = await stat(configPath);
+
+			// Small delay to ensure mtime would change if file is rewritten
+			await new Promise((resolve) => setTimeout(resolve, 10));
+
+			// Write again with different options (subset of groups)
+			await TsDocConfigBuilder.writeConfigFile({ groups: ["core"] }, testDir);
+			const statsAfter = await stat(configPath);
+
+			// File should have been modified (mtime changed)
+			expect(statsAfter.mtimeMs).toBeGreaterThan(statsBefore.mtimeMs);
+
+			// Content should now have noStandardTags: true
+			const content = JSON.parse(await readFile(configPath, "utf-8"));
+			expect(content.noStandardTags).toBe(true);
+		});
 	});
 
 	describe("TsDocConfigBuilder.TAG_GROUPS", () => {

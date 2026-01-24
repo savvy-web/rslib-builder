@@ -13,8 +13,52 @@ This guide covers the built-in plugins and how to extend the build process.
 
 ## Built-in Plugins
 
-rslib-builder includes four specialized plugins that handle different aspects
+rslib-builder includes five specialized plugins that handle different aspects
 of the build process.
+
+### TsDocLintPlugin
+
+**Purpose:** Validates TSDoc comments before build using ESLint.
+
+**What it does:**
+
+1. Dynamically imports ESLint with `eslint-plugin-tsdoc`
+2. Generates a `tsdoc.json` configuration file
+3. Runs ESLint on source files to validate TSDoc syntax
+4. Reports errors with file locations and rule IDs
+5. Optionally fails the build on errors (default in CI)
+
+**Stage:** `onBeforeBuild` (runs before all other plugins)
+
+**Required Dependencies:**
+
+```bash
+pnpm add -D eslint @typescript-eslint/parser eslint-plugin-tsdoc
+```
+
+**Configuration:**
+
+```typescript
+NodeLibraryBuilder.create({
+  tsdocLint: true,  // Enable with defaults
+});
+
+// Or with options
+NodeLibraryBuilder.create({
+  tsdocLint: {
+    onError: 'throw',      // 'warn' | 'error' | 'throw'
+    persistConfig: true,   // Keep tsdoc.json for IDE integration
+    include: ['src/**/*.ts', '!**/*.test.ts'],
+  },
+});
+```
+
+**Environment-Aware Defaults:**
+
+| Environment | Default `onError` | Default `persistConfig` |
+| :---------- | :---------------- | :---------------------- |
+| Local       | `'error'`         | `true`                  |
+| CI          | `'throw'`         | `false`                 |
 
 ### AutoEntryPlugin
 
@@ -171,6 +215,9 @@ Output package.json
 Plugins execute in a specific order across Rsbuild's processing stages:
 
 ```text
+0. onBeforeBuild (Pre-compilation)
+   └── TsDocLintPlugin      → Validate TSDoc comments
+
 1. modifyRsbuildConfig
    ├── AutoEntryPlugin      → Discover entries
    └── DtsPlugin            → Load tsconfig
@@ -192,6 +239,9 @@ Plugins execute in a specific order across Rsbuild's processing stages:
 
 6. processAssets: summarize
    └── DtsPlugin → Clean up .d.ts files
+
+7. onCloseBuild (Post-compilation)
+   └── TsDocLintPlugin      → Cleanup temp tsdoc.json
 ```
 
 ## Adding Custom Plugins

@@ -4,8 +4,8 @@ module: rslib-builder
 category: architecture
 created: 2026-01-18
 updated: 2026-01-24
-last-synced: 2026-01-19
-completeness: 90
+last-synced: 2026-01-24
+completeness: 92
 related:
   - rslib-builder/api-extraction.md
 dependencies: []
@@ -99,6 +99,7 @@ interface NodeLibraryBuilderOptions {
   transformFiles?: (context: TransformFilesContext) => void;
   transform?: TransformPackageJsonFn;
   apiModel?: ApiModelOptions | boolean;
+  tsdocLint?: TsDocLintPluginOptions | boolean;
 }
 
 type BuildTarget = "dev" | "npm";
@@ -121,6 +122,10 @@ processing stages.
 
 **Plugins:**
 
+- **TsDocLintPlugin** - Validate TSDoc comments before build using ESLint
+  - Stage: onBeforeBuild (runs before all other plugins)
+  - Optional peer dependencies: eslint, @typescript-eslint/parser,
+    eslint-plugin-tsdoc
 - **AutoEntryPlugin** - Discover entries from package.json exports/bin
   - Stage: modifyRsbuildConfig
 - **DtsPlugin** - Generate .d.ts with tsgo, optional API Extractor bundling
@@ -318,6 +323,52 @@ distribution.
    - Cons: Complex interleaving of concerns, harder to maintain
    - Why rejected: Order dependencies make single-pass error-prone
 
+#### Decision 6: Pre-Build TSDoc Validation
+
+**Context:** Need to catch TSDoc documentation errors early, before declaration
+generation and API model creation.
+
+**Options considered:**
+
+1. **onBeforeBuild hook (Chosen):**
+   - Pros: Runs before all plugins, fails fast on doc errors, no wasted
+     compilation time
+   - Cons: Adds latency before build starts
+   - Why chosen: Documentation errors should block the build early, not after
+     expensive TypeScript compilation
+
+2. **processAssets pre-process stage:**
+   - Pros: Runs alongside other plugins
+   - Cons: Expensive tsgo compilation already complete before validation
+   - Why rejected: Wasteful to compile before knowing docs are valid
+
+3. **Separate lint command:**
+   - Pros: Decoupled from build
+   - Cons: Easy to forget, not enforced in CI
+   - Why rejected: Need integrated validation in build pipeline
+
+#### Decision 7: Environment-Aware Error Handling
+
+**Context:** TSDoc errors should fail CI builds but not block local development
+iteration.
+
+**Options considered:**
+
+1. **Auto-detect CI with configurable override (Chosen):**
+   - Pros: Sensible defaults (throw in CI, error locally), users can override
+   - Cons: Implicit behavior based on environment
+   - Why chosen: Matches developer expectations - strict in CI, lenient locally
+
+2. **Always throw:**
+   - Pros: Consistent behavior
+   - Cons: Blocks local iteration on doc issues
+   - Why rejected: Too disruptive for development workflow
+
+3. **Always warn:**
+   - Pros: Never blocks builds
+   - Cons: Errors can slip into production
+   - Why rejected: CI should enforce documentation quality
+
 ### Design Patterns Used
 
 #### Pattern 1: Factory Method
@@ -440,6 +491,11 @@ distribution.
 ### Plugin Execution Model
 
 ```text
+0. onBeforeBuild (Pre-compilation)
+   +-- TsDocLintPlugin      - Validate TSDoc comments via ESLint
+                            - Fail-fast before expensive compilation
+                            - Environment-aware: throw in CI, error locally
+
 1. modifyRsbuildConfig (Sequential)
    +-- AutoEntryPlugin      - Discover entry points from package.json
    +-- DtsPlugin            - Load tsconfig, prepare for declarations
@@ -463,6 +519,9 @@ distribution.
 
 6. processAssets: summarize (Sequential)
    +-- DtsPlugin - Strip source map comments, cleanup .d.ts.map files
+
+7. onCloseBuild (Post-compilation)
+   +-- TsDocLintPlugin      - Cleanup temporary tsdoc.json if not persisted
 ```
 
 ### Shared State Keys
@@ -501,6 +560,35 @@ distribution.
 
 - Producer: (reserved for API reports)
 - Consumers: PackageJsonTransformPlugin
+
+### TsDocLintPlugin Configuration
+
+The TsDocLintPlugin shares TSDoc configuration with the DtsPlugin through
+the `TsDocConfigBuilder` utility:
+
+```typescript
+interface TsDocLintPluginOptions {
+  enabled?: boolean;                    // Default: true
+  tsdoc?: TsDocOptions;                 // Shared with DtsPlugin apiModel.tsdoc
+  include?: string[];                   // Default: ["src/**/*.ts", "!**/*.test.ts"]
+  onError?: TsDocLintErrorBehavior;     // Default: "throw" in CI, "error" locally
+  persistConfig?: boolean | PathLike;   // Default: true locally, false in CI
+}
+
+type TsDocLintErrorBehavior = "warn" | "error" | "throw";
+```
+
+**Configuration sharing:** When `NodeLibraryBuilder` has both `apiModel.tsdoc`
+and `tsdocLint` configured, the same tag definitions and TSDoc configuration
+are used by both plugins to ensure consistent validation and API model
+generation.
+
+**Error handling matrix:**
+
+| Environment | Default onError | Lint Errors | Build Result         |
+| ----------- | --------------- | ----------- | -------------------- |
+| Local       | `"error"`       | Yes         | Continue, log errors |
+| CI          | `"throw"`       | Yes         | Fail build           |
 
 ---
 
@@ -626,6 +714,41 @@ package.json
     Configure Rsbuild source.entry
 ```
 
+### TSDoc Validation Flow
+
+```text
+onBeforeBuild hook (before compilation)
+         |
+         v
++----------------------------------------+
+| TsDocLintPlugin                        |
+|   - Generate tsdoc.json from options   |
+|   - Dynamic import ESLint + plugins    |
+|   - Create ESLint instance with config |
++----------------------------------------+
+         |
+         v
+    ESLint.lintFiles(include patterns)
+         |
+         v
+    Parse results, count errors/warnings
+         |
+         v
++----------------------------------------+
+| Error Handling (based on onError)      |
+|   - "warn":  Log, continue build       |
+|   - "error": Log errors, continue      |
+|   - "throw": Fail build immediately    |
++----------------------------------------+
+         |
+         v
+    If persistConfig: keep tsdoc.json
+    Else: cleanup in onCloseBuild
+         |
+         v
+    Proceed to modifyRsbuildConfig stage
+```
+
 ---
 
 ## Integration Points
@@ -695,6 +818,12 @@ package.json
 - **@microsoft/api-extractor**: Declaration bundling, API model generation
 - **typescript**: TypeScript compiler API for config parsing
 
+**TSDoc Validation (Optional Peer Dependencies):**
+
+- **eslint**: ESLint core for programmatic linting
+- **@typescript-eslint/parser**: TypeScript parser for ESLint
+- **eslint-plugin-tsdoc**: TSDoc validation rules for ESLint
+
 **Package.json Processing:**
 
 - **@pnpm/exportable-manifest**: Resolve pnpm catalog/workspace references
@@ -736,6 +865,8 @@ src/
 │       ├── files-array-plugin.test.ts
 │       ├── package-json-transform-plugin.ts
 │       ├── package-json-transform-plugin.test.ts
+│       ├── tsdoc-lint-plugin.ts
+│       ├── tsdoc-lint-plugin.test.ts       # 15 tests for TSDoc linting
 │       └── utils/
 │           ├── pnpm-catalog.ts
 │           ├── pnpm-catalog.test.ts        # Co-located with source
@@ -866,7 +997,7 @@ For comprehensive testing strategy details, see
 **Internal Design Docs:**
 
 - [API Extraction](./api-extraction.md) - API model generation and TSDoc
-  configuration
+  configuration (TsDocLintPlugin shares tsdoc options with DtsPlugin)
 
 **Package Documentation:**
 

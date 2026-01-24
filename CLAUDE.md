@@ -48,6 +48,8 @@ rslib-builder/
 │   │       ├── files-array-plugin.test.ts
 │   │       ├── package-json-transform-plugin.ts
 │   │       ├── package-json-transform-plugin.test.ts
+│   │       ├── tsdoc-lint-plugin.ts
+│   │       ├── tsdoc-lint-plugin.test.ts
 │   │       └── utils/           # Plugin utilities (with co-located tests)
 │   ├── tsconfig/                # TypeScript config templates
 │   ├── public/                  # Static files (tsconfig JSONs)
@@ -86,10 +88,11 @@ export default NodeLibraryBuilder.create({
 
 Custom RSlib plugins handle complex build scenarios:
 
-1. **AutoEntryPlugin** - Automatically extracts entry points from package.json exports
-2. **PackageJsonTransformPlugin** - Transforms package.json for different targets
-3. **DtsPlugin** - Generates TypeScript declarations using tsgo and API Extractor
-4. **FilesArrayPlugin** - Generates files array, excludes source maps
+1. **TsDocLintPlugin** - Validates TSDoc comments before build using ESLint
+2. **AutoEntryPlugin** - Automatically extracts entry points from package.json exports
+3. **PackageJsonTransformPlugin** - Transforms package.json for different targets
+4. **DtsPlugin** - Generates TypeScript declarations using tsgo and API Extractor
+5. **FilesArrayPlugin** - Generates files array, excludes source maps
 
 ### Build Targets
 
@@ -129,7 +132,8 @@ const mockAssets: MockAssetRegistry = {
 
 ## Plugin Execution Order
 
-1. AutoEntryPlugin (entry detection)
+0. TsDocLintPlugin (`onBeforeBuild` - validates TSDoc before compilation)
+1. AutoEntryPlugin (entry detection - `modifyRsbuildConfig`)
 2. DtsPlugin (type declarations - `pre-process` stage)
 3. PackageJsonTransformPlugin (package.json processing)
 4. FilesArrayPlugin (files array - `additional` stage)

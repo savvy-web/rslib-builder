@@ -3,12 +3,13 @@ status: current
 module: rslib-builder
 category: reference
 created: 2026-01-20
-updated: 2026-01-20
-last-synced: 2026-01-20
+updated: 2026-01-24
+last-synced: 2026-01-24
 completeness: 90
 related:
   - rslib-builder/architecture.md
   - rslib-builder/api-extraction.md
+  - rslib-builder/tsdoc-lint-options.md
 dependencies: []
 ---
 
@@ -195,6 +196,13 @@ apiModel: { enabled: true, tsdocMetadata: false }
 ```
 
 ### TsDocOptions
+
+**Shared Configuration:** The `TsDocOptions` interface is shared between
+`apiModel.tsdoc` and `tsdocLint.tsdoc`. When both features are enabled in
+NodeLibraryBuilder and `tsdocLint.tsdoc` is not explicitly set, the TSDoc
+configuration is automatically shared from `apiModel.tsdoc`. See
+[tsdoc-lint-options.md](./tsdoc-lint-options.md) for TsDocLintPlugin
+configuration.
 
 #### `groups`
 
@@ -468,6 +476,8 @@ explicitly defined.
   execution model
 - [API Extraction](./api-extraction.md) - Detailed API extraction process and
   TSDoc configuration rationale
+- [TSDoc Lint Options](./tsdoc-lint-options.md) - TsDocLintPlugin configuration
+  reference (shares `TsDocOptions` interface)
 
 **Source Code:**
 
