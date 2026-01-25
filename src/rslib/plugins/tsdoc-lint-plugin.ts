@@ -1,17 +1,12 @@
 import type { PathLike } from "node:fs";
-import { dirname, relative } from "node:path";
+import { dirname, join, relative } from "node:path";
 import type { RsbuildPlugin, RsbuildPluginAPI } from "@rsbuild/core";
 import { logger } from "@rsbuild/core";
 import type { ESLint as ESLintNamespace, Linter } from "eslint";
 import color from "picocolors";
 import type { TsDocOptions } from "./dts-plugin.js";
 import { TsDocConfigBuilder } from "./dts-plugin.js";
-
-/**
- * Default file patterns to lint for TSDoc comments.
- * Includes TypeScript source files, excludes test files.
- */
-const DEFAULT_INCLUDE_PATTERNS: string[] = ["src/**/*.ts", "!**/*.test.ts", "!**/__test__/**"];
+import { ImportGraph } from "./utils/import-graph.js";
 
 /**
  * Helper interface for handling ESM/CJS module format differences.
@@ -90,8 +85,25 @@ export interface TsDocLintPluginOptions {
 	tsdoc?: TsDocOptions;
 
 	/**
-	 * Glob patterns for files to lint.
-	 * @defaultValue ["src/**\/*.ts", "!**\/*.test.ts", "!**\/__test__/**"]
+	 * Override automatic file discovery with explicit file paths or glob patterns.
+	 *
+	 * @remarks
+	 * By default, TsDocLintPlugin uses import graph analysis to discover files
+	 * from your package's exports. This ensures only public API files are linted.
+	 *
+	 * Use this option only when you need to lint specific files that aren't
+	 * part of the export graph, or to override the automatic discovery.
+	 *
+	 * When specified as glob patterns, test files and `__test__` directories
+	 * are still excluded unless explicitly included.
+	 *
+	 * @example
+	 * ```typescript
+	 * // Explicit patterns override automatic discovery
+	 * TsDocLintPlugin({
+	 *   include: ["src/**\/*.ts", "!**\/*.test.ts"],
+	 * })
+	 * ```
 	 */
 	include?: string[];
 
@@ -199,18 +211,84 @@ export function formatLintResults(results: LintResult, cwd: string): string {
 }
 
 /**
- * Runs TSDoc lint using ESLint programmatically.
+ * Result of file discovery for TSDoc linting.
+ * @internal
+ */
+interface FileDiscoveryResult {
+	/** Files to lint (absolute paths or glob patterns depending on isGlobPattern) */
+	files: string[];
+	/** Errors encountered during discovery (non-fatal) */
+	errors: string[];
+	/** Whether files contains glob patterns (true) or absolute paths (false) */
+	isGlobPattern: boolean;
+}
+
+/**
+ * Discovers files to lint using import graph analysis or explicit patterns.
  *
- * @param options - Plugin options
+ * @remarks
+ * When no explicit `include` patterns are provided, this function uses
+ * {@link ImportGraph} to trace imports from package.json exports. This ensures
+ * only public API files are linted, avoiding internal implementation details.
+ *
+ * @param options - Plugin options containing optional include patterns
  * @param cwd - The project root directory
- * @returns Lint results
+ * @returns Discovery result with files to lint and any errors encountered
  *
  * @internal
  */
-export async function runTsDocLint(
-	options: TsDocLintPluginOptions,
-	cwd: string,
-): Promise<{ results: LintResult; tsdocConfigPath?: string }> {
+export function discoverFilesToLint(options: TsDocLintPluginOptions, cwd: string): FileDiscoveryResult {
+	// If user provided explicit patterns, use those
+	if (options.include && options.include.length > 0) {
+		return {
+			files: options.include,
+			errors: [],
+			isGlobPattern: true,
+		};
+	}
+
+	// Default: discover files from package.json exports using import graph
+	const graph = new ImportGraph({ rootDir: cwd });
+	const packageJsonPath = join(cwd, "package.json");
+	const result = graph.traceFromPackageExports(packageJsonPath);
+
+	return {
+		files: result.files,
+		errors: result.errors,
+		isGlobPattern: false,
+	};
+}
+
+/**
+ * Result of running TSDoc lint via ESLint.
+ * @internal
+ */
+interface TsDocLintRunResult {
+	/** The lint results containing errors, warnings, and messages */
+	results: LintResult;
+	/** Path to the persisted tsdoc.json file (undefined if not persisted) */
+	tsdocConfigPath?: string;
+	/** Errors from file discovery (undefined if no errors) */
+	discoveryErrors?: string[];
+}
+
+/**
+ * Runs TSDoc lint using ESLint programmatically.
+ *
+ * @remarks
+ * This function dynamically imports ESLint and its plugins (optional peer dependencies),
+ * generates a tsdoc.json configuration file, discovers files to lint, and runs
+ * ESLint with the `eslint-plugin-tsdoc` plugin.
+ *
+ * @param options - Plugin options for configuring TSDoc linting
+ * @param cwd - The project root directory
+ * @returns Promise resolving to lint results and configuration paths
+ *
+ * @throws Error if required ESLint packages are not installed
+ *
+ * @internal
+ */
+export async function runTsDocLint(options: TsDocLintPluginOptions, cwd: string): Promise<TsDocLintRunResult> {
 	// Generate tsdoc.json config file
 	const tsdocOptions = options.tsdoc ?? {};
 	const persistConfig = options.persistConfig;
@@ -259,26 +337,63 @@ export async function runTsDocLint(
 		(tsdocPluginModule as ESModuleExport<ESLintNamespace.Plugin>).default ??
 		(tsdocPluginModule as ESLintNamespace.Plugin);
 
-	// Build include patterns
-	const includePatterns = options.include ?? DEFAULT_INCLUDE_PATTERNS;
+	// Discover files to lint
+	const discovery = discoverFilesToLint(options, cwd);
+
+	// If no files discovered, return early with empty results
+	if (discovery.files.length === 0) {
+		return {
+			results: { errorCount: 0, warningCount: 0, messages: [] },
+			tsdocConfigPath: shouldPersist ? tsdocConfigPath : undefined,
+			discoveryErrors: discovery.errors,
+		};
+	}
 
 	// Create ESLint instance with inline config
-	const eslintConfig: Linter.Config[] = [
-		{
-			ignores: ["**/node_modules/**", "**/dist/**", "**/coverage/**"],
-		},
-		{
-			files: includePatterns.filter((p) => !p.startsWith("!")),
-			ignores: includePatterns.filter((p) => p.startsWith("!")).map((p) => p.slice(1)),
-			languageOptions: {
-				parser: tsParser as Linter.Parser,
+	let eslintConfig: Linter.Config[];
+	let filesToLint: string[];
+
+	if (discovery.isGlobPattern) {
+		// User provided glob patterns
+		const includePatterns = discovery.files;
+		filesToLint = includePatterns.filter((p) => !p.startsWith("!"));
+
+		eslintConfig = [
+			{
+				ignores: ["**/node_modules/**", "**/dist/**", "**/coverage/**"],
 			},
-			plugins: { tsdoc: tsdocPlugin as ESLintNamespace.Plugin },
-			rules: {
-				"tsdoc/syntax": "error",
+			{
+				files: filesToLint,
+				ignores: includePatterns.filter((p) => p.startsWith("!")).map((p) => p.slice(1)),
+				languageOptions: {
+					parser: tsParser as Linter.Parser,
+				},
+				plugins: { tsdoc: tsdocPlugin as ESLintNamespace.Plugin },
+				rules: {
+					"tsdoc/syntax": "error",
+				},
 			},
-		},
-	];
+		];
+	} else {
+		// ImportGraph discovered absolute file paths
+		filesToLint = discovery.files;
+
+		eslintConfig = [
+			{
+				ignores: ["**/node_modules/**", "**/dist/**", "**/coverage/**"],
+			},
+			{
+				files: ["**/*.ts", "**/*.tsx"],
+				languageOptions: {
+					parser: tsParser as Linter.Parser,
+				},
+				plugins: { tsdoc: tsdocPlugin as ESLintNamespace.Plugin },
+				rules: {
+					"tsdoc/syntax": "error",
+				},
+			},
+		];
+	}
 
 	const eslint = new ESLint({
 		cwd,
@@ -287,7 +402,7 @@ export async function runTsDocLint(
 	});
 
 	// Run ESLint on source files
-	const eslintResults = await eslint.lintFiles(includePatterns.filter((p) => !p.startsWith("!")));
+	const eslintResults = await eslint.lintFiles(filesToLint);
 
 	// Convert ESLint results to our format
 	const messages: LintMessage[] = [];
@@ -316,6 +431,7 @@ export async function runTsDocLint(
 	return {
 		results: { errorCount, warningCount, messages },
 		tsdocConfigPath: shouldPersist ? tsdocConfigPath : undefined,
+		discoveryErrors: discovery.errors.length > 0 ? discovery.errors : undefined,
 	};
 }
 
@@ -326,8 +442,14 @@ export async function runTsDocLint(
  *
  * @internal
  */
-/* v8 ignore start -- Integration function called by plugin hooks */
-async function cleanupTsDocConfig(configPath: string | undefined): Promise<void> {
+/**
+ * Cleans up the tsdoc.json config file.
+ *
+ * @param configPath - Path to the config file to delete
+ *
+ * @internal
+ */
+export async function cleanupTsDocConfig(configPath: string | undefined): Promise<void> {
 	if (!configPath) return;
 
 	try {
@@ -337,10 +459,9 @@ async function cleanupTsDocConfig(configPath: string | undefined): Promise<void>
 		// Ignore cleanup errors
 	}
 }
-/* v8 ignore stop */
 
 /**
- * Plugin to validate TSDoc comments before build using ESLint with eslint-plugin-tsdoc.
+ * Creates a plugin to validate TSDoc comments before build using ESLint with eslint-plugin-tsdoc.
  *
  * @remarks
  * This plugin runs TSDoc validation during the `onBeforeBuild` hook, ensuring that
@@ -353,7 +474,8 @@ async function cleanupTsDocConfig(configPath: string | undefined): Promise<void>
  * - Configurable error handling (warn, error, throw)
  * - Automatic CI detection for stricter defaults
  * - Optional tsdoc.json persistence for tool integration
- * - Customizable file patterns
+ * - Automatic file discovery via import graph analysis
+ * - Customizable file patterns when needed
  *
  * ## Error Handling
  *
@@ -362,7 +484,17 @@ async function cleanupTsDocConfig(configPath: string | undefined): Promise<void>
  * | Local       | `"error"`        | Log and continue |
  * | CI          | `"throw"`        | Fail the build |
  *
+ * ## Required Dependencies
+ *
+ * This plugin requires the following optional peer dependencies:
+ * - `eslint`
+ * - `@typescript-eslint/parser`
+ * - `eslint-plugin-tsdoc`
+ *
+ * Install with: `pnpm add -D eslint @typescript-eslint/parser eslint-plugin-tsdoc`
+ *
  * @param options - Plugin configuration options
+ * @returns An Rsbuild plugin that validates TSDoc comments before the build
  *
  * @example
  * ```typescript
@@ -380,7 +512,7 @@ async function cleanupTsDocConfig(configPath: string | undefined): Promise<void>
  *
  * @public
  */
-/* v8 ignore next -- @preserve */
+/* v8 ignore start -- Integration plugin factory called by Rsbuild */
 export const TsDocLintPlugin = (options: TsDocLintPluginOptions = {}): RsbuildPlugin => {
 	const { enabled = true } = options;
 
@@ -405,7 +537,14 @@ export const TsDocLintPlugin = (options: TsDocLintPluginOptions = {}): RsbuildPl
 				logger.info(`${color.dim("[tsdoc-lint]")} Validating TSDoc comments...`);
 
 				try {
-					const { results, tsdocConfigPath } = await runTsDocLint(options, cwd);
+					const { results, tsdocConfigPath, discoveryErrors } = await runTsDocLint(options, cwd);
+
+					// Log any discovery warnings
+					if (discoveryErrors && discoveryErrors.length > 0) {
+						for (const error of discoveryErrors) {
+							logger.warn(`${color.dim("[tsdoc-lint]")} ${error}`);
+						}
+					}
 
 					// Store for potential cleanup later
 					if (!TsDocConfigBuilder.shouldPersist(options.persistConfig)) {
@@ -445,3 +584,4 @@ export const TsDocLintPlugin = (options: TsDocLintPluginOptions = {}): RsbuildPl
 		},
 	};
 };
+/* v8 ignore stop */

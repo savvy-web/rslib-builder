@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { LintMessage, LintResult } from "./tsdoc-lint-plugin.js";
-import { formatLintResults, runTsDocLint } from "./tsdoc-lint-plugin.js";
+import { cleanupTsDocConfig, discoverFilesToLint, formatLintResults, runTsDocLint } from "./tsdoc-lint-plugin.js";
 
 // Track created test directories for cleanup
 const testDirs: string[] = [];
@@ -202,6 +202,96 @@ describe("tsdoc-lint-plugin", () => {
 		});
 	});
 
+	describe("discoverFilesToLint", () => {
+		it("should use explicit include patterns when provided", async () => {
+			const testDir = createTestDir();
+			await mkdir(testDir, { recursive: true });
+
+			const result = discoverFilesToLint(
+				{
+					include: ["src/**/*.ts", "!**/*.test.ts"],
+				},
+				testDir,
+			);
+
+			expect(result.isGlobPattern).toBe(true);
+			expect(result.files).toEqual(["src/**/*.ts", "!**/*.test.ts"]);
+			expect(result.errors).toEqual([]);
+		});
+
+		it("should use import graph when include is not provided", async () => {
+			const testDir = createTestDir();
+			const srcDir = join(testDir, "src");
+			await mkdir(srcDir, { recursive: true });
+
+			// Write a tsconfig.json
+			await writeFile(
+				join(testDir, "tsconfig.json"),
+				JSON.stringify({
+					compilerOptions: {
+						module: "ESNext",
+						moduleResolution: "bundler",
+					},
+				}),
+			);
+
+			// Write package.json with exports
+			await writeFile(
+				join(testDir, "package.json"),
+				JSON.stringify({
+					name: "test-package",
+					version: "1.0.0",
+					exports: "./src/index.ts",
+				}),
+			);
+
+			// Write source file
+			await writeFile(join(srcDir, "index.ts"), "export const x = 1;");
+
+			const result = discoverFilesToLint({}, testDir);
+
+			expect(result.isGlobPattern).toBe(false);
+			expect(result.files.length).toBeGreaterThan(0);
+			expect(result.files.some((f) => f.includes("index.ts"))).toBe(true);
+		});
+
+		it("should use import graph when include is empty array", async () => {
+			const testDir = createTestDir();
+			const srcDir = join(testDir, "src");
+			await mkdir(srcDir, { recursive: true });
+
+			// Write a tsconfig.json
+			await writeFile(
+				join(testDir, "tsconfig.json"),
+				JSON.stringify({
+					compilerOptions: {
+						module: "ESNext",
+						moduleResolution: "bundler",
+					},
+				}),
+			);
+
+			// Write package.json with exports
+			await writeFile(
+				join(testDir, "package.json"),
+				JSON.stringify({
+					name: "test-package",
+					version: "1.0.0",
+					exports: "./src/index.ts",
+				}),
+			);
+
+			// Write source file
+			await writeFile(join(srcDir, "index.ts"), "export const x = 1;");
+
+			// Empty include array should use import graph
+			const result = discoverFilesToLint({ include: [] }, testDir);
+
+			expect(result.isGlobPattern).toBe(false);
+			expect(result.files.length).toBeGreaterThan(0);
+		});
+	});
+
 	describe("runTsDocLint", () => {
 		it("should return no errors for valid TSDoc", async () => {
 			const testDir = createTestDir();
@@ -351,6 +441,87 @@ export function util(): void {}
 
 			expect(results.errorCount).toBeGreaterThan(0);
 		});
+
+		it("should use ImportGraph discovery when include is not provided", async () => {
+			const testDir = createTestDir();
+			const srcDir = join(testDir, "src");
+			await mkdir(srcDir, { recursive: true });
+
+			// Write tsconfig.json for ImportGraph
+			await writeFile(
+				join(testDir, "tsconfig.json"),
+				JSON.stringify({
+					compilerOptions: {
+						module: "ESNext",
+						moduleResolution: "bundler",
+					},
+				}),
+			);
+
+			// Write package.json with exports
+			await writeFile(
+				join(testDir, "package.json"),
+				JSON.stringify({
+					name: "test-package",
+					version: "1.0.0",
+					exports: "./src/index.ts",
+				}),
+			);
+
+			// Write a valid file in exports
+			await writeFile(
+				join(srcDir, "index.ts"),
+				`/**
+ * Valid exported function.
+ * @returns Nothing
+ */
+export function exported(): void {}
+`,
+			);
+
+			// Write an internal file with invalid TSDoc (not in exports)
+			await writeFile(
+				join(srcDir, "internal.ts"),
+				`/**
+ * @badTag Internal function
+ */
+export function internal(): void {}
+`,
+			);
+
+			// Use ImportGraph discovery (no include option)
+			const { results, discoveryErrors } = await runTsDocLint({}, testDir);
+
+			// ImportGraph should have run without errors
+			expect(discoveryErrors).toBeUndefined();
+			// Only the exported file should be linted (which has valid TSDoc)
+			expect(results.errorCount).toBe(0);
+		});
+
+		it("should return discovery errors when ImportGraph fails", async () => {
+			const testDir = createTestDir();
+			const srcDir = join(testDir, "src");
+			await mkdir(srcDir, { recursive: true });
+
+			// Write package.json with exports but NO tsconfig.json
+			await writeFile(
+				join(testDir, "package.json"),
+				JSON.stringify({
+					name: "test-package",
+					version: "1.0.0",
+					exports: "./src/index.ts",
+				}),
+			);
+
+			await writeFile(join(srcDir, "index.ts"), "export const x = 1;");
+
+			// Use ImportGraph discovery without tsconfig - should fail
+			const { discoveryErrors } = await runTsDocLint({}, testDir);
+
+			// Should have discovery errors about missing tsconfig
+			expect(discoveryErrors).toBeDefined();
+			expect(discoveryErrors?.length).toBeGreaterThan(0);
+		});
 	});
 
 	describe("CI detection", () => {
@@ -439,6 +610,39 @@ export function valid(): void {}
 
 			// Explicit true should persist even in CI
 			expect(tsdocConfigPath).toBeDefined();
+		});
+	});
+
+	describe("cleanupTsDocConfig", () => {
+		it("should do nothing when configPath is undefined", async () => {
+			// Should not throw
+			await cleanupTsDocConfig(undefined);
+		});
+
+		it("should delete config file when path exists", async () => {
+			const testDir = createTestDir();
+			await mkdir(testDir, { recursive: true });
+
+			const configPath = join(testDir, "tsdoc.json");
+			await writeFile(configPath, "{}");
+
+			// Verify file exists
+			const { stat } = await import("node:fs/promises");
+			await expect(stat(configPath)).resolves.toBeDefined();
+
+			// Cleanup should delete the file
+			await cleanupTsDocConfig(configPath);
+
+			// File should no longer exist
+			await expect(stat(configPath)).rejects.toThrow(/ENOENT/);
+		});
+
+		it("should not throw when file does not exist", async () => {
+			const testDir = createTestDir();
+			const nonExistentPath = join(testDir, "nonexistent.json");
+
+			// Should not throw even if file doesn't exist
+			await cleanupTsDocConfig(nonExistentPath);
 		});
 	});
 });
