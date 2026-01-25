@@ -4,7 +4,7 @@ module: rslib-builder
 category: architecture
 created: 2026-01-18
 updated: 2026-01-25
-last-synced: 2026-01-24
+last-synced: 2026-01-25
 completeness: 95
 related:
   - rslib-builder/api-extraction.md
@@ -184,10 +184,13 @@ transformations. Consolidated from 14 files to 6 focused modules.
    - Class-based entry extraction from package.json exports/bin fields
 
 7. **`import-graph.ts`** - TypeScript import graph analysis
-   - Exports: `ImportGraph` class, `ImportGraphOptions`, `ImportGraphResult`
+   - Exports: `ImportGraph` class, `ImportGraphOptions`, `ImportGraphResult`,
+     `ImportGraphError`, `ImportGraphErrorType`
    - Traces imports from entry points to discover all reachable TypeScript files
    - Uses TypeScript compiler API for accurate module resolution
    - Filters test files, declaration files, and node_modules
+   - Provides structured error types for programmatic error handling
+   - Supports configurable exclude patterns for custom filtering
 
 ### Architecture Diagram
 
@@ -581,15 +584,32 @@ determine which files need TSDoc validation.
 
 ```typescript
 interface ImportGraphOptions {
-  rootDir: string;           // Project root for resolving paths
-  tsconfigPath?: string;     // Custom tsconfig path (optional)
-  sys?: ts.System;           // Custom TS system for testing (optional)
+  rootDir: string;             // Project root for resolving paths
+  tsconfigPath?: string;       // Custom tsconfig path (optional)
+  sys?: ts.System;             // Custom TS system for testing (optional)
+  excludePatterns?: string[];  // Additional patterns to exclude from results
 }
 
 interface ImportGraphResult {
-  files: string[];    // All reachable TypeScript source files (sorted)
-  entries: string[];  // Entry points that were traced
-  errors: string[];   // Non-fatal errors encountered during analysis
+  files: string[];           // All reachable TypeScript source files (sorted)
+  entries: string[];         // Entry points that were traced
+  errors: ImportGraphError[];// Structured errors encountered during analysis
+}
+
+// Structured error type for programmatic handling
+type ImportGraphErrorType =
+  | 'tsconfig_not_found'
+  | 'tsconfig_read_error'
+  | 'tsconfig_parse_error'
+  | 'package_json_not_found'
+  | 'package_json_parse_error'
+  | 'entry_not_found'
+  | 'file_read_error';
+
+interface ImportGraphError {
+  type: ImportGraphErrorType; // Error category for switch-case handling
+  message: string;            // Human-readable error message
+  path?: string;              // File path related to the error (if applicable)
 }
 ```
 
@@ -609,6 +629,24 @@ interface ImportGraphResult {
    - Test files (`*.test.ts`, `*.spec.ts`)
    - Files in `__test__` or `__tests__` directories
 
+**Configurable exclusions:**
+
+By default, ImportGraph filters out:
+
+- Files in `node_modules`
+- Declaration files (`.d.ts`)
+- Test files (`*.test.ts`, `*.spec.ts`)
+- Files in `__test__` or `__tests__` directories
+
+Use `excludePatterns` to add custom exclusions:
+
+```typescript
+const graph = new ImportGraph({
+  rootDir: process.cwd(),
+  excludePatterns: ['/fixtures/', '/mocks/', '.stories.'],
+});
+```
+
 **Usage patterns:**
 
 ```typescript
@@ -620,6 +658,21 @@ const result = ImportGraph.fromEntries(['./src/index.ts'], { rootDir });
 const graph = new ImportGraph({ rootDir });
 const libResult = graph.traceFromPackageExports('./package.json');
 const cliResult = graph.traceFromEntries(['./src/cli.ts']);
+
+// Error handling with structured types
+const result = ImportGraph.fromPackageExports('./package.json', { rootDir });
+for (const error of result.errors) {
+  switch (error.type) {
+    case 'tsconfig_not_found':
+      console.warn('No tsconfig.json found, using defaults');
+      break;
+    case 'entry_not_found':
+      console.error(`Missing entry: ${error.path}`);
+      break;
+    default:
+      console.error(error.message);
+  }
+}
 ```
 
 **Integration with EntryExtractor:** ImportGraph uses EntryExtractor internally
@@ -966,9 +1019,13 @@ ImportGraph.traceFromPackageExports()
     - Exclude .d.ts files
     - Exclude .test.ts/.spec.ts
     - Exclude __test__/__tests__ dirs
+    - Apply custom excludePatterns
          |
          v
-    Return sorted file list
+    Return ImportGraphResult:
+    - files: sorted list of source files
+    - entries: entry points that were traced
+    - errors: ImportGraphError[] with structured types
 ```
 
 ---

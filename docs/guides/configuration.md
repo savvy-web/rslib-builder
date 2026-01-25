@@ -557,6 +557,35 @@ const cliResult = graph.traceFromEntries(['./src/cli.ts']);
 | :----- | :--- | :------ | :---------- |
 | `rootDir` | `string` | Required | Project root directory |
 | `tsconfigPath` | `string` | Auto-detect | Custom tsconfig path |
+| `excludePatterns` | `string[]` | `[]` | Additional patterns to exclude from results |
+
+### Exclude Patterns
+
+By default, ImportGraph excludes these file patterns:
+
+- `.test.` and `.spec.` files
+- `__test__` and `__tests__` directories
+- `.d.ts` declaration files
+
+Use `excludePatterns` to exclude additional files:
+
+```typescript
+import { ImportGraph } from '@savvy-web/rslib-builder';
+
+const graph = new ImportGraph({
+  rootDir: process.cwd(),
+  excludePatterns: [
+    '.stories.',     // Storybook files
+    '/mocks/',       // Mock directories
+    '/fixtures/',    // Test fixtures
+    '.bench.',       // Benchmark files
+  ],
+});
+
+const result = graph.traceFromEntries(['./src/index.ts']);
+```
+
+Patterns are matched using simple string inclusion against file paths.
 
 ### ImportGraphResult
 
@@ -564,7 +593,62 @@ const cliResult = graph.traceFromEntries(['./src/cli.ts']);
 | :------- | :--- | :---------- |
 | `files` | `string[]` | All reachable TypeScript files (sorted, absolute paths) |
 | `entries` | `string[]` | The entry points that were traced |
-| `errors` | `string[]` | Non-fatal errors encountered during analysis |
+| `errors` | `ImportGraphError[]` | Structured errors encountered during analysis |
+
+### Structured Error Handling
+
+ImportGraph uses structured errors for programmatic error handling. Each error
+includes a `type` field that allows you to handle different failure modes
+appropriately:
+
+```typescript
+import { ImportGraph } from '@savvy-web/rslib-builder';
+import type { ImportGraphError } from '@savvy-web/rslib-builder';
+
+const result = ImportGraph.fromPackageExports('./package.json', {
+  rootDir: process.cwd(),
+});
+
+// Handle errors based on type
+for (const error of result.errors) {
+  switch (error.type) {
+    case 'tsconfig_not_found':
+      console.warn('No tsconfig.json found, using defaults');
+      break;
+    case 'entry_not_found':
+      console.error(`Missing entry file: ${error.path}`);
+      break;
+    case 'package_json_not_found':
+      console.error(`Package not found: ${error.path}`);
+      break;
+    case 'file_read_error':
+      console.warn(`Could not read file: ${error.path}`);
+      break;
+    default:
+      console.error(error.message);
+  }
+}
+```
+
+### ImportGraphError
+
+| Property | Type | Description |
+| :------- | :--- | :---------- |
+| `type` | `ImportGraphErrorType` | Error type for programmatic handling |
+| `message` | `string` | Human-readable error message |
+| `path` | `string \| undefined` | Related file path (when applicable) |
+
+### ImportGraphErrorType
+
+| Type | Description |
+| :--- | :---------- |
+| `tsconfig_not_found` | No tsconfig.json found in project |
+| `tsconfig_read_error` | Failed to read tsconfig.json |
+| `tsconfig_parse_error` | Failed to parse tsconfig.json |
+| `package_json_not_found` | Package.json not found |
+| `package_json_parse_error` | Failed to parse package.json |
+| `entry_not_found` | Entry file does not exist |
+| `file_read_error` | Failed to read a source file |
 
 ### Use Cases
 
