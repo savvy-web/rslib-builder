@@ -3,9 +3,9 @@ status: current
 module: rslib-builder
 category: architecture
 created: 2026-01-18
-updated: 2026-01-24
-last-synced: 2026-01-19
-completeness: 90
+updated: 2026-01-25
+last-synced: 2026-01-25
+completeness: 95
 related:
   - rslib-builder/api-extraction.md
 dependencies: []
@@ -99,6 +99,7 @@ interface NodeLibraryBuilderOptions {
   transformFiles?: (context: TransformFilesContext) => void;
   transform?: TransformPackageJsonFn;
   apiModel?: ApiModelOptions | boolean;
+  tsdocLint?: TsDocLintPluginOptions | boolean;
 }
 
 type BuildTarget = "dev" | "npm";
@@ -121,6 +122,12 @@ processing stages.
 
 **Plugins:**
 
+- **TsDocLintPlugin** - Validate TSDoc comments before build using ESLint
+  - Stage: onBeforeBuild (runs before all other plugins)
+  - Uses ImportGraph for automatic file discovery from package.json exports
+  - Supports explicit include patterns to override automatic discovery
+  - Optional peer dependencies: eslint, @typescript-eslint/parser,
+    eslint-plugin-tsdoc
 - **AutoEntryPlugin** - Discover entries from package.json exports/bin
   - Stage: modifyRsbuildConfig
 - **DtsPlugin** - Generate .d.ts with tsgo, optional API Extractor bundling
@@ -175,6 +182,15 @@ transformations. Consolidated from 14 files to 6 focused modules.
 6. **`entry-extractor.ts`** - Entry point extraction (unchanged)
    - Exports: `EntryExtractor` class
    - Class-based entry extraction from package.json exports/bin fields
+
+7. **`import-graph.ts`** - TypeScript import graph analysis
+   - Exports: `ImportGraph` class, `ImportGraphOptions`, `ImportGraphResult`,
+     `ImportGraphError`, `ImportGraphErrorType`
+   - Traces imports from entry points to discover all reachable TypeScript files
+   - Uses TypeScript compiler API for accurate module resolution
+   - Filters test files, declaration files, and node_modules
+   - Provides structured error types for programmatic error handling
+   - Supports configurable exclude patterns for custom filtering
 
 ### Architecture Diagram
 
@@ -318,6 +334,52 @@ distribution.
    - Cons: Complex interleaving of concerns, harder to maintain
    - Why rejected: Order dependencies make single-pass error-prone
 
+#### Decision 6: Pre-Build TSDoc Validation
+
+**Context:** Need to catch TSDoc documentation errors early, before declaration
+generation and API model creation.
+
+**Options considered:**
+
+1. **onBeforeBuild hook (Chosen):**
+   - Pros: Runs before all plugins, fails fast on doc errors, no wasted
+     compilation time
+   - Cons: Adds latency before build starts
+   - Why chosen: Documentation errors should block the build early, not after
+     expensive TypeScript compilation
+
+2. **processAssets pre-process stage:**
+   - Pros: Runs alongside other plugins
+   - Cons: Expensive tsgo compilation already complete before validation
+   - Why rejected: Wasteful to compile before knowing docs are valid
+
+3. **Separate lint command:**
+   - Pros: Decoupled from build
+   - Cons: Easy to forget, not enforced in CI
+   - Why rejected: Need integrated validation in build pipeline
+
+#### Decision 7: Environment-Aware Error Handling
+
+**Context:** TSDoc errors should fail CI builds but not block local development
+iteration.
+
+**Options considered:**
+
+1. **Auto-detect CI with configurable override (Chosen):**
+   - Pros: Sensible defaults (throw in CI, error locally), users can override
+   - Cons: Implicit behavior based on environment
+   - Why chosen: Matches developer expectations - strict in CI, lenient locally
+
+2. **Always throw:**
+   - Pros: Consistent behavior
+   - Cons: Blocks local iteration on doc issues
+   - Why rejected: Too disruptive for development workflow
+
+3. **Always warn:**
+   - Pros: Never blocks builds
+   - Cons: Errors can slip into production
+   - Why rejected: CI should enforce documentation quality
+
 ### Design Patterns Used
 
 #### Pattern 1: Factory Method
@@ -440,6 +502,11 @@ distribution.
 ### Plugin Execution Model
 
 ```text
+0. onBeforeBuild (Pre-compilation)
+   +-- TsDocLintPlugin      - Validate TSDoc comments via ESLint
+                            - Fail-fast before expensive compilation
+                            - Environment-aware: throw in CI, error locally
+
 1. modifyRsbuildConfig (Sequential)
    +-- AutoEntryPlugin      - Discover entry points from package.json
    +-- DtsPlugin            - Load tsconfig, prepare for declarations
@@ -463,6 +530,9 @@ distribution.
 
 6. processAssets: summarize (Sequential)
    +-- DtsPlugin - Strip source map comments, cleanup .d.ts.map files
+
+7. onCloseBuild (Post-compilation)
+   +-- TsDocLintPlugin      - Cleanup temporary tsdoc.json if not persisted
 ```
 
 ### Shared State Keys
@@ -501,6 +571,209 @@ distribution.
 
 - Producer: (reserved for API reports)
 - Consumers: PackageJsonTransformPlugin
+
+### ImportGraph Architecture
+
+**Location:** `src/rslib/plugins/utils/import-graph.ts`
+
+**Purpose:** Analyzes TypeScript import relationships to discover all files
+reachable from specified entry points. Used by TsDocLintPlugin to automatically
+determine which files need TSDoc validation.
+
+**Key interfaces:**
+
+```typescript
+interface ImportGraphOptions {
+  rootDir: string;             // Project root for resolving paths
+  tsconfigPath?: string;       // Custom tsconfig path (optional)
+  sys?: ts.System;             // Custom TS system for testing (optional)
+  excludePatterns?: string[];  // Additional patterns to exclude from results
+}
+
+interface ImportGraphResult {
+  files: string[];           // All reachable TypeScript source files (sorted)
+  entries: string[];         // Entry points that were traced
+  errors: ImportGraphError[];// Structured errors encountered during analysis
+}
+
+// Structured error type for programmatic handling
+type ImportGraphErrorType =
+  | 'tsconfig_not_found'
+  | 'tsconfig_read_error'
+  | 'tsconfig_parse_error'
+  | 'package_json_not_found'
+  | 'package_json_parse_error'
+  | 'entry_not_found'
+  | 'file_read_error';
+
+interface ImportGraphError {
+  type: ImportGraphErrorType; // Error category for switch-case handling
+  message: string;            // Human-readable error message
+  path?: string;              // File path related to the error (if applicable)
+}
+```
+
+**How it works:**
+
+1. Parses the tsconfig.json from the project root (or custom path)
+2. Creates a TypeScript module resolution cache for efficient resolution
+3. For each entry point, recursively traces all imports:
+   - Static imports: `import { foo } from "./module"`
+   - Dynamic imports: `import("./module")`
+   - Re-exports: `export * from "./module"` and `export { foo } from "./module"`
+4. Uses the TypeScript compiler API for accurate path alias resolution
+5. Tracks visited files to handle circular imports
+6. Filters results to exclude:
+   - Files in `node_modules`
+   - Declaration files (`.d.ts`)
+   - Test files (`*.test.ts`, `*.spec.ts`)
+   - Files in `__test__` or `__tests__` directories
+
+**Configurable exclusions:**
+
+By default, ImportGraph filters out:
+
+- Files in `node_modules`
+- Declaration files (`.d.ts`)
+- Test files (`*.test.ts`, `*.spec.ts`)
+- Files in `__test__` or `__tests__` directories
+
+Use `excludePatterns` to add custom exclusions:
+
+```typescript
+const graph = new ImportGraph({
+  rootDir: process.cwd(),
+  excludePatterns: ['/fixtures/', '/mocks/', '.stories.'],
+});
+```
+
+**Usage patterns:**
+
+```typescript
+// Static convenience methods (recommended for most cases)
+const result = ImportGraph.fromPackageExports('./package.json', { rootDir });
+const result = ImportGraph.fromEntries(['./src/index.ts'], { rootDir });
+
+// Instance methods (for repeated analysis, reuses TS program)
+const graph = new ImportGraph({ rootDir });
+const libResult = graph.traceFromPackageExports('./package.json');
+const cliResult = graph.traceFromEntries(['./src/cli.ts']);
+
+// Error handling with structured types
+const result = ImportGraph.fromPackageExports('./package.json', { rootDir });
+for (const error of result.errors) {
+  switch (error.type) {
+    case 'tsconfig_not_found':
+      console.warn('No tsconfig.json found, using defaults');
+      break;
+    case 'entry_not_found':
+      console.error(`Missing entry: ${error.path}`);
+      break;
+    default:
+      console.error(error.message);
+  }
+}
+```
+
+**Integration with EntryExtractor:** ImportGraph uses EntryExtractor internally
+when tracing from package.json exports. EntryExtractor parses the `exports`
+and `bin` fields, then ImportGraph traces imports from those entry points.
+
+---
+
+### TsDocLintPlugin Configuration
+
+The TsDocLintPlugin validates TSDoc comments before the build starts using
+ESLint with `eslint-plugin-tsdoc`. It shares TSDoc configuration with the
+DtsPlugin through the `TsDocConfigBuilder` utility.
+
+**Options interface:**
+
+```typescript
+interface TsDocLintPluginOptions {
+  enabled?: boolean;                    // Default: true
+  tsdoc?: TsDocOptions;                 // Shared with DtsPlugin apiModel.tsdoc
+  include?: string[];                   // Override automatic file discovery
+  onError?: TsDocLintErrorBehavior;     // Default: "throw" in CI, "error" locally
+  persistConfig?: boolean | PathLike;   // Default: true locally, false in CI
+}
+
+type TsDocLintErrorBehavior = "warn" | "error" | "throw";
+```
+
+**Automatic file discovery (default behavior):**
+
+By default, TsDocLintPlugin uses ImportGraph to automatically discover files
+from your package's exports. This ensures only public API files are linted,
+not internal implementation details or test files.
+
+The discovery process:
+
+1. Reads `package.json` from the project root
+2. Uses `EntryExtractor` to parse the `exports` and `bin` fields
+3. Uses `ImportGraph.traceFromPackageExports()` to trace all imports
+4. Returns only TypeScript source files (excludes tests, declarations)
+
+**The `include` option (override automatic discovery):**
+
+Use the `include` option when you need to lint specific files that are not
+part of the export graph, or to override automatic discovery entirely:
+
+```typescript
+// Override with explicit glob patterns
+TsDocLintPlugin({
+  include: ["src/**/*.ts", "!**/*.test.ts"],
+})
+
+// Lint only specific files
+TsDocLintPlugin({
+  include: ["src/public-api.ts", "src/types.ts"],
+})
+```
+
+When `include` is specified:
+
+- The ImportGraph analysis is skipped entirely
+- Patterns are passed directly to ESLint
+- Negation patterns (starting with `!`) work as expected
+
+**The `onError` option (error handling):**
+
+Controls how TSDoc lint errors are handled:
+
+| Value     | Behavior                                   |
+| --------- | ------------------------------------------ |
+| `"warn"`  | Log warnings, continue build               |
+| `"error"` | Log errors, continue build (default local) |
+| `"throw"` | Fail build immediately (default CI)        |
+
+Environment detection uses `CI`, `GITHUB_ACTIONS`, or `CONTINUOUS_INTEGRATION`
+environment variables to determine if running in CI.
+
+**The `persistConfig` option (tsdoc.json management):**
+
+Controls whether the generated `tsdoc.json` configuration file is kept after
+linting:
+
+| Value      | Behavior                                      |
+| ---------- | --------------------------------------------- |
+| `true`     | Keep tsdoc.json in project root (IDE support) |
+| `false`    | Delete after linting completes                |
+| `PathLike` | Write to custom path                          |
+
+Default: `true` locally (for IDE integration), `false` in CI environments.
+
+**Configuration sharing:** When `NodeLibraryBuilder` has both `apiModel.tsdoc`
+and `tsdocLint` configured, the same tag definitions and TSDoc configuration
+are used by both plugins to ensure consistent validation and API model
+generation.
+
+**Error handling matrix:**
+
+| Environment | Default onError | Lint Errors | Build Result         |
+| ----------- | --------------- | ----------- | -------------------- |
+| Local       | `"error"`       | Yes         | Continue, log errors |
+| CI          | `"throw"`       | Yes         | Fail build           |
 
 ---
 
@@ -626,6 +899,135 @@ package.json
     Configure Rsbuild source.entry
 ```
 
+### TSDoc Validation Flow
+
+```text
+onBeforeBuild hook (before compilation)
+         |
+         v
++----------------------------------------+
+| discoverFilesToLint()                  |
+|   Check for explicit include patterns  |
++----------------------------------------+
+         |
+         +------> include provided?
+         |        |
+         |        +-- YES: Use glob patterns directly
+         |        |
+         |        +-- NO: Use ImportGraph analysis
+         |                   |
+         v                   v
++----------------------------------------+
+| ImportGraph.fromPackageExports()       |
+|   1. Read package.json                 |
+|   2. EntryExtractor: parse exports/bin |
+|   3. Trace all imports recursively     |
+|   4. Filter: test files, .d.ts, etc.   |
+|   5. Return sorted list of source files|
++----------------------------------------+
+         |
+         v
++----------------------------------------+
+| TsDocConfigBuilder                     |
+|   - Generate tsdoc.json from options   |
+|   - Write to project root or temp      |
++----------------------------------------+
+         |
+         v
++----------------------------------------+
+| ESLint (dynamic import)                |
+|   - Import eslint, parser, tsdoc plugin|
+|   - Configure inline ESLint config     |
+|   - Create ESLint instance             |
++----------------------------------------+
+         |
+         v
+    ESLint.lintFiles(discovered files)
+         |
+         v
+    Parse results, count errors/warnings
+         |
+         v
++----------------------------------------+
+| Error Handling (based on onError)      |
+|   - "warn":  Log, continue build       |
+|   - "error": Log errors, continue      |
+|   - "throw": Fail build immediately    |
++----------------------------------------+
+         |
+         v
+    If persistConfig: keep tsdoc.json
+    Else: cleanup in onCloseBuild
+         |
+         v
+    Proceed to modifyRsbuildConfig stage
+```
+
+### Import Graph Tracing Flow
+
+```text
+ImportGraph.traceFromPackageExports()
+         |
+         v
+    Read package.json
+         |
+         v
++----------------------------------------+
+| EntryExtractor.extract()               |
+|   - Parse exports field                |
+|   - Parse bin field                    |
+|   - Map export keys to entry names     |
+|   - Resolve TS source paths            |
++----------------------------------------+
+         |
+         v
+    entries: { "index": "./src/index.ts", ... }
+         |
+         v
++----------------------------------------+
+| initializeProgram()                    |
+|   - Find tsconfig.json                 |
+|   - Parse tsconfig options             |
+|   - Create module resolution cache     |
+|   - Create minimal TS program          |
++----------------------------------------+
+         |
+         v
+    For each entry file:
+         |
+         v
++----------------------------------------+
+| traceImports(filePath, visited, errors)|
+|   1. Skip if already visited (cycle)   |
+|   2. Skip if in node_modules           |
+|   3. Mark as visited                   |
+|   4. Read file content                 |
+|   5. Create SourceFile AST             |
+|   6. extractImports() from AST:        |
+|      - import declarations             |
+|      - export declarations             |
+|      - dynamic imports                 |
+|   7. For each import specifier:        |
+|      - resolveImport() via TS API      |
+|      - Skip external/declaration files |
+|      - Recurse into traceImports()     |
++----------------------------------------+
+         |
+         v
+    Filter visited set:
+    - Keep only .ts/.tsx files
+    - Exclude .d.ts files
+    - Exclude .test.ts/.spec.ts
+    - Exclude __test__/__tests__ dirs
+    - Apply custom excludePatterns
+         |
+         v
+    Return ImportGraphResult:
+    - files: sorted list of source files
+    - entries: entry points that were traced
+    - errors: ImportGraphError[] with structured types
+```
+
 ---
 
 ## Integration Points
@@ -695,6 +1097,12 @@ package.json
 - **@microsoft/api-extractor**: Declaration bundling, API model generation
 - **typescript**: TypeScript compiler API for config parsing
 
+**TSDoc Validation (Optional Peer Dependencies):**
+
+- **eslint**: ESLint core for programmatic linting
+- **@typescript-eslint/parser**: TypeScript parser for ESLint
+- **eslint-plugin-tsdoc**: TSDoc validation rules for ESLint
+
 **Package.json Processing:**
 
 - **@pnpm/exportable-manifest**: Resolve pnpm catalog/workspace references
@@ -736,6 +1144,8 @@ src/
 │       ├── files-array-plugin.test.ts
 │       ├── package-json-transform-plugin.ts
 │       ├── package-json-transform-plugin.test.ts
+│       ├── tsdoc-lint-plugin.ts
+│       ├── tsdoc-lint-plugin.test.ts       # 15 tests for TSDoc linting
 │       └── utils/
 │           ├── pnpm-catalog.ts
 │           ├── pnpm-catalog.test.ts        # Co-located with source
@@ -866,7 +1276,7 @@ For comprehensive testing strategy details, see
 **Internal Design Docs:**
 
 - [API Extraction](./api-extraction.md) - API model generation and TSDoc
-  configuration
+  configuration (TsDocLintPlugin shares tsdoc options with DtsPlugin)
 
 **Package Documentation:**
 
@@ -886,6 +1296,7 @@ For comprehensive testing strategy details, see
 ---
 
 **Document Status:** Current - Core architecture documented with all components
+including ImportGraph analysis and TsDocLintPlugin file discovery
 
 **Next Steps:** Add sequence diagrams for complex flows, document edge cases in
 transformation pipeline

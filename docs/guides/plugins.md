@@ -13,8 +13,79 @@ This guide covers the built-in plugins and how to extend the build process.
 
 ## Built-in Plugins
 
-rslib-builder includes four specialized plugins that handle different aspects
+rslib-builder includes five specialized plugins that handle different aspects
 of the build process.
+
+### TsDocLintPlugin
+
+**Purpose:** Validates TSDoc comments before build using ESLint.
+
+**What it does:**
+
+1. Discovers files to lint using import graph analysis (default) or explicit patterns
+2. Dynamically imports ESLint with `eslint-plugin-tsdoc`
+3. Generates a `tsdoc.json` configuration file
+4. Runs ESLint on source files to validate TSDoc syntax
+5. Reports errors with file locations and rule IDs
+6. Optionally fails the build on errors (default in CI)
+
+**Stage:** `onBeforeBuild` (runs before all other plugins)
+
+**Required Dependencies:**
+
+```bash
+pnpm add -D eslint @typescript-eslint/parser eslint-plugin-tsdoc
+```
+
+**Configuration:**
+
+```typescript
+NodeLibraryBuilder.create({
+  tsdocLint: true,  // Enable with defaults
+});
+
+// Or with options
+NodeLibraryBuilder.create({
+  tsdocLint: {
+    onError: 'throw',      // 'warn' | 'error' | 'throw'
+    persistConfig: true,   // Keep tsdoc.json for IDE integration
+  },
+});
+```
+
+**Automatic File Discovery:**
+
+By default, TsDocLintPlugin uses import graph analysis to discover which files
+to lint. It traces imports starting from your `package.json` exports field,
+finding all TypeScript files that are part of your public API.
+
+This means:
+
+- Only public API files are linted (files reachable from exports)
+- Internal implementation files not referenced by exports are skipped
+- Test files (`*.test.ts`, `*.spec.ts`) are automatically excluded
+- Files in `__test__` or `__tests__` directories are excluded
+
+**Overriding File Discovery:**
+
+Use the `include` option when you need to lint specific files that are not
+part of the export graph, or to override automatic discovery entirely:
+
+```typescript
+NodeLibraryBuilder.create({
+  tsdocLint: {
+    // Override automatic discovery with explicit patterns
+    include: ['src/**/*.ts', '!**/*.test.ts'],
+  },
+});
+```
+
+**Environment-Aware Defaults:**
+
+| Environment | Default `onError` | Default `persistConfig` |
+| :---------- | :---------------- | :---------------------- |
+| Local       | `'error'`         | `true`                  |
+| CI          | `'throw'`         | `false`                 |
 
 ### AutoEntryPlugin
 
@@ -171,6 +242,9 @@ Output package.json
 Plugins execute in a specific order across Rsbuild's processing stages:
 
 ```text
+0. onBeforeBuild (Pre-compilation)
+   └── TsDocLintPlugin      → Validate TSDoc comments
+
 1. modifyRsbuildConfig
    ├── AutoEntryPlugin      → Discover entries
    └── DtsPlugin            → Load tsconfig
@@ -192,6 +266,9 @@ Plugins execute in a specific order across Rsbuild's processing stages:
 
 6. processAssets: summarize
    └── DtsPlugin → Clean up .d.ts files
+
+7. onCloseBuild (Post-compilation)
+   └── TsDocLintPlugin      → Cleanup temp tsdoc.json
 ```
 
 ## Adding Custom Plugins

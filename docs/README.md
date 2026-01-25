@@ -23,6 +23,8 @@ that simplifies building TypeScript packages for npm distribution.
 | Auto Entry Detection | Extracts entry points from package.json exports |
 | Type Generation | Uses tsgo for fast TypeScript declaration generation |
 | Declaration Bundling | Bundles .d.ts files with API Extractor |
+| API Model Generation | Creates machine-readable API docs for tooling |
+| TSDoc Validation | Optional pre-build TSDoc comment validation |
 | Package Transform | Resolves PNPM references, updates export paths |
 | Multi-Target | Separate dev (debugging) and npm (production) builds |
 

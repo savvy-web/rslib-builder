@@ -17,6 +17,10 @@ export default NodeLibraryBuilder.create({
 		"typescript",
 		"@microsoft/api-extractor",
 		"source-map-support",
+		// TSDoc lint plugin dependencies (optional)
+		"eslint",
+		"@typescript-eslint/parser",
+		"eslint-plugin-tsdoc",
 	],
 	dtsBundledPackages: [],
 	copyPatterns: [

@@ -12,6 +12,8 @@ Complete reference for all `NodeLibraryBuilder` configuration options.
 - [File Handling](#file-handling)
 - [Build Targets](#build-targets)
 - [API Model Generation](#api-model-generation)
+- [TSDoc Linting](#tsdoc-linting)
+- [ImportGraph Utility](#importgraph-utility)
 
 ## Basic Options
 
@@ -31,6 +33,7 @@ interface NodeLibraryBuilderOptions {
   transformFiles?: TransformFilesCallback;
   transform?: TransformPackageJsonFn;
   apiModel?: ApiModelOptions | boolean;
+  tsdocLint?: TsDocLintPluginOptions | boolean;
 }
 
 type BuildTarget = 'dev' | 'npm';
@@ -304,7 +307,7 @@ rslib build --env-mode npm   # Build npm target
 
 ### apiModel
 
-Generate an `api.model.json` file for documentation tooling:
+Generate an API model file for documentation tooling using API Extractor:
 
 ```typescript
 // Enable with defaults
@@ -317,7 +320,14 @@ NodeLibraryBuilder.create({
   apiModel: {
     enabled: true,
     filename: 'my-package.api.json',
-    localPaths: ['/path/to/local/package'],
+    localPaths: ['../docs-site/lib/packages/my-package'],
+    tsdoc: {
+      tagDefinitions: [
+        { tagName: '@error', syntaxKind: 'block' },
+      ],
+      warnings: 'fail',
+    },
+    tsdocMetadata: true,
   },
 });
 ```
@@ -327,10 +337,325 @@ NodeLibraryBuilder.create({
 | Option | Type | Default | Description |
 | :----- | :--- | :------ | :---------- |
 | `enabled` | `boolean` | `true` | Enable API model generation |
-| `filename` | `string` | `api.model.json` | Output filename |
-| `localPaths` | `string[]` | `[]` | Local package paths for resolution |
+| `filename` | `string` | `<package>.api.json` | Output filename |
+| `localPaths` | `string[]` | `[]` | Local paths to copy API model files |
+| `tsdoc` | `TsDocOptions` | All groups | TSDoc configuration |
+| `tsdocMetadata` | `boolean \| object` | `true` | Generate tsdoc-metadata.json |
+
+### TSDoc Configuration
+
+The `tsdoc` option configures custom TSDoc tags and validation:
+
+```typescript
+interface TsDocOptions {
+  groups?: ('core' | 'extended' | 'discretionary')[];
+  tagDefinitions?: TsDocTagDefinition[];
+  supportForTags?: Record<string, boolean>;
+  persistConfig?: boolean | string;
+  warnings?: 'log' | 'fail' | 'none';
+}
+```
+
+**Tag Groups:**
+
+| Group | Tags Included |
+| :---- | :------------ |
+| `core` | `@param`, `@returns`, `@remarks`, `@deprecated`, `@typeParam` |
+| `extended` | `@example`, `@defaultValue`, `@throws`, `@see`, `@inheritDoc` |
+| `discretionary` | `@alpha`, `@beta`, `@public`, `@internal`, `@experimental` |
+
+**Custom Tag Definitions:**
+
+```typescript
+apiModel: {
+  tsdoc: {
+    tagDefinitions: [
+      { tagName: '@error', syntaxKind: 'block' },
+      { tagName: '@category', syntaxKind: 'block', allowMultiple: false },
+    ],
+  },
+}
+```
+
+**TSDoc Warnings Behavior:**
+
+| Value | Behavior |
+| :---- | :------- |
+| `'log'` | Show warnings, continue build (local default) |
+| `'fail'` | Show warnings and fail build (CI default) |
+| `'none'` | Suppress TSDoc warnings |
 
 **Note:** API model is only generated for the `npm` target, not `dev`.
+
+## TSDoc Linting
+
+### tsdocLint
+
+Validate TSDoc comments before build using ESLint:
+
+```typescript
+// Enable with defaults (automatic file discovery)
+NodeLibraryBuilder.create({
+  tsdocLint: true,
+});
+
+// Enable with custom options
+NodeLibraryBuilder.create({
+  tsdocLint: {
+    enabled: true,
+    onError: 'throw',
+    persistConfig: true,
+    tsdoc: {
+      tagDefinitions: [
+        { tagName: '@error', syntaxKind: 'block' },
+      ],
+    },
+  },
+});
+```
+
+**Required Dependencies:**
+
+```bash
+pnpm add -D eslint @typescript-eslint/parser eslint-plugin-tsdoc
+```
+
+**TSDoc Lint Options:**
+
+| Option | Type | Default | Description |
+| :----- | :--- | :------ | :---------- |
+| `enabled` | `boolean` | `true` | Enable TSDoc linting |
+| `onError` | `'warn' \| 'error' \| 'throw'` | CI: `'throw'`, Local: `'error'` | Error handling |
+| `include` | `string[]` | Auto-discover from exports | Override file discovery |
+| `persistConfig` | `boolean \| string` | CI: `false`, Local: `true` | Keep tsdoc.json |
+| `tsdoc` | `TsDocOptions` | Shared with apiModel | TSDoc configuration |
+
+### Automatic File Discovery
+
+By default, TsDocLintPlugin uses **import graph analysis** to discover files.
+It traces imports from your `package.json` exports to find all TypeScript
+files that are part of your public API.
+
+**How it works:**
+
+1. Reads entry points from `package.json` exports field
+2. Parses each entry file using TypeScript compiler API
+3. Recursively traces all `import` and `export` statements
+4. Collects only files reachable from public exports
+
+**What gets linted:**
+
+- All `.ts` and `.tsx` files reachable from exports
+- Files referenced through path aliases (via tsconfig paths)
+
+**What gets excluded:**
+
+- Test files (`*.test.ts`, `*.spec.ts`)
+- Test directories (`__test__/`, `__tests__/`)
+- Declaration files (`.d.ts`)
+- External packages (`node_modules`)
+
+This approach ensures you only lint documentation that consumers will see,
+avoiding noise from internal implementation details.
+
+### Overriding File Discovery
+
+Use the `include` option when you need to:
+
+- Lint internal files not reachable from exports
+- Lint a subset of your public API
+- Use specific glob patterns for file selection
+
+```typescript
+NodeLibraryBuilder.create({
+  tsdocLint: {
+    // Override automatic discovery with explicit patterns
+    include: ['src/**/*.ts', '!**/*.test.ts'],
+  },
+});
+```
+
+When `include` is specified, automatic discovery is bypassed entirely and
+only the specified glob patterns are used.
+
+### Configuration Sharing
+
+When both `tsdocLint` and `apiModel` are enabled, TSDoc configuration is
+automatically shared from `apiModel.tsdoc` if `tsdocLint.tsdoc` is not set:
+
+```typescript
+NodeLibraryBuilder.create({
+  apiModel: {
+    enabled: true,
+    tsdoc: {
+      tagDefinitions: [{ tagName: '@error', syntaxKind: 'block' }],
+    },
+  },
+  tsdocLint: true,  // Automatically uses apiModel.tsdoc
+});
+```
+
+### Error Handling
+
+| Environment | Default `onError` | Lint Errors | Build Result         |
+| :---------- | :---------------- | :---------- | :------------------- |
+| Local       | `'error'`         | Yes         | Continue, log errors |
+| CI          | `'throw'`         | Yes         | Fail build           |
+
+## ImportGraph Utility
+
+The `ImportGraph` class is exported for advanced use cases where you need to
+analyze TypeScript import relationships programmatically.
+
+### Basic Usage
+
+```typescript
+import { ImportGraph } from '@savvy-web/rslib-builder';
+
+// Trace from explicit entry points
+const result = ImportGraph.fromEntries(
+  ['./src/index.ts', './src/cli.ts'],
+  { rootDir: process.cwd() }
+);
+
+console.log('Files:', result.files);
+console.log('Entries:', result.entries);
+console.log('Errors:', result.errors);
+```
+
+### Trace from Package Exports
+
+```typescript
+import { ImportGraph } from '@savvy-web/rslib-builder';
+
+// Discover all files from package.json exports
+const result = ImportGraph.fromPackageExports(
+  './package.json',
+  { rootDir: process.cwd() }
+);
+
+console.log('Public API files:', result.files);
+```
+
+### Instance Methods for Repeated Analysis
+
+For repeated analysis where you want to reuse the TypeScript program:
+
+```typescript
+import { ImportGraph } from '@savvy-web/rslib-builder';
+
+const graph = new ImportGraph({ rootDir: '/path/to/project' });
+
+// Reuses the TypeScript program across calls
+const libResult = graph.traceFromEntries(['./src/index.ts']);
+const cliResult = graph.traceFromEntries(['./src/cli.ts']);
+```
+
+### ImportGraphOptions
+
+| Option | Type | Default | Description |
+| :----- | :--- | :------ | :---------- |
+| `rootDir` | `string` | Required | Project root directory |
+| `tsconfigPath` | `string` | Auto-detect | Custom tsconfig path |
+| `excludePatterns` | `string[]` | `[]` | Additional patterns to exclude from results |
+
+### Exclude Patterns
+
+By default, ImportGraph excludes these file patterns:
+
+- `.test.` and `.spec.` files
+- `__test__` and `__tests__` directories
+- `.d.ts` declaration files
+
+Use `excludePatterns` to exclude additional files:
+
+```typescript
+import { ImportGraph } from '@savvy-web/rslib-builder';
+
+const graph = new ImportGraph({
+  rootDir: process.cwd(),
+  excludePatterns: [
+    '.stories.',     // Storybook files
+    '/mocks/',       // Mock directories
+    '/fixtures/',    // Test fixtures
+    '.bench.',       // Benchmark files
+  ],
+});
+
+const result = graph.traceFromEntries(['./src/index.ts']);
+```
+
+Patterns are matched using simple string inclusion against file paths.
+
+### ImportGraphResult
+
+| Property | Type | Description |
+| :------- | :--- | :---------- |
+| `files` | `string[]` | All reachable TypeScript files (sorted, absolute paths) |
+| `entries` | `string[]` | The entry points that were traced |
+| `errors` | `ImportGraphError[]` | Structured errors encountered during analysis |
+
+### Structured Error Handling
+
+ImportGraph uses structured errors for programmatic error handling. Each error
+includes a `type` field that allows you to handle different failure modes
+appropriately:
+
+```typescript
+import { ImportGraph } from '@savvy-web/rslib-builder';
+import type { ImportGraphError } from '@savvy-web/rslib-builder';
+
+const result = ImportGraph.fromPackageExports('./package.json', {
+  rootDir: process.cwd(),
+});
+
+// Handle errors based on type
+for (const error of result.errors) {
+  switch (error.type) {
+    case 'tsconfig_not_found':
+      console.warn('No tsconfig.json found, using defaults');
+      break;
+    case 'entry_not_found':
+      console.error(`Missing entry file: ${error.path}`);
+      break;
+    case 'package_json_not_found':
+      console.error(`Package not found: ${error.path}`);
+      break;
+    case 'file_read_error':
+      console.warn(`Could not read file: ${error.path}`);
+      break;
+    default:
+      console.error(error.message);
+  }
+}
+```
+
+### ImportGraphError
+
+| Property | Type | Description |
+| :------- | :--- | :---------- |
+| `type` | `ImportGraphErrorType` | Error type for programmatic handling |
+| `message` | `string` | Human-readable error message |
+| `path` | `string \| undefined` | Related file path (when applicable) |
+
+### ImportGraphErrorType
+
+| Type | Description |
+| :--- | :---------- |
+| `tsconfig_not_found` | No tsconfig.json found in project |
+| `tsconfig_read_error` | Failed to read tsconfig.json |
+| `tsconfig_parse_error` | Failed to parse tsconfig.json |
+| `package_json_not_found` | Package.json not found |
+| `package_json_parse_error` | Failed to parse package.json |
+| `entry_not_found` | Entry file does not exist |
+| `file_read_error` | Failed to read a source file |
+
+### Use Cases
+
+- **Custom linting tools**: Find files to lint based on export reachability
+- **Dependency analysis**: Understand which files depend on which
+- **Code coverage**: Identify public API surface for coverage targets
+- **Documentation**: Discover files that need documentation
 
 ## Define Constants
 
@@ -384,7 +709,18 @@ export default NodeLibraryBuilder.create({
   // API documentation
   apiModel: {
     enabled: true,
-    filename: 'api.model.json',
+    tsdoc: {
+      tagDefinitions: [
+        { tagName: '@error', syntaxKind: 'block' },
+      ],
+      warnings: 'fail',
+    },
+  },
+
+  // TSDoc validation (optional - requires eslint dependencies)
+  tsdocLint: {
+    onError: 'throw',
+    persistConfig: true,
   },
 
   // Build constants

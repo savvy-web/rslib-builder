@@ -6,6 +6,7 @@ import { dirname, isAbsolute, join, relative } from "node:path";
 import { StandardTags, Standardization, TSDocTagSyntaxKind } from "@microsoft/tsdoc";
 import type { RsbuildPlugin, RsbuildPluginAPI } from "@rsbuild/core";
 import { logger } from "@rsbuild/core";
+import deepEqual from "deep-equal";
 import color from "picocolors";
 import type { PackageJson } from "type-fest";
 import type { Diagnostic, ParsedCommandLine } from "typescript";
@@ -384,7 +385,23 @@ export class TsDocConfigBuilder {
 		}
 
 		const configPath = join(outputDir, "tsdoc.json");
-		await writeFile(configPath, JSON.stringify(tsdocConfig, null, 2));
+
+		// Check if file exists and compare objects to avoid unnecessary writes
+		if (existsSync(configPath)) {
+			try {
+				const existingContent = await readFile(configPath, "utf-8");
+				const existingConfig = JSON.parse(existingContent);
+				// Deep compare objects - if equal, skip writing
+				if (deepEqual(existingConfig, tsdocConfig, { strict: true })) {
+					return configPath;
+				}
+			} catch {
+				// If we can't read/parse the existing file, just write the new one
+			}
+		}
+
+		// Format with tabs and trailing newline
+		await writeFile(configPath, `${JSON.stringify(tsdocConfig, null, "\t")}\n`);
 		return configPath;
 	}
 

@@ -65,5 +65,19 @@ export type { FilesArrayPluginOptions } from "./rslib/plugins/files-array-plugin
 export { FilesArrayPlugin } from "./rslib/plugins/files-array-plugin.js";
 export type { PackageJsonTransformPluginOptions } from "./rslib/plugins/package-json-transform-plugin.js";
 export { PackageJsonTransformPlugin } from "./rslib/plugins/package-json-transform-plugin.js";
+export type {
+	TsDocLintErrorBehavior,
+	TsDocLintPluginOptions,
+} from "./rslib/plugins/tsdoc-lint-plugin.js";
+export { TsDocLintPlugin } from "./rslib/plugins/tsdoc-lint-plugin.js";
+
+// Utilities - Import Graph Analysis
+export type {
+	ImportGraphError,
+	ImportGraphErrorType,
+	ImportGraphOptions,
+	ImportGraphResult,
+} from "./rslib/plugins/utils/import-graph.js";
+export { ImportGraph } from "./rslib/plugins/utils/import-graph.js";
 
 /* v8 ignore stop */

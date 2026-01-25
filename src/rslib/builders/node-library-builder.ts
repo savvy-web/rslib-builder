@@ -10,6 +10,8 @@ import type { ApiModelOptions } from "../plugins/dts-plugin.js";
 import { DtsPlugin } from "../plugins/dts-plugin.js";
 import { FilesArrayPlugin } from "../plugins/files-array-plugin.js";
 import { PackageJsonTransformPlugin } from "../plugins/package-json-transform-plugin.js";
+import type { TsDocLintPluginOptions } from "../plugins/tsdoc-lint-plugin.js";
+import { TsDocLintPlugin } from "../plugins/tsdoc-lint-plugin.js";
 import { packageJsonVersion } from "../plugins/utils/file-utils.js";
 
 /**
@@ -236,6 +238,42 @@ export interface NodeLibraryBuilderOptions {
 	 * ```
 	 */
 	apiModel?: ApiModelOptions | boolean;
+	/**
+	 * Options for TSDoc lint validation.
+	 * When enabled, validates TSDoc comments before the build starts.
+	 *
+	 * @remarks
+	 * Uses ESLint with `eslint-plugin-tsdoc` to validate TSDoc syntax.
+	 * By default, throws errors in CI environments and logs errors locally.
+	 * The generated `tsdoc.json` config is persisted locally for IDE integration.
+	 *
+	 * @example
+	 * Enable with defaults (throws in CI, errors locally):
+	 * ```typescript
+	 * import { NodeLibraryBuilder } from '@savvy-web/rslib-builder';
+	 *
+	 * export default NodeLibraryBuilder.create({
+	 *   tsdocLint: true,
+	 * });
+	 * ```
+	 *
+	 * @example
+	 * Enable with custom configuration:
+	 * ```typescript
+	 * import { NodeLibraryBuilder } from '@savvy-web/rslib-builder';
+	 *
+	 * export default NodeLibraryBuilder.create({
+	 *   tsdocLint: {
+	 *     tsdoc: {
+	 *       tagDefinitions: [{ tagName: '@error', syntaxKind: 'block' }],
+	 *     },
+	 *     onError: 'throw',
+	 *     persistConfig: true,
+	 *   },
+	 * });
+	 * ```
+	 */
+	tsdocLint?: TsDocLintPluginOptions | boolean;
 }
 
 /**
@@ -304,6 +342,7 @@ export class NodeLibraryBuilder {
 		externals: [],
 		dtsBundledPackages: undefined,
 		transformFiles: undefined,
+		tsdocLint: undefined,
 	};
 	static mergeOptions(options: Partial<NodeLibraryBuilderOptions> = {}): NodeLibraryBuilderOptions {
 		const merged = {
@@ -354,6 +393,16 @@ export class NodeLibraryBuilder {
 
 		// Create target-specific plugins
 		const plugins: RsbuildPlugin[] = [];
+
+		// Add TSDoc lint plugin if enabled (runs before build via onBeforeBuild)
+		if (options.tsdocLint) {
+			const lintOptions: TsDocLintPluginOptions = options.tsdocLint === true ? {} : options.tsdocLint;
+			// Share tsdoc config with apiModel if configured
+			if (!lintOptions.tsdoc && typeof options.apiModel === "object" && options.apiModel.tsdoc) {
+				lintOptions.tsdoc = options.apiModel.tsdoc;
+			}
+			plugins.push(TsDocLintPlugin(lintOptions));
+		}
 
 		// Standard plugins for dev and npm targets
 		if (target === "dev" || target === "npm") {
