@@ -13,6 +13,7 @@ Complete reference for all `NodeLibraryBuilder` configuration options.
 - [Build Targets](#build-targets)
 - [API Model Generation](#api-model-generation)
 - [TSDoc Linting](#tsdoc-linting)
+- [ImportGraph Utility](#importgraph-utility)
 
 ## Basic Options
 
@@ -393,7 +394,7 @@ apiModel: {
 Validate TSDoc comments before build using ESLint:
 
 ```typescript
-// Enable with defaults
+// Enable with defaults (automatic file discovery)
 NodeLibraryBuilder.create({
   tsdocLint: true,
 });
@@ -403,7 +404,6 @@ NodeLibraryBuilder.create({
   tsdocLint: {
     enabled: true,
     onError: 'throw',
-    include: ['src/**/*.ts', '!**/*.test.ts'],
     persistConfig: true,
     tsdoc: {
       tagDefinitions: [
@@ -426,11 +426,59 @@ pnpm add -D eslint @typescript-eslint/parser eslint-plugin-tsdoc
 | :----- | :--- | :------ | :---------- |
 | `enabled` | `boolean` | `true` | Enable TSDoc linting |
 | `onError` | `'warn' \| 'error' \| 'throw'` | CI: `'throw'`, Local: `'error'` | Error handling |
-| `include` | `string[]` | `['src/**/*.ts', '!**/*.test.ts']` | Files to lint |
+| `include` | `string[]` | Auto-discover from exports | Override file discovery |
 | `persistConfig` | `boolean \| string` | CI: `false`, Local: `true` | Keep tsdoc.json |
 | `tsdoc` | `TsDocOptions` | Shared with apiModel | TSDoc configuration |
 
-**Configuration Sharing:**
+### Automatic File Discovery
+
+By default, TsDocLintPlugin uses **import graph analysis** to discover files.
+It traces imports from your `package.json` exports to find all TypeScript
+files that are part of your public API.
+
+**How it works:**
+
+1. Reads entry points from `package.json` exports field
+2. Parses each entry file using TypeScript compiler API
+3. Recursively traces all `import` and `export` statements
+4. Collects only files reachable from public exports
+
+**What gets linted:**
+
+- All `.ts` and `.tsx` files reachable from exports
+- Files referenced through path aliases (via tsconfig paths)
+
+**What gets excluded:**
+
+- Test files (`*.test.ts`, `*.spec.ts`)
+- Test directories (`__test__/`, `__tests__/`)
+- Declaration files (`.d.ts`)
+- External packages (`node_modules`)
+
+This approach ensures you only lint documentation that consumers will see,
+avoiding noise from internal implementation details.
+
+### Overriding File Discovery
+
+Use the `include` option when you need to:
+
+- Lint internal files not reachable from exports
+- Lint a subset of your public API
+- Use specific glob patterns for file selection
+
+```typescript
+NodeLibraryBuilder.create({
+  tsdocLint: {
+    // Override automatic discovery with explicit patterns
+    include: ['src/**/*.ts', '!**/*.test.ts'],
+  },
+});
+```
+
+When `include` is specified, automatic discovery is bypassed entirely and
+only the specified glob patterns are used.
+
+### Configuration Sharing
 
 When both `tsdocLint` and `apiModel` are enabled, TSDoc configuration is
 automatically shared from `apiModel.tsdoc` if `tsdocLint.tsdoc` is not set:
@@ -447,12 +495,83 @@ NodeLibraryBuilder.create({
 });
 ```
 
-**Error Handling Matrix:**
+### Error Handling
 
 | Environment | Default `onError` | Lint Errors | Build Result         |
 | :---------- | :---------------- | :---------- | :------------------- |
 | Local       | `'error'`         | Yes         | Continue, log errors |
 | CI          | `'throw'`         | Yes         | Fail build           |
+
+## ImportGraph Utility
+
+The `ImportGraph` class is exported for advanced use cases where you need to
+analyze TypeScript import relationships programmatically.
+
+### Basic Usage
+
+```typescript
+import { ImportGraph } from '@savvy-web/rslib-builder';
+
+// Trace from explicit entry points
+const result = ImportGraph.fromEntries(
+  ['./src/index.ts', './src/cli.ts'],
+  { rootDir: process.cwd() }
+);
+
+console.log('Files:', result.files);
+console.log('Entries:', result.entries);
+console.log('Errors:', result.errors);
+```
+
+### Trace from Package Exports
+
+```typescript
+import { ImportGraph } from '@savvy-web/rslib-builder';
+
+// Discover all files from package.json exports
+const result = ImportGraph.fromPackageExports(
+  './package.json',
+  { rootDir: process.cwd() }
+);
+
+console.log('Public API files:', result.files);
+```
+
+### Instance Methods for Repeated Analysis
+
+For repeated analysis where you want to reuse the TypeScript program:
+
+```typescript
+import { ImportGraph } from '@savvy-web/rslib-builder';
+
+const graph = new ImportGraph({ rootDir: '/path/to/project' });
+
+// Reuses the TypeScript program across calls
+const libResult = graph.traceFromEntries(['./src/index.ts']);
+const cliResult = graph.traceFromEntries(['./src/cli.ts']);
+```
+
+### ImportGraphOptions
+
+| Option | Type | Default | Description |
+| :----- | :--- | :------ | :---------- |
+| `rootDir` | `string` | Required | Project root directory |
+| `tsconfigPath` | `string` | Auto-detect | Custom tsconfig path |
+
+### ImportGraphResult
+
+| Property | Type | Description |
+| :------- | :--- | :---------- |
+| `files` | `string[]` | All reachable TypeScript files (sorted, absolute paths) |
+| `entries` | `string[]` | The entry points that were traced |
+| `errors` | `string[]` | Non-fatal errors encountered during analysis |
+
+### Use Cases
+
+- **Custom linting tools**: Find files to lint based on export reachability
+- **Dependency analysis**: Understand which files depend on which
+- **Code coverage**: Identify public API surface for coverage targets
+- **Documentation**: Discover files that need documentation
 
 ## Define Constants
 

@@ -22,11 +22,12 @@ of the build process.
 
 **What it does:**
 
-1. Dynamically imports ESLint with `eslint-plugin-tsdoc`
-2. Generates a `tsdoc.json` configuration file
-3. Runs ESLint on source files to validate TSDoc syntax
-4. Reports errors with file locations and rule IDs
-5. Optionally fails the build on errors (default in CI)
+1. Discovers files to lint using import graph analysis (default) or explicit patterns
+2. Dynamically imports ESLint with `eslint-plugin-tsdoc`
+3. Generates a `tsdoc.json` configuration file
+4. Runs ESLint on source files to validate TSDoc syntax
+5. Reports errors with file locations and rule IDs
+6. Optionally fails the build on errors (default in CI)
 
 **Stage:** `onBeforeBuild` (runs before all other plugins)
 
@@ -48,6 +49,32 @@ NodeLibraryBuilder.create({
   tsdocLint: {
     onError: 'throw',      // 'warn' | 'error' | 'throw'
     persistConfig: true,   // Keep tsdoc.json for IDE integration
+  },
+});
+```
+
+**Automatic File Discovery:**
+
+By default, TsDocLintPlugin uses import graph analysis to discover which files
+to lint. It traces imports starting from your `package.json` exports field,
+finding all TypeScript files that are part of your public API.
+
+This means:
+
+- Only public API files are linted (files reachable from exports)
+- Internal implementation files not referenced by exports are skipped
+- Test files (`*.test.ts`, `*.spec.ts`) are automatically excluded
+- Files in `__test__` or `__tests__` directories are excluded
+
+**Overriding File Discovery:**
+
+Use the `include` option when you need to lint specific files that are not
+part of the export graph, or to override automatic discovery entirely:
+
+```typescript
+NodeLibraryBuilder.create({
+  tsdocLint: {
+    // Override automatic discovery with explicit patterns
     include: ['src/**/*.ts', '!**/*.test.ts'],
   },
 });

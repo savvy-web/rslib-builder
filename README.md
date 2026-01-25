@@ -26,7 +26,7 @@ focus on your code.
   references
 - **Package.json Transform** - Converts `.ts` exports to `.js`, generates files
   array, removes dev-only fields
-- **TSDoc Validation** - Optional pre-build TSDoc comment validation via ESLint
+- **TSDoc Validation** - Pre-build TSDoc validation with automatic public API discovery
 - **API Model Generation** - Optional API model output for documentation tooling
 - **Extensible** - Add custom RSlib/Rsbuild plugins for advanced use cases
 
@@ -122,6 +122,7 @@ The package exports a main builder and several plugins:
 | `FilesArrayPlugin`           | Generates files array for npm publishing      |
 | `TsDocLintPlugin`            | Validates TSDoc comments before build         |
 | `TsDocConfigBuilder`         | Utility for TSDoc configuration               |
+| `ImportGraph`                | Traces TypeScript imports for file discovery  |
 
 See [Configuration](./docs/guides/configuration.md) for all options.
 

@@ -3,7 +3,7 @@ status: current
 module: rslib-builder
 category: reference
 created: 2026-01-24
-updated: 2026-01-24
+updated: 2026-01-25
 last-synced: 2026-01-24
 completeness: 95
 related:
@@ -131,14 +131,36 @@ tsdocLint: {
 | Property | Value |
 | -------- | ----- |
 | Type | `string[]` |
-| Default | `["src/**/*.ts", "!**/*.test.ts", "!**/__test__/**"]` |
+| Default | Automatic discovery via ImportGraph |
 | Required | No |
 
-Glob patterns for files to lint. Supports negation patterns with `!` prefix
-to exclude files.
+Overrides automatic file discovery with explicit glob patterns. By default,
+TsDocLintPlugin uses `ImportGraph` to trace imports from your `package.json`
+exports and discover all public API files automatically.
+
+**Automatic file discovery (default behavior):**
+
+When `include` is not specified, the plugin:
+
+1. Reads `package.json` from the project root
+2. Extracts entry points from the `exports` and `bin` fields
+3. Uses `ImportGraph.traceFromPackageExports()` to trace all imports
+4. Returns only TypeScript source files (excludes tests, declarations)
+
+This ensures only files that are part of your public API are linted,
+avoiding false positives from internal implementation details.
+
+**When to use explicit patterns:**
+
+- Linting files not exported from `package.json`
+- Overriding automatic discovery for specific needs
+- Including additional directories beyond exports
 
 ```typescript
-// Default patterns
+// Default: automatic discovery (recommended)
+tsdocLint: {}
+
+// Override with explicit patterns
 tsdocLint: {
   include: ["src/**/*.ts", "!**/*.test.ts", "!**/__test__/**"]
 }
@@ -153,6 +175,15 @@ tsdocLint: {
   include: ["src/**/*.ts", "packages/**/*.ts", "!**/*.test.ts"]
 }
 ```
+
+**Pattern syntax:**
+
+- Standard glob patterns: `src/**/*.ts`
+- Negation patterns: `!**/*.test.ts` (exclude test files)
+- Multiple patterns: combine in array
+
+When `include` is specified, ImportGraph analysis is skipped entirely and
+patterns are passed directly to ESLint.
 
 #### `onError`
 
@@ -333,6 +364,39 @@ export default NodeLibraryBuilder.create({
 
 ## Behavior Notes
 
+### Automatic File Discovery with ImportGraph
+
+By default, TsDocLintPlugin uses `ImportGraph` to discover which files to lint.
+This provides several benefits:
+
+- **Public API focus:** Only files reachable from `package.json` exports are
+  linted
+- **No configuration needed:** Works automatically with standard package layouts
+- **Test exclusion:** Automatically filters test files, `.d.ts` files, and
+  `__test__` directories
+- **Accurate resolution:** Uses TypeScript compiler API for path alias support
+
+**How ImportGraph works:**
+
+```text
+package.json exports → EntryExtractor → entry points
+                                              ↓
+                                        ImportGraph
+                                              ↓
+         trace imports recursively (static, dynamic, re-exports)
+                                              ↓
+                         filter out tests, declarations, node_modules
+                                              ↓
+                              sorted list of source files
+```
+
+**Error handling:** ImportGraph errors are non-fatal. If some imports cannot
+be resolved, the plugin logs warnings and continues with successfully
+discovered files.
+
+See [Architecture: ImportGraph Architecture](./architecture.md#importgraph-architecture)
+for detailed implementation documentation.
+
 ### Plugin Execution Timing
 
 TsDocLintPlugin runs in the `onBeforeBuild` hook, executing **before** all
@@ -411,6 +475,7 @@ Install them with: pnpm add -D eslint @typescript-eslint/parser eslint-plugin-ts
 
 - `src/rslib/plugins/tsdoc-lint-plugin.ts` - TsDocLintPlugin implementation
 - `src/rslib/plugins/tsdoc-lint-plugin.test.ts` - Plugin tests
+- `src/rslib/plugins/utils/import-graph.ts` - ImportGraph class for file discovery
 - `src/rslib/builders/node-library-builder.ts` - NodeLibraryBuilder API
 
 **External Resources:**
@@ -424,4 +489,4 @@ Install them with: pnpm add -D eslint @typescript-eslint/parser eslint-plugin-ts
 ---
 
 **Document Status:** Current - Comprehensive reference for TsDocLintPluginOptions
-configuration.
+configuration including automatic file discovery via ImportGraph.
