@@ -6,6 +6,7 @@ import type { ESLint as ESLintNamespace, Linter } from "eslint";
 import color from "picocolors";
 import type { TsDocOptions } from "./dts-plugin.js";
 import { TsDocConfigBuilder } from "./dts-plugin.js";
+import type { ImportGraphError } from "./utils/import-graph.js";
 import { ImportGraph } from "./utils/import-graph.js";
 
 /**
@@ -218,7 +219,7 @@ interface FileDiscoveryResult {
 	/** Files to lint (absolute paths or glob patterns depending on isGlobPattern) */
 	files: string[];
 	/** Errors encountered during discovery (non-fatal) */
-	errors: string[];
+	errors: ImportGraphError[];
 	/** Whether files contains glob patterns (true) or absolute paths (false) */
 	isGlobPattern: boolean;
 }
@@ -269,7 +270,7 @@ interface TsDocLintRunResult {
 	/** Path to the persisted tsdoc.json file (undefined if not persisted) */
 	tsdocConfigPath?: string;
 	/** Errors from file discovery (undefined if no errors) */
-	discoveryErrors?: string[];
+	discoveryErrors?: ImportGraphError[];
 }
 
 /**
@@ -542,7 +543,7 @@ export const TsDocLintPlugin = (options: TsDocLintPluginOptions = {}): RsbuildPl
 					// Log any discovery warnings
 					if (discoveryErrors && discoveryErrors.length > 0) {
 						for (const error of discoveryErrors) {
-							logger.warn(`${color.dim("[tsdoc-lint]")} ${error}`);
+							logger.warn(`${color.dim("[tsdoc-lint]")} ${error.message}`);
 						}
 					}
 

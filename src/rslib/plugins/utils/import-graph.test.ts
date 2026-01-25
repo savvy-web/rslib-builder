@@ -427,6 +427,48 @@ describe("ImportGraph", () => {
 			expect(result.files).toContain("/project/src/helper.ts");
 		});
 
+		it("should exclude files matching custom excludePatterns", () => {
+			const mockSys = createMockSys({
+				"/project/tsconfig.json": JSON.stringify({
+					compilerOptions: {
+						module: "ESNext",
+						moduleResolution: "bundler",
+					},
+				}),
+				"/project/src/index.ts": `
+					import { storyData } from "./button.stories.js";
+					import { mockData } from "./mocks/api.js";
+					import { util } from "./utils.js";
+					export { util };
+				`,
+				"/project/src/button.stories.ts": `
+					export const storyData = { title: "Button" };
+				`,
+				"/project/src/mocks/api.ts": `
+					export const mockData = { id: 1 };
+				`,
+				"/project/src/utils.ts": `
+					export const util = () => {};
+				`,
+			});
+
+			const graph = new ImportGraph({
+				rootDir: "/project",
+				sys: mockSys,
+				excludePatterns: [".stories.", "/mocks/"],
+			});
+
+			const result = graph.traceFromEntries(["./src/index.ts"]);
+
+			expect(result.errors).toEqual([]);
+			// Custom patterns should be excluded
+			expect(result.files).not.toContain("/project/src/button.stories.ts");
+			expect(result.files).not.toContain("/project/src/mocks/api.ts");
+			// Regular files should be included
+			expect(result.files).toContain("/project/src/index.ts");
+			expect(result.files).toContain("/project/src/utils.ts");
+		});
+
 		it("should handle missing entry file with error", () => {
 			const mockSys = createMockSys({
 				"/project/tsconfig.json": JSON.stringify({
@@ -447,7 +489,8 @@ describe("ImportGraph", () => {
 			const result = graph.traceFromEntries(["./src/nonexistent.ts"]);
 
 			expect(result.errors).toHaveLength(1);
-			expect(result.errors[0]).toContain("Entry file not found");
+			expect(result.errors[0].type).toBe("entry_not_found");
+			expect(result.errors[0].message).toContain("Entry file not found");
 			expect(result.files).toEqual([]);
 		});
 
@@ -464,7 +507,8 @@ describe("ImportGraph", () => {
 			const result = graph.traceFromEntries(["./src/index.ts"]);
 
 			expect(result.errors).toHaveLength(1);
-			expect(result.errors[0]).toContain("No tsconfig.json found");
+			expect(result.errors[0].type).toBe("tsconfig_not_found");
+			expect(result.errors[0].message).toContain("No tsconfig.json found");
 		});
 
 		it("should handle absolute entry paths", () => {
@@ -687,7 +731,8 @@ describe("ImportGraph", () => {
 			const result = graph.traceFromPackageExports("./package.json");
 
 			expect(result.errors).toHaveLength(1);
-			expect(result.errors[0]).toContain("Failed to read package.json");
+			expect(result.errors[0].type).toBe("package_json_parse_error");
+			expect(result.errors[0].message).toContain("Failed to parse package.json");
 		});
 
 		it("should return error for missing package.json", () => {
@@ -705,7 +750,8 @@ describe("ImportGraph", () => {
 			const result = graph.traceFromPackageExports("./package.json");
 
 			expect(result.errors).toHaveLength(1);
-			expect(result.errors[0]).toContain("Failed to read package.json");
+			expect(result.errors[0].type).toBe("package_json_not_found");
+			expect(result.errors[0].message).toContain("Failed to read package.json");
 		});
 
 		it("should handle package.json with no exports", () => {
@@ -961,7 +1007,8 @@ describe("edge cases", () => {
 		const result = graph.traceFromEntries(["./src/index.ts"]);
 
 		// Should have an error about failed read
-		expect(result.errors.some((e) => e.includes("Failed to read file"))).toBe(true);
+		expect(result.errors.some((e) => e.type === "file_read_error")).toBe(true);
+		expect(result.errors.some((e) => e.message.includes("Failed to read file"))).toBe(true);
 	});
 
 	it("should return error for invalid custom tsconfig path", () => {
@@ -978,7 +1025,8 @@ describe("edge cases", () => {
 		const result = graph.traceFromEntries(["./src/index.ts"]);
 
 		expect(result.errors.length).toBeGreaterThan(0);
-		expect(result.errors[0]).toContain("No tsconfig.json found");
+		expect(result.errors[0].type).toBe("tsconfig_not_found");
+		expect(result.errors[0].message).toContain("No tsconfig.json found");
 	});
 });
 

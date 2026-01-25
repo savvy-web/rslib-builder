@@ -72,7 +72,12 @@ export type {
 export { TsDocLintPlugin } from "./rslib/plugins/tsdoc-lint-plugin.js";
 
 // Utilities - Import Graph Analysis
-export type { ImportGraphOptions, ImportGraphResult } from "./rslib/plugins/utils/import-graph.js";
+export type {
+	ImportGraphError,
+	ImportGraphErrorType,
+	ImportGraphOptions,
+	ImportGraphResult,
+} from "./rslib/plugins/utils/import-graph.js";
 export { ImportGraph } from "./rslib/plugins/utils/import-graph.js";
 
 /* v8 ignore stop */

@@ -4,6 +4,83 @@ import ts from "typescript";
 import { EntryExtractor } from "./entry-extractor.js";
 
 /**
+ * Types of errors that can occur during import graph analysis.
+ *
+ * @remarks
+ * These error types allow consumers to handle different failure modes
+ * appropriately. For example, a missing tsconfig might be handled differently
+ * than a missing entry file.
+ *
+ * @public
+ */
+export type ImportGraphErrorType =
+	| "tsconfig_not_found"
+	| "tsconfig_read_error"
+	| "tsconfig_parse_error"
+	| "package_json_not_found"
+	| "package_json_parse_error"
+	| "entry_not_found"
+	| "file_read_error";
+
+/**
+ * Structured error from import graph analysis.
+ *
+ * @remarks
+ * Provides detailed error information including the error type for
+ * programmatic handling, a human-readable message, and the relevant
+ * file path when applicable.
+ *
+ * @example
+ * ```typescript
+ * import type { ImportGraphError } from '@savvy-web/rslib-builder';
+ *
+ * function handleErrors(errors: ImportGraphError[]): void {
+ *   for (const error of errors) {
+ *     switch (error.type) {
+ *       case 'tsconfig_not_found':
+ *         console.warn('No tsconfig.json found, using defaults');
+ *         break;
+ *       case 'entry_not_found':
+ *         console.error(`Missing entry: ${error.path}`);
+ *         break;
+ *       default:
+ *         console.error(error.message);
+ *     }
+ *   }
+ * }
+ * ```
+ *
+ * @public
+ */
+export interface ImportGraphError {
+	/**
+	 * The type of error that occurred.
+	 *
+	 * @remarks
+	 * Use this field for programmatic error handling to distinguish
+	 * between different failure modes.
+	 */
+	type: ImportGraphErrorType;
+
+	/**
+	 * Human-readable error message.
+	 *
+	 * @remarks
+	 * Suitable for logging or displaying to users.
+	 */
+	message: string;
+
+	/**
+	 * The file path related to the error, if applicable.
+	 *
+	 * @remarks
+	 * Present for errors related to specific files like missing entries
+	 * or file read failures.
+	 */
+	path?: string;
+}
+
+/**
  * Options for configuring the ImportGraph analyzer.
  *
  * @remarks
@@ -56,6 +133,30 @@ export interface ImportGraphOptions {
 	 * @internal
 	 */
 	sys?: ts.System;
+
+	/**
+	 * Additional patterns to exclude from results.
+	 *
+	 * @remarks
+	 * Patterns are matched against file paths using simple string inclusion.
+	 * Use this to exclude files that don't match the default test file patterns.
+	 *
+	 * The default exclusions are always applied:
+	 * - `.test.` and `.spec.` files
+	 * - `__test__` and `__tests__` directories
+	 * - `.d.ts` declaration files
+	 *
+	 * @example
+	 * ```typescript
+	 * const graph = new ImportGraph({
+	 *   rootDir: process.cwd(),
+	 *   excludePatterns: ['/fixtures/', '/mocks/', '.stories.'],
+	 * });
+	 * ```
+	 *
+	 * @defaultValue []
+	 */
+	excludePatterns?: string[];
 }
 
 /**
@@ -107,8 +208,12 @@ export interface ImportGraphResult {
 	 * These errors are non-fatal: tracing continues despite individual failures.
 	 * Common errors include missing entry files, unresolvable imports,
 	 * or tsconfig parsing failures.
+	 *
+	 * Each error includes a `type` field for programmatic handling and
+	 * a human-readable `message`. Some errors also include a `path` field
+	 * indicating the relevant file.
 	 */
-	errors: string[];
+	errors: ImportGraphError[];
 }
 
 /**
@@ -190,7 +295,7 @@ export class ImportGraph {
 	 * @returns Deduplicated list of all reachable TypeScript files
 	 */
 	traceFromEntries(entryPaths: string[]): ImportGraphResult {
-		const errors: string[] = [];
+		const errors: ImportGraphError[] = [];
 		const visited = new Set<string>();
 		const entries: string[] = [];
 
@@ -209,7 +314,11 @@ export class ImportGraph {
 			const absolutePath = this.resolveEntryPath(entryPath);
 
 			if (!this.sys.fileExists(absolutePath)) {
-				errors.push(`Entry file not found: ${entryPath}`);
+				errors.push({
+					type: "entry_not_found",
+					message: `Entry file not found: ${entryPath}`,
+					path: absolutePath,
+				});
 				continue;
 			}
 
@@ -248,7 +357,13 @@ export class ImportGraph {
 				return {
 					files: [],
 					entries: [],
-					errors: [`Failed to read package.json: File not found at ${absolutePath}`],
+					errors: [
+						{
+							type: "package_json_not_found",
+							message: `Failed to read package.json: File not found at ${absolutePath}`,
+							path: absolutePath,
+						},
+					],
 				};
 			}
 			packageJson = JSON.parse(content) as PackageJson;
@@ -257,7 +372,13 @@ export class ImportGraph {
 			return {
 				files: [],
 				entries: [],
-				errors: [`Failed to read package.json: ${message}`],
+				errors: [
+					{
+						type: "package_json_parse_error",
+						message: `Failed to parse package.json: ${message}`,
+						path: absolutePath,
+					},
+				],
 			};
 		}
 
@@ -275,7 +396,7 @@ export class ImportGraph {
 	/**
 	 * Initialize the TypeScript program for module resolution.
 	 */
-	private initializeProgram(): { success: true } | { success: false; error: string } {
+	private initializeProgram(): { success: true } | { success: false; error: ImportGraphError } {
 		if (this.program) {
 			return { success: true };
 		}
@@ -285,7 +406,11 @@ export class ImportGraph {
 		if (!configPath) {
 			return {
 				success: false,
-				error: `No tsconfig.json found in ${this.options.rootDir}`,
+				error: {
+					type: "tsconfig_not_found",
+					message: `No tsconfig.json found in ${this.options.rootDir}`,
+					path: this.options.rootDir,
+				},
 			};
 		}
 
@@ -295,7 +420,11 @@ export class ImportGraph {
 			const message = ts.flattenDiagnosticMessageText(configFile.error.messageText, "\n");
 			return {
 				success: false,
-				error: `Failed to read tsconfig.json: ${message}`,
+				error: {
+					type: "tsconfig_read_error",
+					message: `Failed to read tsconfig.json: ${message}`,
+					path: configPath,
+				},
 			};
 		}
 
@@ -305,7 +434,11 @@ export class ImportGraph {
 			const messages = parsed.errors.map((e) => ts.flattenDiagnosticMessageText(e.messageText, "\n")).join("\n");
 			return {
 				success: false,
-				error: `Failed to parse tsconfig.json: ${messages}`,
+				error: {
+					type: "tsconfig_parse_error",
+					message: `Failed to parse tsconfig.json: ${messages}`,
+					path: configPath,
+				},
 			};
 		}
 
@@ -362,7 +495,7 @@ export class ImportGraph {
 	/**
 	 * Recursively trace imports from a source file.
 	 */
-	private traceImports(filePath: string, visited: Set<string>, errors: string[]): void {
+	private traceImports(filePath: string, visited: Set<string>, errors: ImportGraphError[]): void {
 		const normalizedPath = normalize(filePath);
 
 		// Skip if already visited
@@ -381,7 +514,11 @@ export class ImportGraph {
 		// Read and parse the file
 		const content = this.sys.readFile(normalizedPath);
 		if (!content) {
-			errors.push(`Failed to read file: ${normalizedPath}`);
+			errors.push({
+				type: "file_read_error",
+				message: `Failed to read file: ${normalizedPath}`,
+				path: normalizedPath,
+			});
 			return;
 		}
 
@@ -512,17 +649,25 @@ export class ImportGraph {
 			return false;
 		}
 
-		// Skip test files
+		// Skip test files (default patterns)
 		if (filePath.includes(".test.") || filePath.includes(".spec.")) {
 			return false;
 		}
 
-		// Skip test directories
+		// Skip test directories (default patterns)
 		if (filePath.includes("/__test__/") || filePath.includes("\\__test__\\")) {
 			return false;
 		}
 		if (filePath.includes("/__tests__/") || filePath.includes("\\__tests__\\")) {
 			return false;
+		}
+
+		// Check custom exclude patterns
+		const excludePatterns = this.options.excludePatterns ?? [];
+		for (const pattern of excludePatterns) {
+			if (filePath.includes(pattern)) {
+				return false;
+			}
 		}
 
 		return true;

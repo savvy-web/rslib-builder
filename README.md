@@ -168,6 +168,24 @@ This package builds itself using its own `NodeLibraryBuilder`. See
 - Custom package.json transformations
 - Copy patterns for static files
 
+### Programmatic Usage
+
+Use `ImportGraph` to discover all files reachable from your package exports:
+
+```typescript
+import { ImportGraph } from '@savvy-web/rslib-builder';
+
+const result = ImportGraph.fromPackageExports('./package.json', {
+  rootDir: process.cwd(),
+});
+
+console.log('Public API files:', result.files);
+console.log('Entry points:', result.entries);
+```
+
+See [Configuration](./docs/guides/configuration.md#importgraph-utility) for more
+examples.
+
 ## Support
 
 This software is provided as-is under the MIT License with no warranty or
