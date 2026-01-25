@@ -132,7 +132,14 @@ const mockAssets: MockAssetRegistry = {
 
 ## Plugin Execution Order
 
-0. TsDocLintPlugin (`onBeforeBuild` - validates TSDoc before compilation)
+Plugins execute in this order during the build:
+
+**Pre-Build Hooks:**
+
+- TsDocLintPlugin (`onBeforeBuild` - validates TSDoc before compilation)
+
+**Build Hooks:**
+
 1. AutoEntryPlugin (entry detection - `modifyRsbuildConfig`)
 2. DtsPlugin (type declarations - `pre-process` stage)
 3. PackageJsonTransformPlugin (package.json processing)

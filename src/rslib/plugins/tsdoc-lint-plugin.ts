@@ -8,6 +8,20 @@ import type { TsDocOptions } from "./dts-plugin.js";
 import { TsDocConfigBuilder } from "./dts-plugin.js";
 
 /**
+ * Default file patterns to lint for TSDoc comments.
+ * Includes TypeScript source files, excludes test files.
+ */
+const DEFAULT_INCLUDE_PATTERNS: string[] = ["src/**/*.ts", "!**/*.test.ts", "!**/__test__/**"];
+
+/**
+ * Helper interface for handling ESM/CJS module format differences.
+ * Some modules export default, others export directly.
+ */
+interface ESModuleExport<T> {
+	default?: T;
+}
+
+/**
  * Error behavior for TSDoc lint errors.
  *
  * @remarks
@@ -206,28 +220,47 @@ export async function runTsDocLint(
 	const tsdocConfigPath = await TsDocConfigBuilder.writeConfigFile(tsdocOptions, dirname(tsdocConfigOutputPath));
 
 	// Dynamic import ESLint and plugins (optional peer dependencies)
-	let ESLint: typeof import("eslint").ESLint;
+	// Import each package separately to detect which specific ones are missing
+	let ESLint: typeof import("eslint").ESLint | undefined;
 	let tsParserModule: unknown;
 	let tsdocPluginModule: unknown;
+
+	const missingPackages: string[] = [];
 
 	try {
 		const eslintModule = await import("eslint");
 		ESLint = eslintModule.ESLint;
+	} catch {
+		missingPackages.push("eslint");
+	}
+
+	try {
 		tsParserModule = await import("@typescript-eslint/parser");
+	} catch {
+		missingPackages.push("@typescript-eslint/parser");
+	}
+
+	try {
 		tsdocPluginModule = await import("eslint-plugin-tsdoc");
 	} catch {
+		missingPackages.push("eslint-plugin-tsdoc");
+	}
+
+	if (missingPackages.length > 0 || !ESLint) {
 		throw new Error(
-			"TsDocLintPlugin requires eslint, @typescript-eslint/parser, and eslint-plugin-tsdoc.\n" +
-				"Install them with: pnpm add -D eslint @typescript-eslint/parser eslint-plugin-tsdoc",
+			`TsDocLintPlugin requires: ${missingPackages.join(", ")}\n` +
+				`Install with: pnpm add -D ${missingPackages.join(" ")}`,
 		);
 	}
 
 	// Handle both ESM and CJS module formats
-	const tsParser = (tsParserModule as { default?: unknown }).default ?? tsParserModule;
-	const tsdocPlugin = (tsdocPluginModule as { default?: unknown }).default ?? tsdocPluginModule;
+	const tsParser = (tsParserModule as ESModuleExport<Linter.Parser>).default ?? (tsParserModule as Linter.Parser);
+	const tsdocPlugin =
+		(tsdocPluginModule as ESModuleExport<ESLintNamespace.Plugin>).default ??
+		(tsdocPluginModule as ESLintNamespace.Plugin);
 
 	// Build include patterns
-	const includePatterns = options.include ?? ["src/**/*.ts", "!**/*.test.ts", "!**/__test__/**"];
+	const includePatterns = options.include ?? DEFAULT_INCLUDE_PATTERNS;
 
 	// Create ESLint instance with inline config
 	const eslintConfig: Linter.Config[] = [
