@@ -1,5 +1,5 @@
-import type { PackageJson } from "type-fest";
 import { describe, expect, it } from "vitest";
+import type { PackageJson } from "../../../types/package-json.js";
 import { applyRslibTransformations } from "./package-json-transformer.js";
 
 describe("rslib-transform-utils", () => {

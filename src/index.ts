@@ -44,6 +44,7 @@
 // Core builder
 export type {
 	BuildTarget,
+	CopyPatternConfig,
 	NodeLibraryBuilderOptions,
 	TransformPackageJsonFn,
 } from "./rslib/builders/node-library-builder.js";
@@ -79,5 +80,8 @@ export type {
 	ImportGraphResult,
 } from "./rslib/plugins/utils/import-graph.js";
 export { ImportGraph } from "./rslib/plugins/utils/import-graph.js";
+
+// Type utilities
+export type { JsonArray, JsonObject, JsonPrimitive, JsonValue, PackageJson } from "./types/package-json.js";
 
 /* v8 ignore stop */

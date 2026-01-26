@@ -1,6 +1,6 @@
 import { dirname, isAbsolute, normalize, resolve } from "node:path";
-import type { PackageJson } from "type-fest";
 import ts from "typescript";
+import type { PackageJson } from "../../../types/package-json.js";
 import { EntryExtractor } from "./entry-extractor.js";
 
 /**

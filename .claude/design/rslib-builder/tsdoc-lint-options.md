@@ -3,8 +3,8 @@ status: current
 module: rslib-builder
 category: reference
 created: 2026-01-24
-updated: 2026-01-25
-last-synced: 2026-01-24
+updated: 2026-01-26
+last-synced: 2026-01-26
 completeness: 95
 related:
   - rslib-builder/architecture.md
@@ -42,11 +42,9 @@ comments before compilation begins, catching errors early.
 - Adjusting error handling behavior for CI vs local development
 - Understanding default behaviors and environment detection
 
-**Required Dependencies (Optional Peer Dependencies):**
-
-```bash
-pnpm add -D eslint @typescript-eslint/parser eslint-plugin-tsdoc
-```
+**Dependencies:** The ESLint packages required for TSDoc linting (`eslint`,
+`@typescript-eslint/parser`, `eslint-plugin-tsdoc`) are bundled with
+`@savvy-web/rslib-builder`. No additional installation is required.
 
 ---
 
@@ -449,16 +447,6 @@ This file can be persisted for:
 - IDE integration (VS Code TSDoc extension)
 - Running `eslint-plugin-tsdoc` directly via CLI
 - Consistency between lint plugin and API Extractor
-
-### Missing Dependencies
-
-If the required ESLint packages are not installed, the plugin throws a
-helpful error:
-
-```text
-TsDocLintPlugin requires eslint, @typescript-eslint/parser, and eslint-plugin-tsdoc.
-Install them with: pnpm add -D eslint @typescript-eslint/parser eslint-plugin-tsdoc
-```
 
 ---
 

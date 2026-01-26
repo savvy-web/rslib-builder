@@ -1,4 +1,4 @@
-import type { PackageJson } from "type-fest";
+import type { PackageJson } from "../../../types/package-json.js";
 
 /**
  * Options for entry extraction.

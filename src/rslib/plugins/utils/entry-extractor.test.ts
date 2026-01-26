@@ -1,5 +1,5 @@
-import type { PackageJson } from "type-fest";
 import { describe, expect, it } from "vitest";
+import type { PackageJson } from "../../../types/package-json.js";
 import { EntryExtractor, extractEntriesFromPackageJson } from "./entry-extractor.js";
 
 describe("extractEntriesFromPackageJson", () => {

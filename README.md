@@ -50,12 +50,6 @@ Install the required peer dependencies:
 pnpm add -D @rslib/core @microsoft/api-extractor @typescript/native-preview
 ```
 
-For TSDoc validation (optional):
-
-```bash
-pnpm add -D eslint @typescript-eslint/parser eslint-plugin-tsdoc
-```
-
 ## Quick Start
 
 Extend the provided tsconfig for optimal settings:

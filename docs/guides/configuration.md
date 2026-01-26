@@ -340,7 +340,7 @@ NodeLibraryBuilder.create({
 | `filename` | `string` | `<package>.api.json` | Output filename |
 | `localPaths` | `string[]` | `[]` | Local paths to copy API model files |
 | `tsdoc` | `TsDocOptions` | All groups | TSDoc configuration |
-| `tsdocMetadata` | `boolean \| object` | `true` | Generate tsdoc-metadata.json |
+| `tsdocMetadata` | `boolean \| object` | `true` | tsdoc-metadata.json |
 
 ### TSDoc Configuration
 
@@ -414,20 +414,14 @@ NodeLibraryBuilder.create({
 });
 ```
 
-**Required Dependencies:**
-
-```bash
-pnpm add -D eslint @typescript-eslint/parser eslint-plugin-tsdoc
-```
-
 **TSDoc Lint Options:**
 
 | Option | Type | Default | Description |
 | :----- | :--- | :------ | :---------- |
 | `enabled` | `boolean` | `true` | Enable TSDoc linting |
-| `onError` | `'warn' \| 'error' \| 'throw'` | CI: `'throw'`, Local: `'error'` | Error handling |
-| `include` | `string[]` | Auto-discover from exports | Override file discovery |
-| `persistConfig` | `boolean \| string` | CI: `false`, Local: `true` | Keep tsdoc.json |
+| `onError` | `TsDocLintErrorBehavior` | `throw`/`error` | Error mode |
+| `include` | `string[]` | Auto from exports | Override discovery |
+| `persistConfig` | `boolean \| string` | `true`/`false` | Keep config |
 | `tsdoc` | `TsDocOptions` | Shared with apiModel | TSDoc configuration |
 
 ### Automatic File Discovery
@@ -557,7 +551,7 @@ const cliResult = graph.traceFromEntries(['./src/cli.ts']);
 | :----- | :--- | :------ | :---------- |
 | `rootDir` | `string` | Required | Project root directory |
 | `tsconfigPath` | `string` | Auto-detect | Custom tsconfig path |
-| `excludePatterns` | `string[]` | `[]` | Additional patterns to exclude from results |
+| `excludePatterns` | `string[]` | `[]` | Extra exclude patterns |
 
 ### Exclude Patterns
 
@@ -591,9 +585,9 @@ Patterns are matched using simple string inclusion against file paths.
 
 | Property | Type | Description |
 | :------- | :--- | :---------- |
-| `files` | `string[]` | All reachable TypeScript files (sorted, absolute paths) |
+| `files` | `string[]` | Reachable TS files (sorted, absolute) |
 | `entries` | `string[]` | The entry points that were traced |
-| `errors` | `ImportGraphError[]` | Structured errors encountered during analysis |
+| `errors` | `ImportGraphError[]` | Errors during analysis |
 
 ### Structured Error Handling
 
@@ -717,7 +711,7 @@ export default NodeLibraryBuilder.create({
     },
   },
 
-  // TSDoc validation (optional - requires eslint dependencies)
+  // TSDoc validation
   tsdocLint: {
     onError: 'throw',
     persistConfig: true,

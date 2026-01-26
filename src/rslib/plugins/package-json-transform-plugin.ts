@@ -1,5 +1,5 @@
 import type { RsbuildPlugin, RsbuildPluginAPI } from "@rsbuild/core";
-import type { PackageJson } from "type-fest";
+import type { PackageJson } from "../../types/package-json.js";
 import type { CacheEntry } from "./utils/asset-utils.js";
 import { JsonAsset, TextAsset } from "./utils/asset-utils.js";
 import { buildPackageJson } from "./utils/package-json-transformer.js";

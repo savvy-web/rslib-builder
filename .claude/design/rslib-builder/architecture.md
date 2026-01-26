@@ -3,8 +3,8 @@ status: current
 module: rslib-builder
 category: architecture
 created: 2026-01-18
-updated: 2026-01-25
-last-synced: 2026-01-25
+updated: 2026-01-26
+last-synced: 2026-01-26
 completeness: 95
 related:
   - rslib-builder/api-extraction.md
@@ -126,8 +126,7 @@ processing stages.
   - Stage: onBeforeBuild (runs before all other plugins)
   - Uses ImportGraph for automatic file discovery from package.json exports
   - Supports explicit include patterns to override automatic discovery
-  - Optional peer dependencies: eslint, @typescript-eslint/parser,
-    eslint-plugin-tsdoc
+  - Bundled dependencies: eslint, @typescript-eslint/parser, eslint-plugin-tsdoc
 - **AutoEntryPlugin** - Discover entries from package.json exports/bin
   - Stage: modifyRsbuildConfig
 - **DtsPlugin** - Generate .d.ts with tsgo, optional API Extractor bundling
@@ -1097,7 +1096,7 @@ ImportGraph.traceFromPackageExports()
 - **@microsoft/api-extractor**: Declaration bundling, API model generation
 - **typescript**: TypeScript compiler API for config parsing
 
-**TSDoc Validation (Optional Peer Dependencies):**
+**TSDoc Validation (Bundled Dependencies):**
 
 - **eslint**: ESLint core for programmatic linting
 - **@typescript-eslint/parser**: TypeScript parser for ESLint
