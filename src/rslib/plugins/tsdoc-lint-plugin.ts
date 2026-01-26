@@ -277,15 +277,13 @@ interface TsDocLintRunResult {
  * Runs TSDoc lint using ESLint programmatically.
  *
  * @remarks
- * This function dynamically imports ESLint and its plugins (optional peer dependencies),
- * generates a tsdoc.json configuration file, discovers files to lint, and runs
- * ESLint with the `eslint-plugin-tsdoc` plugin.
+ * This function dynamically imports ESLint and its plugins, generates a tsdoc.json
+ * configuration file, discovers files to lint, and runs ESLint with the
+ * `eslint-plugin-tsdoc` plugin.
  *
  * @param options - Plugin options for configuring TSDoc linting
  * @param cwd - The project root directory
  * @returns Promise resolving to lint results and configuration paths
- *
- * @throws Error if required ESLint packages are not installed
  *
  * @internal
  */
@@ -298,39 +296,12 @@ export async function runTsDocLint(options: TsDocLintPluginOptions, cwd: string)
 
 	const tsdocConfigPath = await TsDocConfigBuilder.writeConfigFile(tsdocOptions, dirname(tsdocConfigOutputPath));
 
-	// Dynamic import ESLint and plugins (optional peer dependencies)
-	// Import each package separately to detect which specific ones are missing
-	let ESLint: typeof import("eslint").ESLint | undefined;
-	let tsParserModule: unknown;
-	let tsdocPluginModule: unknown;
+	// Dynamic import ESLint and plugins
+	const eslintModule = await import("eslint");
+	const tsParserModule = await import("@typescript-eslint/parser");
+	const tsdocPluginModule = await import("eslint-plugin-tsdoc");
 
-	const missingPackages: string[] = [];
-
-	try {
-		const eslintModule = await import("eslint");
-		ESLint = eslintModule.ESLint;
-	} catch {
-		missingPackages.push("eslint");
-	}
-
-	try {
-		tsParserModule = await import("@typescript-eslint/parser");
-	} catch {
-		missingPackages.push("@typescript-eslint/parser");
-	}
-
-	try {
-		tsdocPluginModule = await import("eslint-plugin-tsdoc");
-	} catch {
-		missingPackages.push("eslint-plugin-tsdoc");
-	}
-
-	if (missingPackages.length > 0 || !ESLint) {
-		throw new Error(
-			`TsDocLintPlugin requires: ${missingPackages.join(", ")}\n` +
-				`Install with: pnpm add -D ${missingPackages.join(" ")}`,
-		);
-	}
+	const { ESLint } = eslintModule;
 
 	// Handle both ESM and CJS module formats
 	const tsParser = (tsParserModule as ESModuleExport<Linter.Parser>).default ?? (tsParserModule as Linter.Parser);
@@ -485,14 +456,12 @@ export async function cleanupTsDocConfig(configPath: string | undefined): Promis
  * | Local       | `"error"`        | Log and continue |
  * | CI          | `"throw"`        | Fail the build |
  *
- * ## Required Dependencies
+ * ## Dependencies
  *
- * This plugin requires the following optional peer dependencies:
+ * This plugin uses ESLint programmatically with the following packages:
  * - `eslint`
  * - `@typescript-eslint/parser`
  * - `eslint-plugin-tsdoc`
- *
- * Install with: `pnpm add -D eslint @typescript-eslint/parser eslint-plugin-tsdoc`
  *
  * @param options - Plugin configuration options
  * @returns An Rsbuild plugin that validates TSDoc comments before the build

@@ -1,5 +1,5 @@
-import type { PackageJson } from "type-fest";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { PackageJson } from "../../../types/package-json.js";
 
 // Mock the pnpm-catalog module
 vi.mock("./pnpm-catalog.js");

@@ -7,5 +7,5 @@ onlyBuiltDependencies:
   - esbuild
   - msgpackr-extract
 overrides:
-  "lodash": "^=4.17.23"
+  lodash: ^=4.17.23
 preferFrozenLockfile: true

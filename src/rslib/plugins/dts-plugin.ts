@@ -8,7 +8,6 @@ import type { RsbuildPlugin, RsbuildPluginAPI } from "@rsbuild/core";
 import { logger } from "@rsbuild/core";
 import deepEqual from "deep-equal";
 import color from "picocolors";
-import type { PackageJson } from "type-fest";
 import type { Diagnostic, ParsedCommandLine } from "typescript";
 import {
 	createCompilerHost,
@@ -20,6 +19,7 @@ import {
 } from "typescript";
 import { getWorkspaceRoot } from "workspace-tools";
 import { TSConfigs } from "../../tsconfig/index.js";
+import type { PackageJson } from "../../types/package-json.js";
 import { createEnvLogger } from "./utils/build-logger.js";
 import { getApiExtractorPath } from "./utils/file-utils.js";
 
@@ -144,6 +144,11 @@ export interface TsDocOptions {
 	 * @remarks
 	 * TSDoc warnings include unknown tags, malformed syntax, and other
 	 * documentation issues detected by API Extractor during processing.
+	 *
+	 * **Important:** This setting only applies to first-party warnings (from your
+	 * project's source code). Third-party warnings from dependencies in
+	 * `node_modules/` are always logged but never fail the build, since they
+	 * cannot be fixed by the consuming project.
 	 *
 	 * @defaultValue `"fail"` in CI environments (`CI` or `GITHUB_ACTIONS` env vars),
 	 *               `"log"` otherwise
@@ -897,6 +902,13 @@ async function bundleDtsFiles(options: {
 
 		// Handle collected TSDoc warnings
 		if (collectedTsdocWarnings.length > 0) {
+			// Separate first-party (project source) from third-party (node_modules) warnings
+			const isThirdParty = (warning: TsDocWarning): boolean =>
+				warning.sourceFilePath?.includes("node_modules/") ?? false;
+
+			const firstPartyWarnings = collectedTsdocWarnings.filter((w) => !isThirdParty(w));
+			const thirdPartyWarnings = collectedTsdocWarnings.filter(isThirdParty);
+
 			// Format warnings with location info when available
 			const formatWarning = (warning: TsDocWarning): string => {
 				const location = warning.sourceFilePath
@@ -905,11 +917,22 @@ async function bundleDtsFiles(options: {
 				return location ? `${location}: ${color.yellow(warning.text)}` : color.yellow(warning.text);
 			};
 
-			const warningMessages = collectedTsdocWarnings.map(formatWarning).join("\n  ");
-			if (tsdocWarnings === "fail") {
-				throw new Error(`TSDoc validation failed for entry "${entryName}":\n  ${warningMessages}`);
-			} else if (tsdocWarnings === "log") {
-				logger.warn(`TSDoc warnings for entry "${entryName}":\n  ${warningMessages}`);
+			// Third-party warnings are always logged (never fail) since we can't fix them
+			if (thirdPartyWarnings.length > 0) {
+				const thirdPartyMessages = thirdPartyWarnings.map(formatWarning).join("\n  ");
+				logger.warn(
+					`TSDoc warnings from dependencies for entry "${entryName}" (cannot be fixed, bundled types may have documentation issues):\n  ${thirdPartyMessages}`,
+				);
+			}
+
+			// First-party warnings respect the warnings setting
+			if (firstPartyWarnings.length > 0) {
+				const firstPartyMessages = firstPartyWarnings.map(formatWarning).join("\n  ");
+				if (tsdocWarnings === "fail") {
+					throw new Error(`TSDoc validation failed for entry "${entryName}":\n  ${firstPartyMessages}`);
+				} else if (tsdocWarnings === "log") {
+					logger.warn(`TSDoc warnings for entry "${entryName}":\n  ${firstPartyMessages}`);
+				}
 			}
 		}
 

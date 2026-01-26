@@ -1,5 +1,5 @@
 import sortPkg from "sort-package-json";
-import type { PackageJson } from "type-fest";
+import type { PackageJson } from "../../../types/package-json.js";
 import { getDefaultPnpmCatalog } from "./pnpm-catalog.js";
 
 /**

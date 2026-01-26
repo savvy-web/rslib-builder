@@ -7,7 +7,20 @@ export default NodeLibraryBuilder.create({
 	apiModel: {
 		enabled: true,
 		localPaths: process.env.RSLIB_BUILDER_LOCAL_PATH ? [process.env.RSLIB_BUILDER_LOCAL_PATH] : undefined,
+		tsdoc: {
+			tagDefinitions: [
+				{
+					tagName: "@category",
+					syntaxKind: "modifier",
+				},
+				{
+					tagName: "@default",
+					syntaxKind: "modifier",
+				},
+			],
+		},
 	},
+	tsdocLint: true,
 	// Externalize build tools (peerDependencies) and internal cross-module imports
 	// source-map-support is optionally required by TypeScript internals (in try/catch)
 	externals: [
@@ -22,7 +35,6 @@ export default NodeLibraryBuilder.create({
 		"@typescript-eslint/parser",
 		"eslint-plugin-tsdoc",
 	],
-	dtsBundledPackages: [],
 	copyPatterns: [
 		{
 			from: "./**/*.json",

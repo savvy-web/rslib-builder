@@ -3,8 +3,7 @@ import { join } from "node:path";
 import type { RsbuildPlugin, SourceConfig } from "@rsbuild/core";
 import type { ConfigParams, LibConfig, RslibConfig } from "@rslib/core";
 import { defineConfig } from "@rslib/core";
-import type { RawCopyPattern } from "@rspack/binding";
-import type { PackageJson } from "type-fest";
+import type { PackageJson } from "../../types/package-json.js";
 import { AutoEntryPlugin } from "../plugins/auto-entry-plugin.js";
 import type { ApiModelOptions } from "../plugins/dts-plugin.js";
 import { DtsPlugin } from "../plugins/dts-plugin.js";
@@ -69,6 +68,54 @@ export type BuildTarget = "dev" | "npm";
 export type TransformPackageJsonFn = (context: { target: BuildTarget; pkg: PackageJson }) => PackageJson;
 
 /**
+ * Configuration for copying files during the build process.
+ *
+ * @remarks
+ * This interface mirrors rspack's copy pattern configuration and is passed directly
+ * to the rspack CopyPlugin. All properties except `from` are optional.
+ *
+ * @example
+ * ```typescript
+ * // Copy a directory
+ * { from: "./public", to: "./", context: process.cwd() }
+ *
+ * // Copy specific files
+ * { from: "**\/*.json", to: "./config" }
+ * ```
+ *
+ * @public
+ */
+export interface CopyPatternConfig {
+	/** Source path or glob pattern to copy from */
+	from: string;
+	/** Destination path (relative to output directory) */
+	to?: string;
+	/** Base directory for resolving `from` path */
+	context?: string;
+	/** Type of destination: "dir", "file", or "template" */
+	toType?: "dir" | "file" | "template";
+	/** If true, does not emit an error if the source is missing */
+	noErrorOnMissing?: boolean;
+	/** Glob options for pattern matching */
+	globOptions?: {
+		/** Patterns to ignore */
+		ignore?: string[];
+		/** Whether to match dotfiles */
+		dot?: boolean;
+	};
+	/** Filter function to include/exclude files */
+	filter?: (filepath: string) => boolean | Promise<boolean>;
+	/** Transform function to modify file contents */
+	transform?:
+		| {
+				transformer: (input: Buffer, absoluteFilename: string) => string | Buffer | Promise<string> | Promise<Buffer>;
+		  }
+		| ((input: Buffer, absoluteFilename: string) => string | Buffer | Promise<string> | Promise<Buffer>);
+	/** Priority for conflicting files (higher = higher priority) */
+	priority?: number;
+}
+
+/**
  * @public
  */
 export interface NodeLibraryBuilderOptions {
@@ -102,7 +149,7 @@ export interface NodeLibraryBuilderOptions {
 	 * ```
 	 */
 	exportsAsIndexes?: boolean;
-	copyPatterns: (string | (Pick<RawCopyPattern, "from"> & Partial<Omit<RawCopyPattern, "from">>))[];
+	copyPatterns: (string | CopyPatternConfig)[];
 	/** Additional plugins */
 	plugins: RsbuildPlugin[];
 	define: SourceConfig["define"];

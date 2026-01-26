@@ -2,9 +2,9 @@ import { readFile, stat } from "node:fs/promises";
 import { resolve } from "node:path";
 import { createExportableManifest } from "@pnpm/exportable-manifest";
 import type { ProjectManifest } from "@pnpm/types";
-import type { PackageJson } from "type-fest";
 import { getWorkspaceRoot } from "workspace-tools";
 import { parse } from "yaml";
+import type { PackageJson } from "../../../types/package-json.js";
 import { createEnvLogger } from "./build-logger.js";
 
 /**

@@ -31,12 +31,6 @@ of the build process.
 
 **Stage:** `onBeforeBuild` (runs before all other plugins)
 
-**Required Dependencies:**
-
-```bash
-pnpm add -D eslint @typescript-eslint/parser eslint-plugin-tsdoc
-```
-
 **Configuration:**
 
 ```typescript

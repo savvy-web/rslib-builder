@@ -1,6 +1,6 @@
-import type { PackageJson } from "type-fest";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { MockAssetRegistry } from "../../__test__/rslib/types/test-types.js";
+import type { PackageJson } from "../../types/package-json.js";
 
 // Mock node:fs/promises
 vi.mock("node:fs/promises", () => ({
