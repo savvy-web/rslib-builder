@@ -341,6 +341,7 @@ NodeLibraryBuilder.create({
 | `localPaths` | `string[]` | `[]` | Local paths to copy API model files |
 | `tsdoc` | `TsDocOptions` | All groups | TSDoc configuration |
 | `tsdocMetadata` | `boolean \| object` | `true` | tsdoc-metadata.json |
+| `forgottenExports` | `string` | `'include'` | Forgotten export handling |
 
 ### TSDoc Configuration
 
@@ -384,6 +385,25 @@ apiModel: {
 | `'log'` | Show warnings, continue build (local default) |
 | `'fail'` | Show warnings and fail build (CI default) |
 | `'none'` | Suppress TSDoc warnings |
+
+**Forgotten Exports Behavior:**
+
+A "forgotten export" occurs when a public API references a declaration that
+isn't exported from the entry point. API Extractor detects these as
+`ae-forgotten-export` messages.
+
+| Value | Behavior |
+| :---- | :------- |
+| `'include'` | Log a warning, include in the API model (default) |
+| `'error'` | Fail the build with details about forgotten exports |
+| `'ignore'` | Suppress all forgotten export messages |
+
+```typescript
+apiModel: {
+  enabled: true,
+  forgottenExports: 'error',  // Fail build on forgotten exports
+}
+```
 
 **Note:** API model is only generated for the `npm` target, not `dev`.
 
@@ -703,6 +723,7 @@ export default NodeLibraryBuilder.create({
   // API documentation
   apiModel: {
     enabled: true,
+    forgottenExports: 'error',
     tsdoc: {
       tagDefinitions: [
         { tagName: '@error', syntaxKind: 'block' },

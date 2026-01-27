@@ -3,9 +3,9 @@ status: current
 module: rslib-builder
 category: reference
 created: 2026-01-20
-updated: 2026-01-24
-last-synced: 2026-01-24
-completeness: 90
+updated: 2026-01-27
+last-synced: 2026-01-27
+completeness: 95
 related:
   - rslib-builder/architecture.md
   - rslib-builder/api-extraction.md
@@ -57,6 +57,7 @@ interface ApiModelOptions {
   localPaths?: string[];
   tsdoc?: TsDocOptions;
   tsdocMetadata?: TsDocMetadataOptions | boolean;
+  forgottenExports?: "include" | "error" | "ignore";
 }
 
 interface TsDocOptions {
@@ -193,6 +194,41 @@ apiModel: {
 
 // Disable
 apiModel: { enabled: true, tsdocMetadata: false }
+```
+
+#### `forgottenExports`
+
+| Property | Value |
+| -------- | ----- |
+| Type | `"include" \| "error" \| "ignore"` |
+| Default | `"include"` |
+| Required | No |
+
+Controls handling of API Extractor's "forgotten export" (`ae-forgotten-export`)
+messages. A forgotten export occurs when a public API references a declaration
+that isn't exported from the entry point.
+
+| Value | Behavior |
+| ----- | -------- |
+| `"include"` | Log a warning, include in the API model (default) |
+| `"error"` | Fail the build with details about forgotten exports |
+| `"ignore"` | Suppress all forgotten export messages silently |
+
+**Implementation:** In the `messageCallback` passed to `Extractor.invoke()`,
+messages with `messageId === "ae-forgotten-export"` are intercepted. For
+`"include"` and `"error"`, messages are collected into a
+`collectedForgottenExports` array and formatted using the same `formatWarning`
+helper shared with TSDoc warning handling.
+
+```typescript
+// Fail build on forgotten exports
+apiModel: { enabled: true, forgottenExports: "error" }
+
+// Suppress forgotten export warnings
+apiModel: { enabled: true, forgottenExports: "ignore" }
+
+// Default: warn but include in API model
+apiModel: { enabled: true }
 ```
 
 ### TsDocOptions
@@ -358,6 +394,7 @@ export default NodeLibraryBuilder.create({
     enabled: true,
     filename: "rslib-builder.api.json",
     localPaths: ["../docs-site/lib/packages/rslib-builder"],
+    forgottenExports: "error",
     tsdoc: {
       groups: ["core", "extended", "discretionary"],
       tagDefinitions: [

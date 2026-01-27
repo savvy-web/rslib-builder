@@ -46,6 +46,7 @@ export type {
 	BuildTarget,
 	CopyPatternConfig,
 	NodeLibraryBuilderOptions,
+	RslibConfigAsyncFn,
 	TransformPackageJsonFn,
 } from "./rslib/builders/node-library-builder.js";
 
@@ -82,6 +83,14 @@ export type {
 export { ImportGraph } from "./rslib/plugins/utils/import-graph.js";
 
 // Type utilities
-export type { JsonArray, JsonObject, JsonPrimitive, JsonValue, PackageJson } from "./types/package-json.js";
+export type {
+	JsonArray,
+	JsonObject,
+	JsonPrimitive,
+	JsonValue,
+	LiteralUnion,
+	PackageJson,
+	Primitive,
+} from "./types/package-json.js";
 
 /* v8 ignore stop */

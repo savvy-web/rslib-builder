@@ -71,10 +71,10 @@ importers:
         version: 1.7.2
       '@rslib/core':
         specifier: ^0.19.3
-        version: 0.19.3(@microsoft/api-extractor@7.55.2(@types/node@25.0.10))(@typescript/native-preview@7.0.0-dev.20260126.1)(typescript@5.9.3)
+        version: 0.19.3(@microsoft/api-extractor@7.55.2(@types/node@25.0.10))(@typescript/native-preview@7.0.0-dev.20260127.1)(typescript@5.9.3)
       '@savvy-web/lint-staged':
-        specifier: ^0.1.0
-        version: 0.1.0(@biomejs/biome@2.3.12)(jiti@2.6.1)(lint-staged@16.2.7)(markdownlint-cli2@0.20.0)
+        specifier: ^0.1.2
+        version: 0.1.2(@biomejs/biome@2.3.12)(jiti@2.6.1)(lint-staged@16.2.7)(markdownlint-cli2@0.20.0)
       '@types/deep-equal':
         specifier: ^1.0.4
         version: 1.0.4
@@ -85,8 +85,8 @@ importers:
         specifier: ^0.2.6
         version: 0.2.6
       '@typescript/native-preview':
-        specifier: ^7.0.0-dev.20260124.1
-        version: 7.0.0-dev.20260126.1
+        specifier: 7.0.0-dev.20260127.1
+        version: 7.0.0-dev.20260127.1
       '@vitest/coverage-v8':
         specifier: ^4.0.18
         version: 4.0.18(vitest@4.0.18(@types/node@25.0.10)(jiti@2.6.1)(yaml@2.8.2))
@@ -106,8 +106,8 @@ importers:
         specifier: ^2.7.6
         version: 2.7.6
       type-fest:
-        specifier: ^5.4.1
-        version: 5.4.1
+        specifier: ^5.4.2
+        version: 5.4.2
       typescript:
         specifier: ^5.9.3
         version: 5.9.3
@@ -989,8 +989,8 @@ packages:
   '@rushstack/ts-command-line@5.1.5':
     resolution: {integrity: sha512-YmrFTFUdHXblYSa+Xc9OO9FsL/XFcckZy0ycQ6q7VSBsVs5P0uD9vcges5Q9vctGlVdu27w+Ct6IuJ458V0cTQ==}
 
-  '@savvy-web/lint-staged@0.1.0':
-    resolution: {integrity: sha512-zpOBjl8BDBjed+LRQx/aH6BoZKCxLc3pz+6qJUbK4lkQYUhJYVhdwwVApjIDMYdyFMcCMqL9asEhQn1APzww3A==}
+  '@savvy-web/lint-staged@0.1.2':
+    resolution: {integrity: sha512-+MqNgQT6/PyKkCOZxaiUJBP+fXalQXHmc7CMchmIJzZ6JC7owWftjeV5QM1fTD72zRtqBzmMgevusRxIc0G+Qw==}
     peerDependencies:
       '@biomejs/biome': '>=2.3.12'
       lint-staged: '>=16.2.7'
@@ -1134,43 +1134,43 @@ packages:
     resolution: {integrity: sha512-VFlhGSl4opC0bprJiItPQ1RfUhGDIBokcPwaFH4yiBCaNPeld/9VeXbiPO1cLyorQi1G1vL+ecBk1x8o1axORA==}
     engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
 
-  '@typescript/native-preview-darwin-arm64@7.0.0-dev.20260126.1':
-    resolution: {integrity: sha512-4VgZc/kKQEzPj4QJ7DIq9Wocy4ilpV4Qmy7OV80aPSwzR4mnp8ovyiu1++c3JptthdCNe5KVQguSRn2SseBvDA==}
+  '@typescript/native-preview-darwin-arm64@7.0.0-dev.20260127.1':
+    resolution: {integrity: sha512-GaO7AMualQCRG87LGcQ01q6fLOArIkhN+myg4h5sroKZmRc+/+2bsaMstHtrPqF5g+dvI67QNk9dJlNwbuoNNw==}
     cpu: [arm64]
     os: [darwin]
 
-  '@typescript/native-preview-darwin-x64@7.0.0-dev.20260126.1':
-    resolution: {integrity: sha512-mY1nYNE+CFUEIMemKPz4QSsOx3rnNLsmyT2OPcTIHSU7/6P4BPlasJ1jKtO60ydAbEjJEGLnpeSZGWsBQghtYw==}
+  '@typescript/native-preview-darwin-x64@7.0.0-dev.20260127.1':
+    resolution: {integrity: sha512-OUaRelHcBYDBY/vL5U0+sQeTVVd/TX13Nzz1m5qTJxXk32dY2dRhnJ4mM5Me1zPPy4uJ5t0I3/lfMwDDVHPjEw==}
     cpu: [x64]
     os: [darwin]
 
-  '@typescript/native-preview-linux-arm64@7.0.0-dev.20260126.1':
-    resolution: {integrity: sha512-V+eVxduCKUsujuRFVbmwUF4ZfGKlaJP5XYml+96TzW+m+bv+K0nCWmWQTFVF8e/UOH+NoW6mkb7p0KUQGQpV7A==}
+  '@typescript/native-preview-linux-arm64@7.0.0-dev.20260127.1':
+    resolution: {integrity: sha512-zevVW+PpIbkxXq5zje1rL6/CvY+Cgq3Mji4gUqcd64H8km0c5vvsFpRuYO9lxpj/uMCe3vf2IsDYVRopkA1nJQ==}
     cpu: [arm64]
     os: [linux]
 
-  '@typescript/native-preview-linux-arm@7.0.0-dev.20260126.1':
-    resolution: {integrity: sha512-rPGcUjzuDx/t9ZfCkBLn15PQBr7FKd41sKAG3q2auy/0fLhTGzdaDQ3Qai7y5BtIswX5B19YJZAOPx3Z4Jzyew==}
+  '@typescript/native-preview-linux-arm@7.0.0-dev.20260127.1':
+    resolution: {integrity: sha512-gfkIFgI+BE5rPZYrAw2jQQnBER6jYTj6jdxOuaGfpE8vVCPsvCoMmGMrvKFFB7vGSQkN3g+71deEnjq9yQMWTQ==}
     cpu: [arm]
     os: [linux]
 
-  '@typescript/native-preview-linux-x64@7.0.0-dev.20260126.1':
-    resolution: {integrity: sha512-8F6WZkVu1O0Ob/weZ2siR8zitBbp7dPzOn3/jaC++FXXD9R1t/ILQ1WcLYUrW/W0U1bwq6Aenrs0xJq32Nn8WQ==}
+  '@typescript/native-preview-linux-x64@7.0.0-dev.20260127.1':
+    resolution: {integrity: sha512-IlFQ/0LwUlRgkdBgpzNT4qkOFAd8DEc14WAO0fMaRL8W1/VSPe9l2htEabLtGGZncXllt8EsDuxN5gI/Y9WZlw==}
     cpu: [x64]
     os: [linux]
 
-  '@typescript/native-preview-win32-arm64@7.0.0-dev.20260126.1':
-    resolution: {integrity: sha512-UaHT07kICWJXstad3o5LA6PugKxOmmPRtbXrLcwaH6Q+67cJ4RMuWxsxl6KDgcouiooMM/TR2lSclYp+4bsz8g==}
+  '@typescript/native-preview-win32-arm64@7.0.0-dev.20260127.1':
+    resolution: {integrity: sha512-M3nhqhSyHFN51t8Xuvi7vrpzIvJzBscq4whp4Z6/Yx/4kPf8KRi2fV6rtIkvTio5s7VvCUeLEdivAiiVSRvkXg==}
     cpu: [arm64]
     os: [win32]
 
-  '@typescript/native-preview-win32-x64@7.0.0-dev.20260126.1':
-    resolution: {integrity: sha512-NpP2XaMQrQHqP+fl5mM7xJOnUFlRi9IvIqxJ/AyrcforDt+0N5b9Jk8pYWqAyUgdmvPjvPgcVE6KanXUby50OQ==}
+  '@typescript/native-preview-win32-x64@7.0.0-dev.20260127.1':
+    resolution: {integrity: sha512-o1Zd3JmBVxlr3R9Iw7OUQ/LgRyJwicekFQMN9Oc4x6A67J2dlGk7mU6U2OdV4sTg66nef5Ka+rFZ22+qQnRROg==}
     cpu: [x64]
     os: [win32]
 
-  '@typescript/native-preview@7.0.0-dev.20260126.1':
-    resolution: {integrity: sha512-YlWe5IrAhleaAfGE5m8DQz/KhJyp71pzwXOU/zh1/nWpDAeqMlRzRRLPRMx7AbsIqPB5sClMg20DVw1mn1YWYw==}
+  '@typescript/native-preview@7.0.0-dev.20260127.1':
+    resolution: {integrity: sha512-Q/iBGhV0nhZEWlrIz+yJ86KsXszDI3eqjmLQhU7Bl250zBxvJ5VVcBFY4w1Dr4T4WV4QMqRgoEROceoxClK3Zg==}
     hasBin: true
 
   '@vitest/coverage-v8@4.0.18':
@@ -2776,8 +2776,8 @@ packages:
     resolution: {integrity: sha512-XleUoc9uwGXqjWwXaUTZAmzMcFZ5858QA2vvx1Ur5xIcixXIP+8LnFDgRplU30us6teqdlskFfu+ae4K79Ooew==}
     engines: {node: '>= 0.8.0'}
 
-  type-fest@5.4.1:
-    resolution: {integrity: sha512-xygQcmneDyzsEuKZrFbRMne5HDqMs++aFzefrJTgEIKjQ3rekM+RPfFCVq2Gp1VIDqddoYeppCj4Pcb+RZW0GQ==}
+  type-fest@5.4.2:
+    resolution: {integrity: sha512-FLEenlVYf7Zcd34ISMLo3ZzRE1gRjY1nMDTp+bQRBiPsaKyIW8K3Zr99ioHDUgA9OGuGGJPyYpNcffGmBhJfGg==}
     engines: {node: '>=20'}
 
   typescript@5.8.2:
@@ -3759,10 +3759,10 @@ snapshots:
       core-js: 3.47.0
       jiti: 2.6.1
 
-  '@rslib/core@0.19.3(@microsoft/api-extractor@7.55.2(@types/node@25.0.10))(@typescript/native-preview@7.0.0-dev.20260126.1)(typescript@5.9.3)':
+  '@rslib/core@0.19.3(@microsoft/api-extractor@7.55.2(@types/node@25.0.10))(@typescript/native-preview@7.0.0-dev.20260127.1)(typescript@5.9.3)':
     dependencies:
       '@rsbuild/core': 1.7.2
-      rsbuild-plugin-dts: 0.19.3(@microsoft/api-extractor@7.55.2(@types/node@25.0.10))(@rsbuild/core@1.7.2)(@typescript/native-preview@7.0.0-dev.20260126.1)(typescript@5.9.3)
+      rsbuild-plugin-dts: 0.19.3(@microsoft/api-extractor@7.55.2(@types/node@25.0.10))(@rsbuild/core@1.7.2)(@typescript/native-preview@7.0.0-dev.20260127.1)(typescript@5.9.3)
     optionalDependencies:
       '@microsoft/api-extractor': 7.55.2(@types/node@25.0.10)
       typescript: 5.9.3
@@ -3863,7 +3863,7 @@ snapshots:
     transitivePeerDependencies:
       - '@types/node'
 
-  '@savvy-web/lint-staged@0.1.0(@biomejs/biome@2.3.12)(jiti@2.6.1)(lint-staged@16.2.7)(markdownlint-cli2@0.20.0)':
+  '@savvy-web/lint-staged@0.1.2(@biomejs/biome@2.3.12)(jiti@2.6.1)(lint-staged@16.2.7)(markdownlint-cli2@0.20.0)':
     dependencies:
       '@typescript-eslint/parser': 8.54.0(eslint@9.39.2(jiti@2.6.1))(typescript@5.9.3)
       cosmiconfig: 9.0.0(typescript@5.9.3)
@@ -4039,36 +4039,36 @@ snapshots:
       '@typescript-eslint/types': 8.54.0
       eslint-visitor-keys: 4.2.1
 
-  '@typescript/native-preview-darwin-arm64@7.0.0-dev.20260126.1':
+  '@typescript/native-preview-darwin-arm64@7.0.0-dev.20260127.1':
     optional: true
 
-  '@typescript/native-preview-darwin-x64@7.0.0-dev.20260126.1':
+  '@typescript/native-preview-darwin-x64@7.0.0-dev.20260127.1':
     optional: true
 
-  '@typescript/native-preview-linux-arm64@7.0.0-dev.20260126.1':
+  '@typescript/native-preview-linux-arm64@7.0.0-dev.20260127.1':
     optional: true
 
-  '@typescript/native-preview-linux-arm@7.0.0-dev.20260126.1':
+  '@typescript/native-preview-linux-arm@7.0.0-dev.20260127.1':
     optional: true
 
-  '@typescript/native-preview-linux-x64@7.0.0-dev.20260126.1':
+  '@typescript/native-preview-linux-x64@7.0.0-dev.20260127.1':
     optional: true
 
-  '@typescript/native-preview-win32-arm64@7.0.0-dev.20260126.1':
+  '@typescript/native-preview-win32-arm64@7.0.0-dev.20260127.1':
     optional: true
 
-  '@typescript/native-preview-win32-x64@7.0.0-dev.20260126.1':
+  '@typescript/native-preview-win32-x64@7.0.0-dev.20260127.1':
     optional: true
 
-  '@typescript/native-preview@7.0.0-dev.20260126.1':
+  '@typescript/native-preview@7.0.0-dev.20260127.1':
     optionalDependencies:
-      '@typescript/native-preview-darwin-arm64': 7.0.0-dev.20260126.1
-      '@typescript/native-preview-darwin-x64': 7.0.0-dev.20260126.1
-      '@typescript/native-preview-linux-arm': 7.0.0-dev.20260126.1
-      '@typescript/native-preview-linux-arm64': 7.0.0-dev.20260126.1
-      '@typescript/native-preview-linux-x64': 7.0.0-dev.20260126.1
-      '@typescript/native-preview-win32-arm64': 7.0.0-dev.20260126.1
-      '@typescript/native-preview-win32-x64': 7.0.0-dev.20260126.1
+      '@typescript/native-preview-darwin-arm64': 7.0.0-dev.20260127.1
+      '@typescript/native-preview-darwin-x64': 7.0.0-dev.20260127.1
+      '@typescript/native-preview-linux-arm': 7.0.0-dev.20260127.1
+      '@typescript/native-preview-linux-arm64': 7.0.0-dev.20260127.1
+      '@typescript/native-preview-linux-x64': 7.0.0-dev.20260127.1
+      '@typescript/native-preview-win32-arm64': 7.0.0-dev.20260127.1
+      '@typescript/native-preview-win32-x64': 7.0.0-dev.20260127.1
 
   '@vitest/coverage-v8@4.0.18(vitest@4.0.18(@types/node@25.0.10)(jiti@2.6.1)(yaml@2.8.2))':
     dependencies:
@@ -5559,13 +5559,13 @@ snapshots:
       '@rollup/rollup-win32-x64-msvc': 4.56.0
       fsevents: 2.3.3
 
-  rsbuild-plugin-dts@0.19.3(@microsoft/api-extractor@7.55.2(@types/node@25.0.10))(@rsbuild/core@1.7.2)(@typescript/native-preview@7.0.0-dev.20260126.1)(typescript@5.9.3):
+  rsbuild-plugin-dts@0.19.3(@microsoft/api-extractor@7.55.2(@types/node@25.0.10))(@rsbuild/core@1.7.2)(@typescript/native-preview@7.0.0-dev.20260127.1)(typescript@5.9.3):
     dependencies:
       '@ast-grep/napi': 0.37.0
       '@rsbuild/core': 1.7.2
     optionalDependencies:
       '@microsoft/api-extractor': 7.55.2(@types/node@25.0.10)
-      '@typescript/native-preview': 7.0.0-dev.20260126.1
+      '@typescript/native-preview': 7.0.0-dev.20260127.1
       typescript: 5.9.3
 
   run-parallel@1.2.0:
@@ -5790,7 +5790,7 @@ snapshots:
     dependencies:
       prelude-ls: 1.2.1
 
-  type-fest@5.4.1:
+  type-fest@5.4.2:
     dependencies:
       tagged-tag: 1.0.0
 

@@ -3,8 +3,8 @@ status: current
 module: rslib-builder
 category: integration
 created: 2026-01-19
-updated: 2026-01-20
-last-synced: 2026-01-19
+updated: 2026-01-27
+last-synced: 2026-01-27
 completeness: 95
 related:
   - rslib-builder/architecture.md
@@ -230,6 +230,7 @@ interface ApiModelOptions {
   localPaths?: string[];
   tsdoc?: TsDocOptions;
   tsdocMetadata?: TsDocMetadataOptions | boolean;
+  forgottenExports?: "include" | "error" | "ignore";
 }
 ```
 
@@ -357,6 +358,38 @@ apiModel: {
   }
 }
 ```
+
+**Forgotten exports handling:**
+
+A forgotten export occurs when a public API references a declaration that isn't
+exported from the entry point. API Extractor reports these as
+`ae-forgotten-export` messages.
+
+```typescript
+// Fail build on forgotten exports
+apiModel: {
+  enabled: true,
+  forgottenExports: "error"
+}
+
+// Suppress forgotten export warnings
+apiModel: {
+  enabled: true,
+  forgottenExports: "ignore"
+}
+
+// Default: warn but include in API model
+apiModel: {
+  enabled: true,
+  forgottenExports: "include"  // or just omit (this is the default)
+}
+```
+
+The `forgottenExports` option uses the same `messageCallback` mechanism as
+TSDoc warnings. Messages with `messageId === "ae-forgotten-export"` are
+intercepted and handled according to the setting. For `"include"` and
+`"error"`, messages are collected and formatted using the shared
+`formatWarning` helper after `Extractor.invoke()` completes.
 
 ### Generated tsdoc.json
 
