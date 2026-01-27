@@ -500,6 +500,19 @@ export interface ApiModelOptions {
 	 * @defaultValue true (enabled when apiModel is enabled)
 	 */
 	tsdocMetadata?: TsDocMetadataOptions | boolean;
+
+	/**
+	 * Controls handling of API Extractor's "forgotten export" messages.
+	 * A forgotten export occurs when a public API references a declaration
+	 * that isn't exported from the entry point.
+	 *
+	 * - `"include"` (default): Log a warning, include in the API model
+	 * - `"error"`: Fail the build with details about the forgotten exports
+	 * - `"ignore"`: Turn off detection — suppress all messages
+	 *
+	 * @defaultValue "include"
+	 */
+	forgottenExports?: "include" | "error" | "ignore";
 }
 
 /**
@@ -731,6 +744,7 @@ async function bundleDtsFiles(options: {
 	const tsdocMetadataOption = typeof apiModel === "object" ? apiModel.tsdocMetadata : undefined;
 	// Default: "fail" in CI, "log" locally (user can override with explicit value)
 	const tsdocWarnings = tsdocOptions?.warnings ?? (TsDocConfigBuilder.isCI() ? "fail" : "log");
+	const forgottenExports = (typeof apiModel === "object" ? apiModel.forgottenExports : undefined) ?? "include";
 
 	// tsdocMetadata defaults to enabled when apiModel is enabled
 	const tsdocMetadataEnabled =
@@ -812,6 +826,9 @@ async function bundleDtsFiles(options: {
 			configObject: {
 				projectFolder: cwd,
 				mainEntryPointFilePath: tempDtsPath,
+				enumMemberOrder: "preserve" as NonNullable<
+					Parameters<typeof ExtractorConfig.prepare>[0]["configObject"]["enumMemberOrder"]
+				>,
 				compiler: {
 					tsconfigFilePath: tsconfigPath,
 				},
@@ -846,6 +863,7 @@ async function bundleDtsFiles(options: {
 			sourceFileColumn?: number;
 		}
 		const collectedTsdocWarnings: TsDocWarning[] = [];
+		const collectedForgottenExports: TsDocWarning[] = [];
 
 		// Run API Extractor
 		const extractorResult = Extractor.invoke(extractorConfig, {
@@ -893,12 +911,36 @@ async function bundleDtsFiles(options: {
 						message.logLevel = "none";
 					}
 				}
+
+				// Handle forgotten export messages based on the forgottenExports option
+				if (message.messageId === "ae-forgotten-export" && message.text) {
+					if (forgottenExports === "ignore") {
+						message.logLevel = "none";
+					} else {
+						// Collect for warning or failing — we handle output ourselves
+						collectedForgottenExports.push({
+							text: message.text,
+							sourceFilePath: message.sourceFilePath,
+							sourceFileLine: message.sourceFileLine,
+							sourceFileColumn: message.sourceFileColumn,
+						});
+						message.logLevel = "none";
+					}
+				}
 			},
 		});
 
 		if (!extractorResult.succeeded) {
 			throw new Error(`API Extractor failed for entry "${entryName}"`);
 		}
+
+		// Format warnings with location info when available
+		const formatWarning = (warning: TsDocWarning): string => {
+			const location = warning.sourceFilePath
+				? `${color.cyan(relative(cwd, warning.sourceFilePath))}${warning.sourceFileLine ? `:${warning.sourceFileLine}` : ""}${warning.sourceFileColumn ? `:${warning.sourceFileColumn}` : ""}`
+				: null;
+			return location ? `${location}: ${color.yellow(warning.text)}` : color.yellow(warning.text);
+		};
 
 		// Handle collected TSDoc warnings
 		if (collectedTsdocWarnings.length > 0) {
@@ -908,14 +950,6 @@ async function bundleDtsFiles(options: {
 
 			const firstPartyWarnings = collectedTsdocWarnings.filter((w) => !isThirdParty(w));
 			const thirdPartyWarnings = collectedTsdocWarnings.filter(isThirdParty);
-
-			// Format warnings with location info when available
-			const formatWarning = (warning: TsDocWarning): string => {
-				const location = warning.sourceFilePath
-					? `${color.cyan(relative(cwd, warning.sourceFilePath))}${warning.sourceFileLine ? `:${warning.sourceFileLine}` : ""}${warning.sourceFileColumn ? `:${warning.sourceFileColumn}` : ""}`
-					: null;
-				return location ? `${location}: ${color.yellow(warning.text)}` : color.yellow(warning.text);
-			};
 
 			// Third-party warnings are always logged (never fail) since we can't fix them
 			if (thirdPartyWarnings.length > 0) {
@@ -933,6 +967,16 @@ async function bundleDtsFiles(options: {
 				} else if (tsdocWarnings === "log") {
 					logger.warn(`TSDoc warnings for entry "${entryName}":\n  ${firstPartyMessages}`);
 				}
+			}
+		}
+
+		// Handle collected forgotten export messages
+		if (collectedForgottenExports.length > 0) {
+			const forgottenMessages = collectedForgottenExports.map(formatWarning).join("\n  ");
+			if (forgottenExports === "error") {
+				throw new Error(`Forgotten exports detected for entry "${entryName}":\n  ${forgottenMessages}`);
+			} else if (forgottenExports === "include") {
+				logger.warn(`Forgotten exports for entry "${entryName}":\n  ${forgottenMessages}`);
 			}
 		}
 
@@ -1430,7 +1474,7 @@ export const DtsPlugin = (options: DtsPluginOptions = {}): RsbuildPlugin => {
 											typeof options.apiModel === "object" && options.apiModel.filename
 												? options.apiModel.filename
 												: defaultApiModelFilename;
-										const apiModelContent = await readFile(apiModelPath, "utf-8");
+										const apiModelContent = (await readFile(apiModelPath, "utf-8")).replaceAll("\r\n", "\n");
 										const apiModelSource = new context.sources.OriginalSource(apiModelContent, apiModelFilename);
 										context.compilation.emitAsset(apiModelFilename, apiModelSource);
 
@@ -1476,7 +1520,7 @@ export const DtsPlugin = (options: DtsPluginOptions = {}): RsbuildPlugin => {
 											typeof tsdocMetadataOption === "object" && tsdocMetadataOption.filename
 												? tsdocMetadataOption.filename
 												: "tsdoc-metadata.json";
-										const tsdocMetadataContent = await readFile(tsdocMetadataPath, "utf-8");
+										const tsdocMetadataContent = (await readFile(tsdocMetadataPath, "utf-8")).replaceAll("\r\n", "\n");
 										const tsdocMetadataSource = new context.sources.OriginalSource(
 											tsdocMetadataContent,
 											tsdocMetadataFilename,
@@ -1493,7 +1537,7 @@ export const DtsPlugin = (options: DtsPluginOptions = {}): RsbuildPlugin => {
 
 									// Emit tsdoc.json to dist (excluded from npm publish, but available for tooling)
 									if (tsdocConfigPath) {
-										const tsdocConfigContent = await readFile(tsdocConfigPath, "utf-8");
+										const tsdocConfigContent = (await readFile(tsdocConfigPath, "utf-8")).replaceAll("\r\n", "\n");
 										const tsdocConfigSource = new context.sources.OriginalSource(tsdocConfigContent, "tsdoc.json");
 										context.compilation.emitAsset("tsdoc.json", tsdocConfigSource);
 
