@@ -27,7 +27,8 @@ focus on your code.
 - **Package.json Transform** - Converts `.ts` exports to `.js`, generates files
   array, removes dev-only fields
 - **TSDoc Validation** - Pre-build TSDoc validation with automatic public API discovery
-- **API Model Generation** - Optional API model output for documentation tooling
+- **API Model Generation** - Optional API model and resolved tsconfig output for
+  documentation tooling
 - **Extensible** - Add custom RSlib/Rsbuild plugins for advanced use cases
 
 ## Prerequisites

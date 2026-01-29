@@ -291,7 +291,12 @@ Source .ts files
 └─────────────────────────────────┘
         │
         ▼
-dist/{target}/*.d.ts
+dist/{target}/
+├── *.d.ts              (bundled declarations)
+├── <package>.api.json  (API model, excluded from npm)
+├── tsdoc-metadata.json (TSDoc metadata)
+├── tsdoc.json          (TSDoc config, excluded from npm)
+└── tsconfig.json       (resolved config, excluded from npm)
 ```
 
 ### Why Two Stages?
@@ -301,6 +306,24 @@ declarations much faster than standard tsc.
 
 **API Extractor** provides quality - it bundles declarations into
 clean public API files and can generate documentation models.
+
+### Resolved tsconfig.json Output
+
+When API model generation is enabled, DtsPlugin also generates a resolved
+(flattened) tsconfig.json file. This is designed for virtual TypeScript
+environments and documentation tooling that need type configuration without
+file system dependencies.
+
+The resolved config:
+
+- Converts enum values to strings (target, module, moduleResolution, jsx)
+- Sets `composite: false` and `noEmit: true` for virtual environments
+- Excludes path-dependent options (rootDir, outDir, paths, typeRoots)
+- Excludes file selection patterns (include, exclude, files, references)
+- Includes $schema for IDE support
+
+This file is excluded from npm publish (via negated pattern in files array)
+but is available in dist for local tooling use.
 
 ## Build Targets
 

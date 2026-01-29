@@ -128,14 +128,16 @@ AutoEntryPlugin configures these entries:
 2. Runs `tsgo --declaration --emitDeclarationOnly` for fast generation
 3. Optionally bundles declarations with API Extractor
 4. Optionally generates `api.model.json` for documentation
-5. Strips source map comments from final output
-6. Cleans up `.d.ts.map` files
+5. Generates resolved `tsconfig.json` for virtual TypeScript environments
+6. Strips source map comments from final output
+7. Cleans up `.d.ts.map` files
 
 **Stages:**
 
 - `modifyRsbuildConfig` - Load tsconfig, prepare configuration
 - `pre-process` - Generate declarations with tsgo
 - `summarize` - Clean up and finalize
+- `onCloseBuild` - Copy files to localPaths
 
 **Configuration:**
 
@@ -146,6 +148,33 @@ NodeLibraryBuilder.create({
   apiModel: true,
 });
 ```
+
+**Output Files (when apiModel enabled):**
+
+| File | Description | npm Publish |
+| :--- | :---------- | :---------: |
+| `*.d.ts` | Bundled declaration files | Yes |
+| `<package>.api.json` | API model for documentation | No |
+| `tsdoc-metadata.json` | TSDoc metadata | Yes |
+| `tsdoc.json` | TSDoc configuration | No |
+| `tsconfig.json` | Resolved TypeScript config | No |
+
+**Resolved tsconfig.json:**
+
+When API model generation is active, DtsPlugin automatically exports a
+resolved (flattened) tsconfig.json to the dist directory. This file is
+designed for virtual TypeScript environments that need compiler options
+without path dependencies.
+
+The resolved config:
+
+- Converts TypeScript enum values to strings (target, module, jsx, etc.)
+- Sets `composite: false` and `noEmit: true` for virtual environments
+- Excludes path-dependent options (rootDir, outDir, paths, typeRoots)
+- Excludes file selection patterns (include, exclude, files)
+- Includes $schema for IDE support
+
+This file is automatically copied to localPaths when configured.
 
 ### PackageJsonTransformPlugin
 

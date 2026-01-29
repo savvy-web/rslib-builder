@@ -3,8 +3,8 @@ status: current
 module: rslib-builder
 category: integration
 created: 2026-01-19
-updated: 2026-01-27
-last-synced: 2026-01-27
+updated: 2026-01-28
+last-synced: 2026-01-28
 completeness: 95
 related:
   - rslib-builder/architecture.md
@@ -284,6 +284,37 @@ ExtractorConfig.prepare({
 | `<package>.api.json` | API model for docs | No (negated) |
 | `tsdoc-metadata.json` | TSDoc tag metadata | Yes (required by TSDoc spec) |
 | `tsdoc.json` | TSDoc config for tooling | No (negated) |
+| `tsconfig.json` | Resolved tsconfig for virtual TS environments | No (negated) |
+
+### Resolved tsconfig.json
+
+When `apiModel` is enabled, DtsPlugin emits a resolved (flattened) `tsconfig.json`
+to the dist directory. This file is designed for virtual TypeScript environments
+like API Extractor, language services, and documentation tools.
+
+**Purpose:**
+
+- Provides compiler options for tools that need TypeScript analysis without building
+- Enables type checking in virtual file systems
+- Supports IDE integration for documentation tools
+
+**Key Transformations (via TsconfigResolver):**
+
+- Converts TypeScript enum values to JSON strings (target, module, jsx, etc.)
+- Sets `composite: false` and `noEmit: true` for virtual environment compatibility
+- Excludes path-dependent options: `outDir`, `rootDir`, `baseUrl`, `paths`,
+  `typeRoots`, `declarationDir`
+- Excludes file selection: `include`, `exclude`, `files`, `references`
+- Removes `types` array to use default @types auto-discovery
+- Converts lib references from full paths (e.g., "lib.esnext.d.ts") to short
+  names (e.g., "esnext")
+- Adds `$schema` for IDE support
+
+**Copied to localPaths:**
+
+The resolved tsconfig.json is copied alongside the API model and tsdoc-metadata.json
+when `localPaths` is configured, enabling documentation systems to use accurate
+TypeScript settings for type analysis.
 
 ---
 
