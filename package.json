@@ -4,11 +4,30 @@
 	"private": true,
 	"description": "RSlib-based build system for Node.js libraries with automatic package.json transformation, TypeScript declaration bundling, and multi-target support",
 	"homepage": "https://github.com/savvy-web/rslib-builder",
+	"bugs": {
+		"url": "https://github.com/savvy-web/rslib-builder/issues"
+	},
 	"repository": {
 		"type": "git",
 		"url": "https://github.com/savvy-web/rslib-builder.git"
 	},
 	"license": "MIT",
+	"keywords": [
+		"rslib",
+		"rsbuild",
+		"typescript",
+		"declarations",
+		"dts",
+		"bundler",
+		"build",
+		"esm",
+		"node",
+		"library",
+		"api-extractor",
+		"tsgo",
+		"tsdoc",
+		"monorepo"
+	],
 	"author": {
 		"name": "C. Spencer Beggs",
 		"email": "spencer@savvyweb.systems",
