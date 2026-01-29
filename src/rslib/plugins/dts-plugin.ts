@@ -22,7 +22,7 @@ import { TSConfigs } from "../../tsconfig/index.js";
 import type { PackageJson } from "../../types/package-json.js";
 import { createEnvLogger } from "./utils/build-logger.js";
 import { getApiExtractorPath } from "./utils/file-utils.js";
-import { convertParsedConfigToJson } from "./utils/tsconfig-resolver.js";
+import { TsconfigResolver } from "./utils/tsconfig-resolver.js";
 
 /**
  * TSDoc tag definition for custom documentation tags.
@@ -1555,7 +1555,8 @@ export const DtsPlugin = (options: DtsPluginOptions = {}): RsbuildPlugin => {
 
 									// Emit resolved tsconfig.json (excluded from npm publish, but available for tooling)
 									if (apiModelPath && state.parsedConfig && state.tsconfigPath) {
-										const resolvedTsconfig = convertParsedConfigToJson(state.parsedConfig, cwd);
+										const resolver = new TsconfigResolver();
+										const resolvedTsconfig = resolver.resolve(state.parsedConfig, cwd);
 										const tsconfigContent = `${JSON.stringify(resolvedTsconfig, null, "\t")}\n`;
 										const tsconfigSource = new context.sources.OriginalSource(tsconfigContent, "tsconfig.json");
 										context.compilation.emitAsset("tsconfig.json", tsconfigSource);
