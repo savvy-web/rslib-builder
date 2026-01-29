@@ -22,6 +22,7 @@ import { TSConfigs } from "../../tsconfig/index.js";
 import type { PackageJson } from "../../types/package-json.js";
 import { createEnvLogger } from "./utils/build-logger.js";
 import { getApiExtractorPath } from "./utils/file-utils.js";
+import { convertParsedConfigToJson } from "./utils/tsconfig-resolver.js";
 
 /**
  * TSDoc tag definition for custom documentation tags.
@@ -1506,6 +1507,7 @@ export const DtsPlugin = (options: DtsPluginOptions = {}): RsbuildPlugin => {
 												apiModelFilename,
 												localTsdocFilename,
 												hasTsdocMetadata: !!tsdocMetadataPath,
+												hasTsconfig: !!state.parsedConfig && !!state.tsconfigPath,
 												cwd,
 												distPath: `dist/${envId}`,
 											});
@@ -1548,6 +1550,23 @@ export const DtsPlugin = (options: DtsPluginOptions = {}): RsbuildPlugin => {
 
 										logger.info(
 											`${color.dim(`[${envId}]`)} Emitted TSDoc config: tsdoc.json (excluded from npm publish)`,
+										);
+									}
+
+									// Emit resolved tsconfig.json (excluded from npm publish, but available for tooling)
+									if (apiModelPath && state.parsedConfig && state.tsconfigPath) {
+										const resolvedTsconfig = convertParsedConfigToJson(state.parsedConfig, cwd);
+										const tsconfigContent = `${JSON.stringify(resolvedTsconfig, null, "\t")}\n`;
+										const tsconfigSource = new context.sources.OriginalSource(tsconfigContent, "tsconfig.json");
+										context.compilation.emitAsset("tsconfig.json", tsconfigSource);
+
+										// Add negated pattern to exclude from npm publish
+										if (filesArray) {
+											filesArray.add("!tsconfig.json");
+										}
+
+										logger.info(
+											`${color.dim(`[${envId}]`)} Emitted resolved tsconfig: tsconfig.json (excluded from npm publish)`,
 										);
 									}
 
@@ -1681,6 +1700,7 @@ export const DtsPlugin = (options: DtsPluginOptions = {}): RsbuildPlugin => {
 					apiModelFilename: string;
 					localTsdocFilename: string;
 					hasTsdocMetadata: boolean;
+					hasTsconfig: boolean;
 					cwd: string;
 					distPath: string;
 				}>("dts-local-paths-data");
@@ -1689,7 +1709,8 @@ export const DtsPlugin = (options: DtsPluginOptions = {}): RsbuildPlugin => {
 					return;
 				}
 
-				const { localPaths, apiModelFilename, localTsdocFilename, hasTsdocMetadata, cwd, distPath } = localPathsData;
+				const { localPaths, apiModelFilename, localTsdocFilename, hasTsdocMetadata, hasTsconfig, cwd, distPath } =
+					localPathsData;
 				const distDir = join(cwd, distPath);
 
 				for (const localPath of localPaths) {
@@ -1723,6 +1744,18 @@ export const DtsPlugin = (options: DtsPluginOptions = {}): RsbuildPlugin => {
 								src: tsdocSrc,
 								dest: join(resolvedPath, localTsdocFilename),
 								name: localTsdocFilename,
+							});
+						}
+					}
+
+					// tsconfig.json (resolved version from dist)
+					if (hasTsconfig) {
+						const tsconfigSrc = join(distDir, "tsconfig.json");
+						if (existsSync(tsconfigSrc)) {
+							filesToCopy.push({
+								src: tsconfigSrc,
+								dest: join(resolvedPath, "tsconfig.json"),
+								name: "tsconfig.json",
 							});
 						}
 					}
