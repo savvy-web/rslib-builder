@@ -1,4 +1,3 @@
-import { relative } from "node:path";
 import type { ParsedCommandLine } from "typescript";
 import {
 	ImportsNotUsedAsValues,
@@ -617,46 +616,6 @@ export class TsconfigResolver {
 
 		// Remove "lib." prefix and ".d.ts" suffix
 		return filename.replace(/^lib\./, "").replace(/\.d\.ts$/, "");
-	}
-
-	/**
-	 * Normalizes an absolute path to a relative path from the specified root directory.
-	 *
-	 * @remarks
-	 * Converts absolute paths to relative paths for portability. If the path
-	 * is already relative, it is returned unchanged. Relative paths are
-	 * normalized to start with "./" for clarity.
-	 *
-	 * @param path - The path to normalize (absolute or relative)
-	 * @param rootDir - The root directory to make paths relative to
-	 * @returns The relative path, or the original path if not absolute, or undefined if input is undefined
-	 *
-	 * @example
-	 * ```typescript
-	 * import { TsconfigResolver } from '@savvy-web/rslib-builder';
-	 *
-	 * const relative = TsconfigResolver.normalizePathToRelative('/project/src', '/project');
-	 * console.log(relative); // "./src"
-	 *
-	 * const unchanged = TsconfigResolver.normalizePathToRelative('./src', '/project');
-	 * console.log(unchanged); // "./src"
-	 * ```
-	 *
-	 * @public
-	 */
-	static normalizePathToRelative(path: string | undefined, rootDir: string): string | undefined {
-		if (path === undefined) {
-			return undefined;
-		}
-
-		// Only convert absolute paths
-		if (path.startsWith("/") || (path.length > 2 && path[1] === ":")) {
-			const relativePath = relative(rootDir, path);
-			// Ensure it starts with ./ for clarity
-			return relativePath.startsWith(".") ? relativePath : `./${relativePath}`;
-		}
-
-		return path;
 	}
 
 	/**

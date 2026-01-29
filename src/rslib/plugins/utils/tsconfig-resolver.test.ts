@@ -291,33 +291,6 @@ describe("TsconfigResolver", () => {
 		});
 	});
 
-	describe("static normalizePathToRelative", () => {
-		it("should convert absolute unix path to relative", () => {
-			const result = TsconfigResolver.normalizePathToRelative("/project/src", "/project");
-			expect(result).toBe("./src");
-		});
-
-		it.skipIf(process.platform !== "win32")("should convert absolute windows path to relative", () => {
-			// This test only makes sense on Windows where C:\ paths are absolute
-			const result = TsconfigResolver.normalizePathToRelative("C:\\project\\src", "C:\\project");
-			expect(result).toBe("./src");
-		});
-
-		it("should preserve already relative paths", () => {
-			expect(TsconfigResolver.normalizePathToRelative("./src", "/project")).toBe("./src");
-			expect(TsconfigResolver.normalizePathToRelative("../other", "/project")).toBe("../other");
-		});
-
-		it("should return undefined for undefined input", () => {
-			expect(TsconfigResolver.normalizePathToRelative(undefined, "/project")).toBeUndefined();
-		});
-
-		it("should handle nested directories", () => {
-			const result = TsconfigResolver.normalizePathToRelative("/project/src/components", "/project");
-			expect(result).toBe("./src/components");
-		});
-	});
-
 	describe("resolve method", () => {
 		it("should include $schema in output", () => {
 			const resolver = new TsconfigResolver();
