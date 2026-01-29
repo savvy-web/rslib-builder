@@ -24,6 +24,7 @@ that simplifies building TypeScript packages for npm distribution.
 | Type Generation | Uses tsgo for fast TypeScript declaration generation |
 | Declaration Bundling | Bundles .d.ts files with API Extractor |
 | API Model Generation | Creates machine-readable API docs for tooling |
+| Resolved tsconfig Export | Exports flattened tsconfig for virtual TS environments |
 | TSDoc Validation | Optional pre-build TSDoc comment validation |
 | Package Transform | Resolves PNPM references, updates export paths |
 | Multi-Target | Separate dev (debugging) and npm (production) builds |

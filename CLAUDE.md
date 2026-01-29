@@ -92,6 +92,7 @@ Custom RSlib plugins handle complex build scenarios:
 2. **AutoEntryPlugin** - Automatically extracts entry points from package.json exports
 3. **PackageJsonTransformPlugin** - Transforms package.json for different targets
 4. **DtsPlugin** - Generates TypeScript declarations using tsgo and API Extractor
+   - When `apiModel` is enabled, also emits resolved `tsconfig.json` for virtual TS environments
 5. **FilesArrayPlugin** - Generates files array, excludes source maps
 
 ### Build Targets
@@ -115,6 +116,20 @@ This module produces bundled ESM output with rolled-up types:
 - Single-file outputs per export entry point
 - TypeScript declarations bundled via API Extractor
 - Optimized for npm publishing and fast runtime loading
+
+When `apiModel` is enabled, DtsPlugin also emits:
+
+- `<package>.api.json` - API model for documentation tooling (excluded from npm)
+- `tsdoc-metadata.json` - TSDoc metadata for downstream tools (published)
+- `tsconfig.json` - Resolved/flattened tsconfig for virtual TS environments (excluded from npm)
+
+The resolved tsconfig.json is configured for virtual environments:
+
+- Sets `composite: false` and `noEmit: true`
+- Excludes path-dependent options (outDir, rootDir, paths, typeRoots)
+- Excludes file selection (include, exclude, files)
+- Removes `types` array to use default @types auto-discovery
+- Includes `$schema` for IDE support
 
 ## Testing
 

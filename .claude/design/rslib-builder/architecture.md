@@ -3,8 +3,8 @@ status: current
 module: rslib-builder
 category: architecture
 created: 2026-01-18
-updated: 2026-01-26
-last-synced: 2026-01-26
+updated: 2026-01-28
+last-synced: 2026-01-28
 completeness: 95
 related:
   - rslib-builder/api-extraction.md
@@ -131,6 +131,7 @@ processing stages.
   - Stage: modifyRsbuildConfig
 - **DtsPlugin** - Generate .d.ts with tsgo, optional API Extractor bundling
   - Stages: modifyRsbuildConfig, pre-process, summarize
+  - When apiModel enabled: emits tsconfig.json, api model, tsdoc-metadata.json
 - **PackageJsonTransformPlugin** - Transform package.json for dist
   - Stages: pre-process, optimize, optimize-inline
 - **FilesArrayPlugin** - Build package.json files array, exclude source maps
@@ -190,6 +191,17 @@ transformations. Consolidated from 14 files to 6 focused modules.
    - Filters test files, declaration files, and node_modules
    - Provides structured error types for programmatic error handling
    - Supports configurable exclude patterns for custom filtering
+
+8. **`tsconfig-resolver.ts`** - TypeScript config resolution for virtual environments
+   - Exports: `TsconfigResolver` class, `TsconfigResolverError`,
+     `ResolvedTsconfig`, `ResolvedCompilerOptions`, standalone converter functions
+   - Converts TypeScript's `ParsedCommandLine` to JSON-serializable format
+   - Static methods for enum conversion (ScriptTarget, ModuleKind, JsxEmit, etc.)
+   - Sets `composite: false` and `noEmit: true` for virtual environment compatibility
+   - Excludes path-dependent options (outDir, rootDir, paths, typeRoots, declarationDir)
+   - Excludes file selection patterns (include, exclude, files, references)
+   - Converts lib references from full paths to canonical names (e.g., "esnext")
+   - Used by DtsPlugin to emit resolved tsconfig.json alongside API model
 
 ### Architecture Diagram
 
@@ -862,6 +874,16 @@ Source .ts files
 |   - Bundle main entry .d.ts    |
 |   - Optional: Generate         |
 |     api.model.json             |
++--------------------------------+
+         |
+         v
++--------------------------------+
+| TsconfigResolver (if apiModel) |
+|   - Convert ParsedCommandLine  |
+|     to JSON-serializable       |
+|   - Set composite: false,      |
+|     noEmit: true               |
+|   - Emit tsconfig.json to dist |
 +--------------------------------+
          |
          v

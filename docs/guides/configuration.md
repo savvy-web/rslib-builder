@@ -407,6 +407,60 @@ apiModel: {
 
 **Note:** API model is only generated for the `npm` target, not `dev`.
 
+### Build Output Files
+
+When API model generation is enabled, DtsPlugin produces several auxiliary files
+in addition to declarations:
+
+| File | Purpose | npm Publish |
+| :--- | :------ | :---------: |
+| `<package>.api.json` | API model for documentation tooling | No |
+| `tsdoc-metadata.json` | TSDoc metadata for documentation | Yes |
+| `tsdoc.json` | TSDoc configuration for tools | No |
+| `tsconfig.json` | Resolved TypeScript configuration | No |
+
+The `tsconfig.json` output is a **resolved (flattened)** version of your
+project's TypeScript configuration. It is designed for virtual TypeScript
+environments and tooling that needs compiler options without path dependencies.
+
+**What the resolved tsconfig.json includes:**
+
+- All compiler options converted to JSON-serializable format
+- Enum values converted to strings (target, module, moduleResolution, jsx)
+- `composite: false` and `noEmit: true` set for virtual environment compatibility
+- `$schema` for IDE support
+
+**What it excludes:**
+
+- Path-dependent options: `rootDir`, `outDir`, `baseUrl`, `paths`, `typeRoots`
+- Emit-related options: `declaration`, `sourceMap`, `inlineSourceMap`
+- File selection patterns: `include`, `exclude`, `files`, `references`
+- Types array (uses default @types auto-discovery)
+
+**Use cases for resolved tsconfig.json:**
+
+- Documentation tooling that needs type information
+- Language service implementations for virtual file systems
+- API documentation generators that analyze type annotations
+- IDE plugins that need TypeScript configuration without file system access
+
+**Local Paths Integration:**
+
+When using `localPaths`, the resolved tsconfig.json is automatically copied
+alongside the API model and package.json:
+
+```typescript
+apiModel: {
+  enabled: true,
+  localPaths: ['../docs-site/lib/packages/my-package'],
+}
+// Copies to each localPath:
+// - my-package.api.json
+// - package.json (transformed)
+// - tsconfig.json (resolved)
+// - tsdoc-metadata.json (if enabled)
+```
+
 ## TSDoc Linting
 
 ### tsdocLint
