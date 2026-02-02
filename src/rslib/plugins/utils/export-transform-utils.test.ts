@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
-import type { FlexibleExports } from "./package-json-transformer.js";
+import type { PackageJson } from "../../../types/package-json.js";
 import { isConditionsObject, transformPackageExports } from "./package-json-transformer.js";
+
+/**
+ * Local test type matching the internal TestExports type from package-json-transformer.
+ * Used for testing the public transformPackageExports API.
+ */
+type TestExports = PackageJson.Exports | Record<string, unknown> | TestExports[] | undefined | null;
 
 // Helper functions for backwards compatibility with the test structure
 // These are now internal to package-json-transformer.ts but we test through the public API
@@ -11,7 +17,7 @@ function transformStringExport(
 	entrypoints?: Map<string, string>,
 	exportToOutputMap?: Map<string, string>,
 	collapseIndex: boolean = false,
-): FlexibleExports {
+): TestExports {
 	return transformPackageExports(
 		exportString,
 		processTSExports,
@@ -23,13 +29,13 @@ function transformStringExport(
 }
 
 function transformArrayExports(
-	exports: FlexibleExports[],
+	exports: TestExports[],
 	processTSExports: boolean,
 	exportKey?: string,
 	entrypoints?: Map<string, string>,
 	exportToOutputMap?: Map<string, string>,
 	collapseIndex: boolean = false,
-): FlexibleExports[] {
+): TestExports[] {
 	return transformPackageExports(
 		exports,
 		processTSExports,
@@ -37,7 +43,7 @@ function transformArrayExports(
 		entrypoints,
 		exportToOutputMap,
 		collapseIndex,
-	) as FlexibleExports[];
+	) as TestExports[];
 }
 
 function transformObjectExports(
@@ -49,7 +55,7 @@ function transformObjectExports(
 	collapseIndex: boolean = false,
 ): Record<string, unknown> {
 	return transformPackageExports(
-		exports as FlexibleExports,
+		exports as TestExports,
 		processTSExports,
 		exportKey,
 		entrypoints,
@@ -72,7 +78,7 @@ function transformExportEntry(
 	if (isConditions) {
 		const obj = { [key]: value };
 		const result = transformPackageExports(
-			obj as FlexibleExports,
+			obj as TestExports,
 			processTSExports,
 			exportKey,
 			entrypoints,
@@ -82,7 +88,7 @@ function transformExportEntry(
 		return result[key];
 	}
 	return transformPackageExports(
-		value as FlexibleExports,
+		value as TestExports,
 		processTSExports,
 		key,
 		entrypoints,
@@ -423,10 +429,10 @@ describe("export-transform-utils", () => {
 
 		it("should handle boolean and number values gracefully", () => {
 			// Edge case: non-standard export values
-			const result = transformPackageExports(true as unknown as FlexibleExports, true);
+			const result = transformPackageExports(true as unknown as TestExports, true);
 			expect(result).toBe(true);
 
-			const result2 = transformPackageExports(42 as unknown as FlexibleExports, true);
+			const result2 = transformPackageExports(42 as unknown as TestExports, true);
 			expect(result2).toBe(42);
 		});
 	});
@@ -643,7 +649,7 @@ describe("export-transform-utils", () => {
 
 		describe("transformPackageExports with collapseIndex", () => {
 			it("should handle simple string export when collapseIndex is true", () => {
-				const exports: FlexibleExports = "./src/rslib/index.ts";
+				const exports: TestExports = "./src/rslib/index.ts";
 				const result = transformPackageExports(exports, true, undefined, undefined, undefined, true);
 				expect(result).toEqual({
 					types: "./rslib.d.ts",
@@ -652,7 +658,7 @@ describe("export-transform-utils", () => {
 			});
 
 			it("should handle simple string export when collapseIndex is false", () => {
-				const exports: FlexibleExports = "./src/rslib/index.ts";
+				const exports: TestExports = "./src/rslib/index.ts";
 				const result = transformPackageExports(exports, true, undefined, undefined, undefined, false);
 				expect(result).toEqual({
 					types: "./rslib/index.d.ts",
@@ -661,7 +667,7 @@ describe("export-transform-utils", () => {
 			});
 
 			it("should handle object exports when collapseIndex is true", () => {
-				const exports: FlexibleExports = {
+				const exports: TestExports = {
 					"./rslib": "./src/rslib/index.ts",
 					"./commitlint": "./src/commitlint.ts",
 					"./vitest": "./src/vitest.ts",
@@ -684,7 +690,7 @@ describe("export-transform-utils", () => {
 			});
 
 			it("should handle object exports when collapseIndex is false", () => {
-				const exports: FlexibleExports = {
+				const exports: TestExports = {
 					"./rslib": "./src/rslib/index.ts",
 					"./commitlint": "./src/commitlint.ts",
 					"./vitest": "./src/vitest.ts",
@@ -707,7 +713,7 @@ describe("export-transform-utils", () => {
 			});
 
 			it("should handle nested export conditions when collapseIndex is true", () => {
-				const exports: FlexibleExports = {
+				const exports: TestExports = {
 					".": {
 						types: "./src/index.d.ts",
 						import: "./src/rslib/index.ts",
@@ -723,7 +729,7 @@ describe("export-transform-utils", () => {
 			});
 
 			it("should handle nested export conditions when collapseIndex is false", () => {
-				const exports: FlexibleExports = {
+				const exports: TestExports = {
 					".": {
 						types: "./src/index.d.ts",
 						import: "./src/rslib/index.ts",

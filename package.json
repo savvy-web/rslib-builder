@@ -40,12 +40,12 @@
 		"./tsconfig/ecma/lib.json": "./src/public/tsconfig/ecma/lib.json"
 	},
 	"scripts": {
-		"build": "turbo run build:dev build:npm",
+		"build": "turbo run build:dev build:npm --log-order=grouped",
 		"build:dev": "NODE_OPTIONS='--disable-warning=ExperimentalWarning' rslib build --env-mode dev",
 		"build:inspect": "rslib inspect --verbose",
 		"build:npm": "NODE_OPTIONS='--disable-warning=ExperimentalWarning' rslib build --env-mode npm",
 		"ci:build": "CI=\"true\" turbo run build:dev build:npm",
-		"ci:test": "vitest run --coverage",
+		"ci:test": "CI=\"true\" vitest run --coverage && CI=\"true\" vitest run --config vitest.config.e2e.ts",
 		"ci:version": "changeset version && biome format --write",
 		"lint": "biome check --max-diagnostics=none",
 		"lint:fix": "biome check --write --max-diagnostics=none",
@@ -54,9 +54,11 @@
 		"lint:md:fix": "markdownlint-cli2  --config './lib/configs/.markdownlint-cli2.jsonc' --fix",
 		"lint:tsdoc": "eslint --config ./lib/configs/eslint.config.ts --ignore-pattern '**/*.test.ts'",
 		"prepare": "husky",
-		"test": "vitest run",
-		"test:coverage": "vitest run --coverage",
-		"test:watch": "vitest --watch",
+		"test": "vitest run --exclude 'test/e2e/**'",
+		"test:ai": "vitest run --exclude 'test/e2e/**' --reporter=basic",
+		"test:coverage": "vitest run --exclude 'test/e2e/**' --coverage",
+		"test:e2e": "vitest run --config vitest.config.e2e.ts",
+		"test:watch": "vitest --watch --exclude 'test/e2e/**'",
 		"typecheck": "tsgo --noEmit"
 	},
 	"dependencies": {
@@ -89,6 +91,7 @@
 		"@typescript-eslint/parser": "^8.53.1",
 		"@typescript/native-preview": "^7.0.0-dev.20260201.1",
 		"@vitest/coverage-v8": "^4.0.18",
+		"husky": "^9.1.7",
 		"turbo": "^2.8.1",
 		"type-fest": "^5.4.3",
 		"typescript": "^5.9.3",
@@ -115,10 +118,13 @@
 			"optional": false
 		},
 		"typescript": {
-			"optional": true
+			"optional": false
 		}
 	},
 	"packageManager": "pnpm@10.28.2",
+	"engines": {
+		"node": ">=24.0.0"
+	},
 	"devEngines": {
 		"packageManager": {
 			"name": "pnpm",

@@ -410,13 +410,6 @@ export async function runTsDocLint(options: TsDocLintPluginOptions, cwd: string)
 /**
  * Cleans up the tsdoc.json config file.
  *
- * @param configPath - Path to the config file
- *
- * @internal
- */
-/**
- * Cleans up the tsdoc.json config file.
- *
  * @param configPath - Path to the config file to delete
  *
  * @internal

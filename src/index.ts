@@ -82,6 +82,17 @@ export type {
 } from "./rslib/plugins/utils/import-graph.js";
 export { ImportGraph } from "./rslib/plugins/utils/import-graph.js";
 
+// Utilities - TSConfig Resolution
+export type {
+	ResolvedCompilerOptions,
+	ResolvedTsconfig,
+} from "./rslib/plugins/utils/tsconfig-resolver.js";
+export { TsconfigResolver, TsconfigResolverError } from "./rslib/plugins/utils/tsconfig-resolver.js";
+
+// Utilities - Entry Extraction
+export type { EntryExtractorOptions, ExtractedEntries } from "./rslib/plugins/utils/entry-extractor.js";
+export { EntryExtractor, extractEntriesFromPackageJson } from "./rslib/plugins/utils/entry-extractor.js";
+
 // Type utilities
 export type {
 	JsonArray,

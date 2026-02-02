@@ -1,0 +1,21 @@
+{
+	"name": "@fixtures/multi-entry",
+	"version": "1.0.0",
+	"private": true,
+	"type": "module",
+	"exports": {
+		".": "./src/index.ts",
+		"./utils": "./src/utils.ts",
+		"./types": "./src/types.ts"
+	},
+	"scripts": {
+		"build": "rslib build --env-mode npm"
+	},
+	"devDependencies": {
+		"@microsoft/api-extractor": "^7.56.0",
+		"@rslib/core": "^0.19.4",
+		"@savvy-web/rslib-builder": "workspace:*",
+		"@typescript/native-preview": "^7.0.0-dev.20260201.1",
+		"typescript": "^5.9.3"
+	}
+}

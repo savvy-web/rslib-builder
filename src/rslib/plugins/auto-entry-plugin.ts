@@ -110,10 +110,7 @@ export const AutoEntryPlugin = (options?: AutoEntryPluginOptions): RsbuildPlugin
 				api.expose("exportToOutputMap", exportToOutputMap);
 			}
 
-			api.onBeforeBuild(async (context) => {
-				api.logger.debug(context);
-			});
-
+	
 			api.modifyRsbuildConfig(async (config) => {
 				const log = createEnvLogger("auto-entry");
 				const { assetPath, assetExists } = await fileExistAsync("package.json");

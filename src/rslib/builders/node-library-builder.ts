@@ -379,7 +379,17 @@ export interface NodeLibraryBuilderOptions {
 /* v8 ignore next -- @preserve */
 // biome-ignore lint/complexity/noStaticOnlyClass: <This is a nicety for the API>
 export class NodeLibraryBuilder {
-	static DEFAULT_OPTIONS: NodeLibraryBuilderOptions = {
+	/** Valid build targets for validation. */
+	private static readonly VALID_TARGETS: readonly BuildTarget[] = ["dev", "npm"];
+
+	/**
+	 * Default configuration options for NodeLibraryBuilder.
+	 *
+	 * @remarks
+	 * These defaults are merged with user-provided options in {@link NodeLibraryBuilder.mergeOptions}.
+	 * Arrays are deep-copied to prevent mutation of this object.
+	 */
+	static readonly DEFAULT_OPTIONS: NodeLibraryBuilderOptions = {
 		entry: undefined,
 		plugins: [],
 		define: {},
@@ -391,6 +401,18 @@ export class NodeLibraryBuilder {
 		transformFiles: undefined,
 		tsdocLint: undefined,
 	};
+
+	/**
+	 * Merges user-provided options with default options.
+	 *
+	 * @remarks
+	 * This method performs a shallow merge of options with special handling for arrays
+	 * (deep-copied to avoid mutation). If a `public` directory exists in the project root,
+	 * it's automatically added to `copyPatterns`.
+	 *
+	 * @param options - Partial configuration options to merge
+	 * @returns Complete configuration with all required fields
+	 */
 	static mergeOptions(options: Partial<NodeLibraryBuilderOptions> = {}): NodeLibraryBuilderOptions {
 		const merged = {
 			...NodeLibraryBuilder.DEFAULT_OPTIONS,
@@ -403,9 +425,16 @@ export class NodeLibraryBuilder {
 		}
 		return merged;
 	}
+
 	/**
 	 * Creates an async RSLib configuration function that determines build target from envMode.
-	 * This provides a clean API where users don't need to handle environment logic.
+	 *
+	 * @remarks
+	 * This is the primary entry point for using NodeLibraryBuilder. The returned function
+	 * is passed to RSLib and called with environment parameters to generate the build config.
+	 *
+	 * @param options - Configuration options for the builder
+	 * @returns An async function compatible with RSLib's config system
 	 */
 	static create(options: Partial<NodeLibraryBuilderOptions> = {}): RslibConfigAsyncFn {
 		const mergedOptions = NodeLibraryBuilder.mergeOptions(options);
@@ -415,23 +444,27 @@ export class NodeLibraryBuilder {
 			const target = (envMode as BuildTarget) || "dev";
 
 			// Validate target
-			const validTargets: BuildTarget[] = ["dev", "npm"];
-			if (!validTargets.includes(target)) {
+			if (!NodeLibraryBuilder.VALID_TARGETS.includes(target)) {
 				throw new Error(
-					`Invalid env-mode: "${target}". Must be one of: ${validTargets.join(", ")}\n` +
+					`Invalid env-mode: "${target}". Must be one of: ${NodeLibraryBuilder.VALID_TARGETS.join(", ")}\n` +
 						`Example: rslib build --env-mode npm`,
 				);
 			}
 
-			// Create target-specific configuration
-			const targetConfig = await NodeLibraryBuilder.createSingleTarget(target, mergedOptions);
-
-			return targetConfig;
+			return NodeLibraryBuilder.createSingleTarget(target, mergedOptions);
 		};
 	}
+
 	/**
 	 * Creates a single-target build configuration.
-	 * This allows proper plugin isolation per build target.
+	 *
+	 * @remarks
+	 * This method is called internally by {@link NodeLibraryBuilder.create} for each build target.
+	 * It configures all plugins and RSLib options based on the target and user options.
+	 *
+	 * @param target - The build target ("dev" or "npm")
+	 * @param opts - Configuration options (will be merged with defaults)
+	 * @returns Promise resolving to the RSLib configuration
 	 */
 	static async createSingleTarget(target: BuildTarget, opts: NodeLibraryBuilderOptions): Promise<RslibConfig> {
 		const options = NodeLibraryBuilder.mergeOptions(opts);
@@ -451,39 +484,36 @@ export class NodeLibraryBuilder {
 			plugins.push(TsDocLintPlugin(lintOptions));
 		}
 
-		// Standard plugins for dev and npm targets
-		if (target === "dev" || target === "npm") {
-			// Add auto-entry plugin if no explicit entries provided
-			if (!options.entry) {
-				plugins.push(
-					AutoEntryPlugin({
-						exportsAsIndexes: options.exportsAsIndexes,
-					}),
-				);
-			}
-
-			// Process package.json with pnpm + RSLib transformations
-			// Wrap user's transform to provide target context
-			const userTransform = options.transform;
-			const transformFn = userTransform ? (pkg: PackageJson): PackageJson => userTransform({ target, pkg }) : undefined;
-
+		// Add auto-entry plugin if no explicit entries provided
+		if (!options.entry) {
 			plugins.push(
-				PackageJsonTransformPlugin({
-					forcePrivate: target === "dev",
-					bundle: true,
-					target,
-					transform: transformFn,
-				}),
-			);
-
-			// Add files array plugin to manage package.json files array
-			plugins.push(
-				FilesArrayPlugin({
-					target,
-					transformFiles: options.transformFiles,
+				AutoEntryPlugin({
+					exportsAsIndexes: options.exportsAsIndexes,
 				}),
 			);
 		}
+
+		// Process package.json with pnpm + RSLib transformations
+		// Wrap user's transform to provide target context
+		const userTransform = options.transform;
+		const transformFn = userTransform ? (pkg: PackageJson): PackageJson => userTransform({ target, pkg }) : undefined;
+
+		plugins.push(
+			PackageJsonTransformPlugin({
+				forcePrivate: target === "dev",
+				bundle: true,
+				target,
+				transform: transformFn,
+			}),
+		);
+
+		// Add files array plugin to manage package.json files array
+		plugins.push(
+			FilesArrayPlugin({
+				target,
+				transformFiles: options.transformFiles,
+			}),
+		);
 
 		// Add user-provided plugins
 		if (options.plugins) {

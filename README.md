@@ -58,10 +58,7 @@ Extend the provided tsconfig for optimal settings:
 ```jsonc
 // tsconfig.json
 {
-  "extends": "@savvy-web/rslib-builder/tsconfig/ecma/lib.json",
-  "compilerOptions": {
-    "outDir": "dist"
-  }
+  "extends": "@savvy-web/rslib-builder/tsconfig/ecma/lib.json"
 }
 ```
 
@@ -106,18 +103,20 @@ rslib build --env-mode npm
 
 ## API Overview
 
-The package exports a main builder and several plugins:
+The package exports a main builder, plugins, and utilities:
 
-| Export                       | Description                                   |
-| ---------------------------- | --------------------------------------------- |
-| `NodeLibraryBuilder`         | Main API for building Node.js libraries       |
-| `AutoEntryPlugin`            | Auto-extracts entry points from package.json  |
-| `DtsPlugin`                  | Generates TypeScript declarations with tsgo   |
-| `PackageJsonTransformPlugin` | Transforms package.json for distribution      |
-| `FilesArrayPlugin`           | Generates files array for npm publishing      |
-| `TsDocLintPlugin`            | Validates TSDoc comments before build         |
-| `TsDocConfigBuilder`         | Utility for TSDoc configuration               |
-| `ImportGraph`                | Traces TypeScript imports for file discovery  |
+| Export                       | Description                                    |
+| ---------------------------- | ---------------------------------------------- |
+| `NodeLibraryBuilder`         | Main API for building Node.js libraries        |
+| `AutoEntryPlugin`            | Auto-extracts entry points from package.json   |
+| `DtsPlugin`                  | Generates TypeScript declarations with tsgo    |
+| `PackageJsonTransformPlugin` | Transforms package.json for distribution       |
+| `FilesArrayPlugin`           | Generates files array for npm publishing       |
+| `TsDocLintPlugin`            | Validates TSDoc comments before build          |
+| `TsDocConfigBuilder`         | Utility for TSDoc configuration                |
+| `ImportGraph`                | Traces TypeScript imports for file discovery   |
+| `TsconfigResolver`           | Resolves tsconfig for virtual TS environments  |
+| `EntryExtractor`             | Extracts entry points from package.json fields |
 
 See [Configuration](./docs/guides/configuration.md) for all options.
 

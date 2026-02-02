@@ -1,0 +1,22 @@
+{
+	"name": "@fixtures/with-bin",
+	"version": "1.0.0",
+	"private": true,
+	"type": "module",
+	"exports": {
+		".": "./src/index.ts"
+	},
+	"bin": {
+		"my-cli": "./src/cli.ts"
+	},
+	"scripts": {
+		"build": "rslib build --env-mode npm"
+	},
+	"devDependencies": {
+		"@microsoft/api-extractor": "^7.56.0",
+		"@rslib/core": "^0.19.4",
+		"@savvy-web/rslib-builder": "workspace:*",
+		"@typescript/native-preview": "^7.0.0-dev.20260201.1",
+		"typescript": "^5.9.3"
+	}
+}

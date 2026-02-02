@@ -38,6 +38,12 @@
 			"cache": false,
 			"dependsOn": ["typecheck"]
 		},
+		"test:e2e": {
+			"cache": false,
+			"dependsOn": ["^build", "build"],
+			"inputs": ["test/fixtures/**", "test/e2e/**"],
+			"outputs": []
+		},
 		"typecheck": {
 			"cache": true,
 			"inputs": [
