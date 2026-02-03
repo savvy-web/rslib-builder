@@ -128,12 +128,17 @@ export interface TsDocOptions {
 
 	/**
 	 * Persist tsdoc.json to disk for tool integration (ESLint, IDEs).
-	 * - `true`: Write to project root as "tsdoc.json"
-	 * - `PathLike`: Write to specified path
-	 * - `false`: Clean up after API Extractor
+	 * - `true`: Write to project root as "tsdoc.json" (or validate in CI)
+	 * - `PathLike`: Write to specified path (or validate in CI)
+	 * - `false`: Clean up after API Extractor (not recommended)
 	 *
-	 * @defaultValue `true` when `CI` and `GITHUB_ACTIONS` env vars are not "true",
-	 *               `false` otherwise (CI environments)
+	 * @remarks
+	 * In CI environments (`CI` or `GITHUB_ACTIONS` env vars set to "true"),
+	 * the config file is validated instead of written. If the existing file
+	 * doesn't match the expected configuration, the build fails with an error
+	 * instructing the developer to regenerate the file locally.
+	 *
+	 * @defaultValue `true`
 	 */
 	persistConfig?: boolean | PathLike;
 
@@ -282,8 +287,8 @@ export class TsDocConfigBuilder {
 	static shouldPersist(persistConfig: boolean | PathLike | undefined): boolean {
 		if (persistConfig === false) return false;
 		if (persistConfig !== undefined) return true;
-		// Default: persist unless in CI
-		return !TsDocConfigBuilder.isCI();
+		// Default: always persist (local writes, CI validates)
+		return true;
 	}
 
 	/**
@@ -361,18 +366,10 @@ export class TsDocConfigBuilder {
 	}
 
 	/**
-	 * Generates a tsdoc.json file from options.
-	 *
-	 * @remarks
-	 * When all groups are enabled (default), generates a minimal config with
-	 * `noStandardTags: false` so TSDoc automatically loads all standard tags.
-	 * Only custom tags need to be defined in this case.
-	 *
-	 * When a subset of groups is specified, generates a config with
-	 * `noStandardTags: true` and explicitly defines only the tags from
-	 * the enabled groups.
+	 * Builds the tsdoc.json configuration object from options.
+	 * @internal
 	 */
-	static async writeConfigFile(options: TsDocOptions = {}, outputDir: string): Promise<string> {
+	static buildConfigObject(options: TsDocOptions = {}): Record<string, unknown> {
 		const { tagDefinitions, supportForTags, useStandardTags } = TsDocConfigBuilder.build(options);
 
 		const tsdocConfig: Record<string, unknown> = {
@@ -391,7 +388,71 @@ export class TsDocConfigBuilder {
 			tsdocConfig.supportForTags = supportForTags;
 		}
 
+		return tsdocConfig;
+	}
+
+	/**
+	 * Validates that the existing tsdoc.json matches the expected configuration.
+	 * Used in CI environments to ensure the committed config is up-to-date.
+	 *
+	 * @param options - TSDoc options to build expected configuration
+	 * @param configPath - Path to the existing tsdoc.json file
+	 * @throws Error if the file doesn't exist, can't be parsed, or doesn't match
+	 */
+	static async validateConfigFile(options: TsDocOptions = {}, configPath: string): Promise<void> {
+		const expectedConfig = TsDocConfigBuilder.buildConfigObject(options);
+
+		if (!existsSync(configPath)) {
+			throw new Error(
+				`tsdoc.json not found at ${configPath}. ` + "Run the build locally to generate it, then commit the file.",
+			);
+		}
+
+		let existingConfig: unknown;
+		try {
+			const existingContent = await readFile(configPath, "utf-8");
+			existingConfig = JSON.parse(existingContent);
+		} catch (error) {
+			throw new Error(
+				`Failed to parse existing tsdoc.json at ${configPath}: ${error instanceof Error ? error.message : String(error)}`,
+			);
+		}
+
+		if (!deepEqual(existingConfig, expectedConfig, { strict: true })) {
+			throw new Error(
+				`tsdoc.json is out of date. Run the build locally to regenerate it, then commit the changes.\n` +
+					`Expected:\n${JSON.stringify(expectedConfig, null, 2)}\n\n` +
+					`Actual:\n${JSON.stringify(existingConfig, null, 2)}`,
+			);
+		}
+	}
+
+	/**
+	 * Generates a tsdoc.json file from options.
+	 *
+	 * @remarks
+	 * When all groups are enabled (default), generates a minimal config with
+	 * `noStandardTags: false` so TSDoc automatically loads all standard tags.
+	 * Only custom tags need to be defined in this case.
+	 *
+	 * When a subset of groups is specified, generates a config with
+	 * `noStandardTags: true` and explicitly defines only the tags from
+	 * the enabled groups.
+	 *
+	 * In CI environments (`CI` or `GITHUB_ACTIONS` env vars set to "true"),
+	 * this method validates the existing file instead of writing, throwing
+	 * an error if the config is out of date.
+	 */
+	static async writeConfigFile(options: TsDocOptions = {}, outputDir: string): Promise<string> {
 		const configPath = join(outputDir, "tsdoc.json");
+
+		// In CI, validate instead of write
+		if (TsDocConfigBuilder.isCI()) {
+			await TsDocConfigBuilder.validateConfigFile(options, configPath);
+			return configPath;
+		}
+
+		const tsdocConfig = TsDocConfigBuilder.buildConfigObject(options);
 
 		// Check if file exists and compare objects to avoid unnecessary writes
 		if (existsSync(configPath)) {
@@ -763,9 +824,8 @@ async function bundleDtsFiles(options: {
 	// Validate that API Extractor is installed before attempting import
 	getApiExtractorPath();
 
-	// Determine TSDoc config persistence behavior
+	// Determine TSDoc config output path
 	const persistConfig = tsdocOptions?.persistConfig;
-	const shouldPersist = TsDocConfigBuilder.shouldPersist(persistConfig);
 	const tsdocConfigOutputPath = TsDocConfigBuilder.getConfigPath(persistConfig, cwd);
 
 	// Generate tsdoc.json config file for API Extractor
@@ -1005,23 +1065,7 @@ async function bundleDtsFiles(options: {
 		bundledFiles.set(entryName, tempBundledPath);
 	}
 
-	// Clean up or persist the generated tsdoc.json based on configuration
-	let persistedTsdocConfigPath: string | undefined;
-	if (tsdocConfigPath) {
-		if (shouldPersist) {
-			// Keep the file on disk for tool integration
-			persistedTsdocConfigPath = tsdocConfigPath;
-		} else {
-			// Clean up the temporary file
-			try {
-				await unlink(tsdocConfigPath);
-			} catch {
-				// Ignore cleanup errors
-			}
-		}
-	}
-
-	return { bundledFiles, apiModelPath, tsdocMetadataPath, tsdocConfigPath: persistedTsdocConfigPath };
+	return { bundledFiles, apiModelPath, tsdocMetadataPath, tsdocConfigPath };
 }
 /* v8 ignore stop */
 

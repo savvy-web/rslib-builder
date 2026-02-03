@@ -14,7 +14,6 @@ publicHoistPattern:
   - "@commitlint/cli"
   - "@commitlint/cz-commitlint"
   - husky
-  - husky
   - lint-staged
   - markdownlint-cli2
   - markdownlint-cli2-formatter-codequality

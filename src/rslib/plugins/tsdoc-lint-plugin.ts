@@ -120,11 +120,17 @@ export interface TsDocLintPluginOptions {
 
 	/**
 	 * Persist tsdoc.json to disk for tool integration (ESLint, IDEs).
-	 * - `true`: Write to project root as "tsdoc.json"
-	 * - `PathLike`: Write to specified path
-	 * - `false`: Clean up after linting
+	 * - `true`: Write to project root as "tsdoc.json" (or validate in CI)
+	 * - `PathLike`: Write to specified path (or validate in CI)
+	 * - `false`: Clean up after linting (not recommended)
 	 *
-	 * @defaultValue `true` when not in CI, `false` in CI environments
+	 * @remarks
+	 * In CI environments (`CI` or `GITHUB_ACTIONS` env vars set to "true"),
+	 * the config file is validated instead of written. If the existing file
+	 * doesn't match the expected configuration, the build fails with an error
+	 * instructing the developer to regenerate the file locally.
+	 *
+	 * @defaultValue `true`
 	 */
 	persistConfig?: boolean | PathLike;
 }

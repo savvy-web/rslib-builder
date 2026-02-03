@@ -44,7 +44,7 @@
 		"build:dev": "NODE_OPTIONS='--disable-warning=ExperimentalWarning' rslib build --env-mode dev",
 		"build:inspect": "rslib inspect --verbose",
 		"build:npm": "NODE_OPTIONS='--disable-warning=ExperimentalWarning' rslib build --env-mode npm",
-		"ci:build": "CI=\"true\" turbo run build:dev build:npm",
+		"ci:build": "CI=\"true\" turbo run build:dev build:npm --log-order=grouped",
 		"ci:test": "CI=\"true\" vitest run --coverage && CI=\"true\" vitest run --config vitest.config.e2e.ts",
 		"ci:version": "changeset version && biome format --write",
 		"lint": "biome check --max-diagnostics=none",
