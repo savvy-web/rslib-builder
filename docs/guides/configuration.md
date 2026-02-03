@@ -36,6 +36,13 @@ interface NodeLibraryBuilderOptions {
   transformFiles?: TransformFilesCallback;
   transform?: TransformPackageJsonFn;
   apiModel?: ApiModelOptions | boolean;  // TSDoc lint is controlled via apiModel.tsdoc.lint
+  format?: 'esm' | 'cjs';  // Output format, affects package.json type field
+  virtualEntries?: Record<string, VirtualEntryConfig>;  // Additional bundled files
+}
+
+interface VirtualEntryConfig {
+  source: string;  // Path to source file
+  format?: 'esm' | 'cjs';  // Override format for this entry
 }
 
 type BuildTarget = 'dev' | 'npm';
@@ -896,6 +903,94 @@ EntryExtractor prioritizes TypeScript sources:
 - Prefers `.ts`/`.tsx` files over `.js` files
 - Maps `/dist/` JavaScript paths back to `/src/` TypeScript sources
 - Supports conditional exports (import, default, types fields)
+
+## Output Format
+
+### format
+
+Specify the output format for main entry points:
+
+```typescript
+NodeLibraryBuilder.create({
+  format: 'cjs',  // Output CommonJS instead of ESM
+});
+```
+
+| Value | package.json type | File Extension |
+| :---- | :---------------- | :------------- |
+| `'esm'` (default) | `"module"` | `.js` |
+| `'cjs'` | `"commonjs"` | `.cjs` |
+
+The format option affects:
+
+- The `type` field in the output package.json
+- The file extension of bundled output files
+- The default format for virtual entries (when not overridden)
+
+## Virtual Entries
+
+### virtualEntries
+
+Bundle additional entry points with custom output names that bypass type
+generation and package.json exports. Useful for special files like `pnpmfile.cjs`
+that need to be self-contained CommonJS modules.
+
+```typescript
+NodeLibraryBuilder.create({
+  virtualEntries: {
+    // Key is the exact output filename
+    'pnpmfile.cjs': {
+      source: './src/pnpmfile.ts',
+      format: 'cjs',  // Override format for this entry
+    },
+  },
+});
+```
+
+**Key characteristics:**
+
+| Aspect | Regular Entries | Virtual Entries |
+| :----- | :-------------- | :-------------- |
+| Source discovery | From package.json exports | Explicit `source` path |
+| Output naming | Entry name + extension | Exact key name |
+| Format | Top-level `format` option | Per-entry or inherited |
+| Type generation | Yes (.d.ts) | No |
+| package.json exports | Yes | No |
+| package.json files | Yes | Yes |
+
+### Virtual-Only Configurations
+
+A package can have only virtual entries with no regular entry points:
+
+```typescript
+NodeLibraryBuilder.create({
+  format: 'cjs',
+  virtualEntries: {
+    'pnpmfile.cjs': {
+      source: './src/pnpmfile.ts',
+    },
+  },
+});
+```
+
+This is valid for packages that exist solely to provide special files without
+exposing a programmatic API.
+
+### Format Inheritance
+
+Virtual entries inherit the top-level `format` when not specified:
+
+```typescript
+NodeLibraryBuilder.create({
+  format: 'cjs',  // Top-level format
+  virtualEntries: {
+    // Inherits 'cjs' format from top-level
+    'helper.cjs': { source: './src/helper.ts' },
+    // Explicit 'esm' override
+    'module.js': { source: './src/module.ts', format: 'esm' },
+  },
+});
+```
 
 ## Define Constants
 

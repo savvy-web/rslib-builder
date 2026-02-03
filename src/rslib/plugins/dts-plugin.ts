@@ -739,6 +739,14 @@ export interface DtsPluginOptions {
 	buildTarget?: "dev" | "npm";
 
 	/**
+	 * Output format for the library.
+	 * Affects the resolved tsconfig.json module settings:
+	 * - `"esm"`: Uses ESNext module and Bundler resolution (default)
+	 * - `"cjs"`: Uses CommonJS module and Node10 resolution
+	 */
+	format?: "esm" | "cjs";
+
+	/**
 	 * Options for API model generation.
 	 * When enabled, generates an `<unscopedPackageName>.api.json` file in the dist directory.
 	 * Only applies when bundle is true.
@@ -1538,9 +1546,18 @@ export const DtsPlugin = (options: DtsPluginOptions = {}): RsbuildPlugin => {
 								const { entries } = extractor.extract(packageJson);
 								const entryPoints = new Map<string, string>();
 
+								// Get virtual entry names to skip type generation for them
+								const virtualEntryNames = api.useExposed<Set<string>>("virtual-entry-names");
+
 								for (const [entryName, sourcePath] of Object.entries(entries)) {
 									// Skip bin entries - CLI tools don't need bundled type declarations
 									if (entryName.startsWith("bin/")) {
+										continue;
+									}
+
+									// Skip virtual entries - they don't need type declarations
+									if (virtualEntryNames?.has(entryName)) {
+										log.global.info(`Skipping type generation for virtual entry: ${entryName}`);
 										continue;
 									}
 
@@ -1706,7 +1723,7 @@ export const DtsPlugin = (options: DtsPluginOptions = {}): RsbuildPlugin => {
 									// Emit resolved tsconfig.json (excluded from npm publish, but available for tooling)
 									if (apiModelPath && state.parsedConfig && state.tsconfigPath) {
 										const resolver = new TsconfigResolver();
-										const resolvedTsconfig = resolver.resolve(state.parsedConfig, cwd);
+										const resolvedTsconfig = resolver.resolve(state.parsedConfig, cwd, options.format);
 										const tsconfigContent = `${JSON.stringify(resolvedTsconfig, null, "\t")}\n`;
 										const tsconfigSource = new context.sources.OriginalSource(tsconfigContent, "tsconfig.json");
 										context.compilation.emitAsset("tsconfig.json", tsconfigSource);

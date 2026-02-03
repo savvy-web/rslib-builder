@@ -1,9 +1,9 @@
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { RsbuildPlugin, SourceConfig } from "@rsbuild/core";
 import type { ConfigParams, LibConfig, RslibConfig } from "@rslib/core";
 import { defineConfig } from "@rslib/core";
-import type { PackageJson } from "../../types/package-json.js";
+import type { LibraryFormat, PackageJson } from "../../types/package-json.js";
 import { AutoEntryPlugin } from "../plugins/auto-entry-plugin.js";
 import type { ApiModelOptions } from "../plugins/dts-plugin.js";
 import { DtsPlugin } from "../plugins/dts-plugin.js";
@@ -12,6 +12,7 @@ import { PackageJsonTransformPlugin } from "../plugins/package-json-transform-pl
 import type { TsDocLintPluginOptions } from "../plugins/tsdoc-lint-plugin.js";
 import { TsDocLintPlugin } from "../plugins/tsdoc-lint-plugin.js";
 import { packageJsonVersion } from "../plugins/utils/file-utils.js";
+import { VirtualEntryPlugin } from "../plugins/virtual-entry-plugin.js";
 
 /**
  * Async RSLib configuration function type.
@@ -37,6 +38,39 @@ export type RslibConfigAsyncFn = (env: ConfigParams) => Promise<RslibConfig>;
  * @public
  */
 export type BuildTarget = "dev" | "npm";
+
+// Re-export LibraryFormat from types for public API
+export type { LibraryFormat } from "../../types/package-json.js";
+
+/**
+ * Configuration for a virtual entry point.
+ *
+ * @remarks
+ * Virtual entries are bundled entry points that bypass type generation
+ * and package.json exports while still being included in the published package.
+ *
+ * @example
+ * ```typescript
+ * const config: VirtualEntryConfig = {
+ *   source: "./src/pnpmfile.ts",
+ *   format: "cjs",
+ * };
+ * ```
+ *
+ * @public
+ */
+export interface VirtualEntryConfig {
+	/**
+	 * Path to source file (relative to package root).
+	 */
+	source: string;
+
+	/**
+	 * Output format for this entry.
+	 * If not specified, inherits from top-level `format` option.
+	 */
+	format?: LibraryFormat;
+}
 
 /**
  * Function to transform package.json during the build process.
@@ -119,6 +153,56 @@ export interface CopyPatternConfig {
  * @public
  */
 export interface NodeLibraryBuilderOptions {
+	/**
+	 * Output format for main entry points.
+	 * Also determines package.json `type` field:
+	 * - `"esm"` → `"type": "module"`
+	 * - `"cjs"` → `"type": "commonjs"`
+	 *
+	 * @defaultValue `"esm"`
+	 */
+	format?: LibraryFormat;
+
+	/**
+	 * Additional entry points bundled with custom output names.
+	 * These entries bypass type generation and package.json exports
+	 * but are included in the published package.
+	 *
+	 * @remarks
+	 * Virtual entries are useful for special files like pnpm config files
+	 * that need to be bundled but don't require type declarations or
+	 * exposure as package exports.
+	 *
+	 * A module may have ONLY virtualEntries with no regular entry points.
+	 *
+	 * @example
+	 * Mixed: regular entries + virtual entries
+	 * ```typescript
+	 * NodeLibraryBuilder.create({
+	 *   virtualEntries: {
+	 *     "pnpmfile.cjs": {
+	 *       source: "./src/pnpmfile.ts",
+	 *       format: "cjs",
+	 *     },
+	 *   },
+	 * })
+	 * ```
+	 *
+	 * @example
+	 * Virtual-only: no regular entry points
+	 * ```typescript
+	 * NodeLibraryBuilder.create({
+	 *   format: "cjs",
+	 *   virtualEntries: {
+	 *     "pnpmfile.cjs": {
+	 *       source: "./src/pnpmfile.ts",
+	 *     },
+	 *   },
+	 * })
+	 * ```
+	 */
+	virtualEntries?: Record<string, VirtualEntryConfig>;
+
 	/** Override entry points (optional - will auto-detect from package.json) */
 	entry?: Record<string, string | string[]>;
 	/**
@@ -354,6 +438,7 @@ export class NodeLibraryBuilder {
 	 * Arrays are deep-copied to prevent mutation of this object.
 	 */
 	static readonly DEFAULT_OPTIONS = {
+		format: "esm",
 		plugins: [],
 		define: {},
 		copyPatterns: [],
@@ -388,6 +473,7 @@ export class NodeLibraryBuilder {
 			define: options.define ?? NodeLibraryBuilder.DEFAULT_OPTIONS.define,
 			tsconfigPath: options.tsconfigPath,
 			// Optional properties with defaults
+			format: options.format ?? NodeLibraryBuilder.DEFAULT_OPTIONS.format,
 			targets: options.targets ?? NodeLibraryBuilder.DEFAULT_OPTIONS.targets,
 			externals: options.externals ?? NodeLibraryBuilder.DEFAULT_OPTIONS.externals,
 			apiModel: options.apiModel ?? NodeLibraryBuilder.DEFAULT_OPTIONS.apiModel,
@@ -397,6 +483,7 @@ export class NodeLibraryBuilder {
 			...(options.dtsBundledPackages !== undefined && { dtsBundledPackages: options.dtsBundledPackages }),
 			...(options.transformFiles !== undefined && { transformFiles: options.transformFiles }),
 			...(options.transform !== undefined && { transform: options.transform }),
+			...(options.virtualEntries !== undefined && { virtualEntries: options.virtualEntries }),
 		};
 
 		return merged;
@@ -484,11 +571,15 @@ export class NodeLibraryBuilder {
 		const userTransform = options.transform;
 		const transformFn = userTransform ? (pkg: PackageJson): PackageJson => userTransform({ target, pkg }) : undefined;
 
+		// Get format (defaults to "esm")
+		const libraryFormat = options.format ?? "esm";
+
 		plugins.push(
 			PackageJsonTransformPlugin({
 				forcePrivate: target === "dev",
 				bundle: true,
 				target,
+				format: libraryFormat,
 				...(transformFn && { transform: transformFn }),
 			}),
 		);
@@ -523,6 +614,7 @@ export class NodeLibraryBuilder {
 				bundle: true,
 				...(options.dtsBundledPackages && { bundledPackages: options.dtsBundledPackages }),
 				buildTarget: target,
+				format: libraryFormat,
 				...(apiModelForTarget !== undefined && { apiModel: apiModelForTarget }),
 			}),
 		);
@@ -543,9 +635,9 @@ export class NodeLibraryBuilder {
 				},
 				...(options.externals && options.externals.length > 0 && { externals: options.externals }),
 			},
-			format: "esm",
+			format: libraryFormat,
 			experiments: {
-				advancedEsm: true,
+				advancedEsm: libraryFormat === "esm",
 			},
 			bundle: true,
 			plugins,
@@ -564,8 +656,101 @@ export class NodeLibraryBuilder {
 		// TypeScript declarations are now handled by our custom DtsPlugin (added to plugins above)
 		// which uses tsgo and emits through the asset pipeline instead of RSLib's default DTS plugin
 
+		// Check if we have regular entries (from package.json exports or explicit entry option)
+		const hasRegularEntries = options.entry !== undefined || NodeLibraryBuilder.packageHasExports();
+
+		// Process virtual entries
+		const virtualEntries = options.virtualEntries ?? {};
+		const hasVirtualEntries = Object.keys(virtualEntries).length > 0;
+
+		// Validate that we have at least some entries
+		if (!hasRegularEntries && !hasVirtualEntries) {
+			throw new Error(
+				"No entry points configured. Provide package.json exports, explicit entry option, or virtualEntries.",
+			);
+		}
+
+		// Build list of lib configs
+		const libConfigs: LibConfig[] = [];
+
+		// Add main lib config only if we have regular entries
+		if (hasRegularEntries) {
+			libConfigs.push(lib);
+		}
+
+		// Process virtual entries and create additional lib configs
+		if (hasVirtualEntries) {
+			// Group virtual entries by format
+			const virtualByFormat = new Map<LibraryFormat, Map<string, string>>();
+
+			for (const [outputName, config] of Object.entries(virtualEntries)) {
+				const entryFormat = config.format ?? libraryFormat;
+				if (!virtualByFormat.has(entryFormat)) {
+					virtualByFormat.set(entryFormat, new Map());
+				}
+				// Strip extension from output name to get entry name
+				const entryName = outputName.replace(/\.(c|m)?js$/, "");
+				const formatMap = virtualByFormat.get(entryFormat);
+				if (formatMap) {
+					formatMap.set(entryName, config.source);
+				}
+			}
+
+			// Create lib configs for each format group
+			for (const [format, entries] of virtualByFormat) {
+				const virtualEntryNames = new Set(entries.keys());
+				const entryMap = Object.fromEntries(entries);
+
+				const virtualLib: LibConfig = {
+					id: `${target}-virtual-${format}`,
+					format,
+					bundle: true,
+					output: {
+						target: "node",
+						cleanDistPath: false, // Don't clean - main lib already cleaned
+						sourceMap: false, // No source maps for virtual entries
+						distPath: {
+							root: outputDir,
+						},
+						...(options.externals && options.externals.length > 0 && { externals: options.externals }),
+					},
+					source: {
+						entry: entryMap,
+					},
+					plugins: [
+						VirtualEntryPlugin({ virtualEntryNames }),
+						// Minimal plugins for virtual entries - no DtsPlugin, no AutoEntryPlugin
+						FilesArrayPlugin({ target }),
+					],
+				};
+
+				libConfigs.push(virtualLib);
+			}
+
+			// Also expose virtual entry names to the main lib's DtsPlugin (if main lib exists)
+			// This is done via a plugin that exposes the Set
+			if (hasRegularEntries) {
+				const allVirtualEntryNames = new Set<string>();
+				for (const outputName of Object.keys(virtualEntries)) {
+					const entryName = outputName.replace(/\.(c|m)?js$/, "");
+					allVirtualEntryNames.add(entryName);
+				}
+
+				// Add a plugin to the main lib that exposes virtual entry names
+				plugins.push({
+					name: "virtual-entry-names-exposer",
+					setup(api) {
+						api.expose("virtual-entry-names", allVirtualEntryNames);
+					},
+				});
+
+				// Update the main lib config with the new plugin
+				lib.plugins = plugins;
+			}
+		}
+
 		return defineConfig({
-			lib: [lib],
+			lib: libConfigs,
 			// RSLib will use its default tsconfig resolution for JS compilation
 			// Declaration generation is handled by DtsPlugin
 			...(options.tsconfigPath && { source: { tsconfigPath: options.tsconfigPath } }),
@@ -575,5 +760,22 @@ export class NodeLibraryBuilder {
 				},
 			},
 		});
+	}
+
+	/**
+	 * Checks if the current package has exports defined in package.json.
+	 * @internal
+	 */
+	private static packageHasExports(): boolean {
+		try {
+			const packageJsonPath = join(process.cwd(), "package.json");
+			const packageJson = JSON.parse(readFileSync(packageJsonPath, "utf-8")) as PackageJson;
+			const { exports } = packageJson;
+			return (
+				exports !== undefined && exports !== null && typeof exports === "object" && Object.keys(exports).length > 0
+			);
+		} catch {
+			return false;
+		}
 	}
 }

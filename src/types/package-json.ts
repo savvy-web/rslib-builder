@@ -576,3 +576,14 @@ export type PackageJson = JsonObject &
 	PackageJson.TypeScriptConfiguration &
 	PackageJson.YarnConfiguration &
 	PackageJson.JSPMConfiguration;
+
+/**
+ * Output format for library builds.
+ *
+ * @remarks
+ * - `"esm"` - ES Modules format (sets `type: "module"` in package.json)
+ * - `"cjs"` - CommonJS format (sets `type: "commonjs"` in package.json)
+ *
+ * @public
+ */
+export type LibraryFormat = "esm" | "cjs";

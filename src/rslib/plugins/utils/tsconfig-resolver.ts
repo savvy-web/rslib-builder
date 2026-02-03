@@ -8,6 +8,7 @@ import {
 	NewLineKind,
 	ScriptTarget,
 } from "typescript";
+import type { LibraryFormat } from "../../../types/package-json.js";
 
 /**
  * Error thrown when tsconfig resolution fails.
@@ -638,8 +639,14 @@ export class TsconfigResolver {
 	 * - Excludes file selection (include, exclude, files, references)
 	 * - Adds $schema for IDE support
 	 *
+	 * When `format` is `"cjs"`, the resolved config uses CommonJS-compatible settings:
+	 * - `module: "commonjs"`
+	 * - `moduleResolution: "node10"`
+	 * - `esModuleInterop: true`
+	 *
 	 * @param parsed - The parsed TypeScript configuration from `parseJsonConfigFileContent`
 	 * @param _rootDir - Reserved for future path normalization (currently unused)
+	 * @param format - Optional output format to adjust module settings (`"esm"` or `"cjs"`)
 	 * @returns A JSON-serializable tsconfig object
 	 * @throws {@link TsconfigResolverError} If resolution fails for any option
 	 *
@@ -659,7 +666,7 @@ export class TsconfigResolver {
 	 *
 	 * @public
 	 */
-	resolve(parsed: ParsedCommandLine, _rootDir: string): ResolvedTsconfig {
+	resolve(parsed: ParsedCommandLine, _rootDir: string, format?: LibraryFormat): ResolvedTsconfig {
 		const opts = parsed.options;
 		const compilerOptions: ResolvedCompilerOptions = {};
 
@@ -680,6 +687,14 @@ export class TsconfigResolver {
 
 		// Copy preserved string options
 		this.addPreservedStringOptions(compilerOptions, opts);
+
+		// Apply format-specific settings if format is specified
+		if (format === "cjs") {
+			compilerOptions.module = "commonjs";
+			compilerOptions.moduleResolution = "node10";
+			compilerOptions.esModuleInterop = true;
+		}
+		// ESM uses the existing defaults (esnext/bundler) from addEnumOptions
 
 		return {
 			$schema: TSCONFIG_SCHEMA_URL,

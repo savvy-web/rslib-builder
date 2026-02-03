@@ -76,12 +76,14 @@ async ({ envMode }) => {
 
 ### Layer 3: Plugin Orchestration
 
-Four plugins handle specific build concerns:
+Six plugins handle specific build concerns:
 
-1. **AutoEntryPlugin** - Entry point discovery
-2. **DtsPlugin** - TypeScript declarations
-3. **PackageJsonTransformPlugin** - Package.json processing
-4. **FilesArrayPlugin** - Files array generation
+1. **TsDocLintPlugin** - Pre-build TSDoc validation
+2. **AutoEntryPlugin** - Entry point discovery
+3. **DtsPlugin** - TypeScript declarations
+4. **PackageJsonTransformPlugin** - Package.json processing
+5. **FilesArrayPlugin** - Files array generation
+6. **VirtualEntryPlugin** - Virtual entry management
 
 ### Layer 4: RSlib/Rspack
 
@@ -324,6 +326,65 @@ The resolved config:
 
 This file is excluded from npm publish (via negated pattern in files array)
 but is available in dist for local tooling use.
+
+## Virtual Entries
+
+Virtual entries are additional entry points bundled with custom output names
+that bypass type generation and package.json exports:
+
+```text
+NodeLibraryBuilder.create({
+  virtualEntries: {
+    'pnpmfile.cjs': {
+      source: './src/pnpmfile.ts',
+      format: 'cjs'
+    }
+  }
+})
+        │
+        ▼
+┌─────────────────────────────────┐
+│ Config Generation               │
+│ - Group virtual entries by      │
+│   format                        │
+│ - Create separate lib configs   │
+│   for different formats         │
+└─────────────────────────────────┘
+        │
+        ▼
+┌─────────────────────────────────┐
+│ RSlib Multi-Lib Build           │
+│ lib: [                          │
+│   { id: "npm", format: "esm" }, │  ← Main library
+│   { id: "npm-virtual-cjs",      │  ← Virtual CJS entries
+│     format: "cjs" }             │
+│ ]                               │
+└─────────────────────────────────┘
+        │
+        ▼
+┌─────────────────────────────────┐
+│ Plugin Coordination             │
+│ - DtsPlugin skips virtual       │
+│   entries (no .d.ts)            │
+│ - FilesArrayPlugin includes     │
+│   virtual outputs               │
+│ - PackageJsonTransformPlugin    │
+│   ignores virtual entries       │
+└─────────────────────────────────┘
+        │
+        ▼
+dist/npm/
+├── index.js          (main entry)
+├── index.d.ts        (declarations)
+├── pnpmfile.cjs      (virtual entry, no types)
+└── package.json      (no pnpmfile export)
+```
+
+### Virtual Entry Use Cases
+
+- **pnpmfile.cjs** - pnpm configuration hooks (must be CommonJS)
+- **CLI scripts** - Bundled executables not in package.json exports
+- **Config files** - Framework configuration files with specific requirements
 
 ## Build Targets
 

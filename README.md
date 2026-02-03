@@ -22,6 +22,10 @@ focus on your code.
   cleaner public APIs, with multi-entry support for packages with multiple exports
 - **Multi-Target Builds** - Separate dev (source maps) and npm (optimized)
   outputs
+- **Virtual Entries** - Bundle additional files (like pnpmfile.cjs) with custom
+  output names, bypassing type generation and package.json exports
+- **Flexible Format** - Configure output format (ESM or CJS) at the library level
+  with per-entry overrides for virtual entries
 - **PNPM Integration** - Automatically resolves `catalog:` and `workspace:`
   references
 - **Package.json Transform** - Converts `.ts` exports to `.js`, generates files

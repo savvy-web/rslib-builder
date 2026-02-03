@@ -1,5 +1,5 @@
 import type { RsbuildPlugin, RsbuildPluginAPI } from "@rsbuild/core";
-import type { PackageJson } from "../../types/package-json.js";
+import type { LibraryFormat, PackageJson } from "../../types/package-json.js";
 import type { CacheEntry } from "./utils/asset-utils.js";
 import { JsonAsset, TextAsset } from "./utils/asset-utils.js";
 import { buildPackageJson } from "./utils/package-json-transformer.js";
@@ -10,6 +10,16 @@ import { buildPackageJson } from "./utils/package-json-transformer.js";
  * @public
  */
 export interface PackageJsonTransformPluginOptions {
+	/**
+	 * Output format for the library.
+	 * Determines the package.json `type` field:
+	 * - `"esm"` → `"type": "module"`
+	 * - `"cjs"` → `"type": "commonjs"`
+	 *
+	 * @defaultValue `"esm"`
+	 */
+	format?: LibraryFormat;
+
 	/**
 	 * Override the package name in the output package.json.
 	 *
@@ -222,6 +232,11 @@ export const PackageJsonTransformPlugin = (options: PackageJsonTransformPluginOp
 					packageJson.data = processedPackageJson;
 					if (options.forcePrivate) {
 						packageJson.data.private = true;
+					}
+
+					// Set type field based on format
+					if (options.format) {
+						packageJson.data.type = options.format === "esm" ? "module" : "commonjs";
 					}
 
 					// Check if we should use rollup types (set by ApiReportPluginNew)

@@ -13,7 +13,7 @@ This guide covers the built-in plugins and how to extend the build process.
 
 ## Built-in Plugins
 
-rslib-builder includes five specialized plugins that handle different aspects
+rslib-builder includes six specialized plugins that handle different aspects
 of the build process.
 
 ### TsDocLintPlugin
@@ -98,6 +98,48 @@ NodeLibraryBuilder.create({
 | :---------- | :---------------- | :---------------------- |
 | Local       | `'error'`         | `true`                  |
 | CI          | `'throw'`         | validates existing      |
+
+### VirtualEntryPlugin
+
+**Purpose:** Manages virtual entries that bypass type generation and package.json
+exports.
+
+**What it does:**
+
+1. Exposes virtual entry names to other plugins via shared state
+2. Marks entries for exclusion from type generation
+3. Ensures virtual entry outputs are included in the files array
+4. Handles format-specific bundling configuration
+
+**Stage:** Configuration and `additional` (files array management)
+
+**Configuration:**
+
+Virtual entries are configured via the top-level `virtualEntries` option:
+
+```typescript
+NodeLibraryBuilder.create({
+  virtualEntries: {
+    'pnpmfile.cjs': {
+      source: './src/pnpmfile.ts',
+      format: 'cjs',
+    },
+  },
+});
+```
+
+**Shared State:**
+
+VirtualEntryPlugin exposes:
+
+- `virtual-entry-names` - `Set<string>` of entry names to exclude from type
+  generation
+
+**Implementation Notes:**
+
+When virtual entries have different formats than the main library, separate
+RSlib lib configurations are generated. This ensures native format handling
+and clean separation of concerns.
 
 ### AutoEntryPlugin
 
@@ -292,13 +334,14 @@ Plugins execute in a specific order across Rsbuild's processing stages:
 
 2. processAssets: pre-process
    ├── PackageJsonTransformPlugin → Load files
-   └── DtsPlugin                  → Generate .d.ts
+   └── DtsPlugin                  → Generate .d.ts (skips virtual entries)
 
 3. processAssets: optimize
    └── PackageJsonTransformPlugin → Transform package.json
 
 4. processAssets: additional
    ├── FilesArrayPlugin     → Collect files
+   ├── VirtualEntryPlugin   → Add virtual entry outputs to files
    └── (User transformFiles callback)
 
 5. processAssets: optimize-inline
@@ -431,12 +474,16 @@ Built-in plugins share state via these exposed keys:
 | `files-array` | `Set<string>` | FilesArrayPlugin |
 | `entrypoints` | `Map<string, string>` | AutoEntryPlugin |
 | `exportToOutputMap` | `Map<string, string>` | AutoEntryPlugin |
+| `virtual-entry-names` | `Set<string>` | VirtualEntryPlugin |
+| `library-format` | `'esm' \| 'cjs'` | NodeLibraryBuilder |
 
 **Key descriptions:**
 
 - `files-array` - Files to include in package.json files field
 - `entrypoints` - Map of entry names to source file paths
 - `exportToOutputMap` - Map of export paths to output file paths
+- `virtual-entry-names` - Entry names to exclude from type generation
+- `library-format` - Output format for package.json type field
 
 ### Accessing Shared State
 
