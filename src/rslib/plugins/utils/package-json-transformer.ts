@@ -12,36 +12,10 @@ import { getDefaultPnpmCatalog } from "./pnpm-catalog.js";
  * - Custom field exports
  * - Array-based exports (for fallbacks)
  * - Null/undefined values for conditional exports
- */
-export type FlexibleExports = PackageJson.Exports | Record<string, unknown> | FlexibleExports[] | undefined | null;
-
-/**
- * Configuration structure for pnpm workspace files (pnpm-workspace.yaml).
  *
- * @remarks
- * This interface defines the structure of pnpm-workspace.yaml files, which configure
- * workspace behavior including package locations, dependency catalogs, and build options.
+ * @internal
  */
-export interface PnpmWorkspace {
-	/** Array of glob patterns defining workspace package locations */
-	packages?: string[];
-	/** Centralized dependency version catalog */
-	catalog?: Record<string, string>;
-	/** Dependencies that should only be built, not installed from registry */
-	onlyBuiltDependencies?: string[];
-	/** Patterns for dependencies that should be hoisted to workspace root */
-	publicHoistPattern?: string[];
-}
-
-/**
- * Prefix used by pnpm to reference catalog-defined dependency versions.
- */
-export const CATALOG_PREFIX = "catalog:";
-
-/**
- * Prefix used by pnpm to reference workspace package dependencies.
- */
-export const WORKSPACE_PREFIX = "workspace:";
+type FlexibleExports = PackageJson.Exports | Record<string, unknown> | FlexibleExports[] | undefined | null;
 
 /**
  * Transforms a single export path for RSLib compatibility.

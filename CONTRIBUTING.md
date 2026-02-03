@@ -40,7 +40,7 @@ pnpm build:inspect
 Tests are co-located with source files (e.g., `foo.test.ts` next to `foo.ts`).
 
 ```bash
-# Run all tests
+# Run unit tests
 pnpm test
 
 # Run with coverage report
@@ -48,6 +48,9 @@ pnpm test:coverage
 
 # Watch mode for development
 pnpm test:watch
+
+# Run E2E tests (uses fixture packages)
+pnpm test:e2e
 ```
 
 #### Test Coverage Requirements
@@ -71,7 +74,7 @@ const mockAssets: MockAssetRegistry = {
 ### Linting
 
 ```bash
-# Check for issues
+# Check for issues (Biome)
 pnpm lint
 
 # Auto-fix safe issues
@@ -79,6 +82,12 @@ pnpm lint:fix
 
 # Auto-fix including unsafe fixes
 pnpm lint:fix:unsafe
+
+# Lint markdown files
+pnpm lint:md
+
+# Lint TSDoc comments
+pnpm lint:tsdoc
 ```
 
 ### Type Checking

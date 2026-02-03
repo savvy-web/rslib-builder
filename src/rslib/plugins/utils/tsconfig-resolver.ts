@@ -635,7 +635,7 @@ export class TsconfigResolver {
 	 * - Adds $schema for IDE support
 	 *
 	 * @param parsed - The parsed TypeScript configuration from `parseJsonConfigFileContent`
-	 * @param rootDir - The root directory used for path normalization
+	 * @param _rootDir - Reserved for future path normalization (currently unused)
 	 * @returns A JSON-serializable tsconfig object
 	 * @throws {@link TsconfigResolverError} If resolution fails for any option
 	 *
@@ -655,7 +655,7 @@ export class TsconfigResolver {
 	 *
 	 * @public
 	 */
-	resolve(parsed: ParsedCommandLine, rootDir: string): ResolvedTsconfig {
+	resolve(parsed: ParsedCommandLine, _rootDir: string): ResolvedTsconfig {
 		const opts = parsed.options;
 		const compilerOptions: ResolvedCompilerOptions = {};
 

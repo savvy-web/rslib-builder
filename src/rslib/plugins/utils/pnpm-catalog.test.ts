@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { createMockStats } from "../../../__test__/rslib/utils/test-types.js";
+import { createMockStats } from "../../../__test__/rslib/types/test-types.js";
 import type { PackageJson } from "../../../types/package-json.js";
 
 // Mock external dependencies before importing the module

@@ -28,6 +28,7 @@ that simplifies building TypeScript packages for npm distribution.
 | TSDoc Validation | Optional pre-build TSDoc comment validation |
 | Package Transform | Resolves PNPM references, updates export paths |
 | Multi-Target | Separate dev (debugging) and npm (production) builds |
+| Utility Classes | Reusable TsconfigResolver, EntryExtractor, ImportGraph |
 
 ### How It Compares
 

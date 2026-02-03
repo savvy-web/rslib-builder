@@ -19,7 +19,7 @@ focus on your code.
 - **Fast Type Generation** - Uses tsgo (native TypeScript) for 10-100x faster
   declaration generation
 - **Bundled Declarations** - Rolls up TypeScript types via API Extractor for
-  cleaner public APIs
+  cleaner public APIs, with multi-entry support for packages with multiple exports
 - **Multi-Target Builds** - Separate dev (source maps) and npm (optimized)
   outputs
 - **PNPM Integration** - Automatically resolves `catalog:` and `workspace:`
@@ -58,10 +58,7 @@ Extend the provided tsconfig for optimal settings:
 ```jsonc
 // tsconfig.json
 {
-  "extends": "@savvy-web/rslib-builder/tsconfig/ecma/lib.json",
-  "compilerOptions": {
-    "outDir": "dist"
-  }
+  "extends": "@savvy-web/rslib-builder/tsconfig/ecma/lib.json"
 }
 ```
 
@@ -92,57 +89,6 @@ Add scripts to your `package.json`:
 }
 ```
 
-## Build Targets
-
-Two build targets available via `--env-mode`:
-
-- **dev** - Unminified with source maps for local development
-- **npm** - Optimized for npm publishing (Node.js runtime)
-
-```bash
-rslib build --env-mode dev
-rslib build --env-mode npm
-```
-
-## API Overview
-
-The package exports a main builder and several plugins:
-
-| Export                       | Description                                   |
-| ---------------------------- | --------------------------------------------- |
-| `NodeLibraryBuilder`         | Main API for building Node.js libraries       |
-| `AutoEntryPlugin`            | Auto-extracts entry points from package.json  |
-| `DtsPlugin`                  | Generates TypeScript declarations with tsgo   |
-| `PackageJsonTransformPlugin` | Transforms package.json for distribution      |
-| `FilesArrayPlugin`           | Generates files array for npm publishing      |
-| `TsDocLintPlugin`            | Validates TSDoc comments before build         |
-| `TsDocConfigBuilder`         | Utility for TSDoc configuration               |
-| `ImportGraph`                | Traces TypeScript imports for file discovery  |
-
-See [Configuration](./docs/guides/configuration.md) for all options.
-
-## Plugins
-
-The builder includes several built-in plugins:
-
-1. **TsDocLintPlugin** - Validates TSDoc comments before build (optional)
-2. **AutoEntryPlugin** - Auto-extracts entry points from package.json exports
-3. **DtsPlugin** - Generates TypeScript declarations with tsgo/API Extractor
-4. **PackageJsonTransformPlugin** - Transforms package.json for targets
-5. **FilesArrayPlugin** - Generates files array, excludes source maps
-
-## How It Works
-
-The builder automatically transforms your source package.json for distribution:
-
-- **Entry Detection** - Extracts entry points from package.json exports
-- **Export Transformation** - Converts `.ts` paths to `.js` in exports field
-- **Bin Transformation** - Converts bin entries from `.ts` to `.js` scripts
-- **PNPM Resolution** - Resolves `catalog:` and `workspace:` to real versions
-- **Files Generation** - Creates accurate `files` array for npm publishing
-- **Declaration Bundling** - Uses tsgo for fast generation and API Extractor
-  for bundling
-
 ## Documentation
 
 For detailed documentation, see the [docs/](./docs/) directory:
@@ -153,33 +99,10 @@ For detailed documentation, see the [docs/](./docs/) directory:
 - [Architecture](./docs/architecture/overview.md) - How it works internally
 - [Troubleshooting](./docs/troubleshooting.md) - Common issues and solutions
 
-## Examples
+## Example
 
 This package builds itself using its own `NodeLibraryBuilder`. See
-[`rslib.config.ts`](./rslib.config.ts) for a production example demonstrating:
-
-- API model generation for documentation tooling
-- External package configuration
-- Custom package.json transformations
-- Copy patterns for static files
-
-### Programmatic Usage
-
-Use `ImportGraph` to discover all files reachable from your package exports:
-
-```typescript
-import { ImportGraph } from '@savvy-web/rslib-builder';
-
-const result = ImportGraph.fromPackageExports('./package.json', {
-  rootDir: process.cwd(),
-});
-
-console.log('Public API files:', result.files);
-console.log('Entry points:', result.entries);
-```
-
-See [Configuration](./docs/guides/configuration.md#importgraph-utility) for more
-examples.
+[`rslib.config.ts`](./rslib.config.ts) for a production example.
 
 ## Support
 

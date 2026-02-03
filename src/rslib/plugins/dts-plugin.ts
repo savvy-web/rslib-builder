@@ -21,6 +21,7 @@ import { getWorkspaceRoot } from "workspace-tools";
 import { TSConfigs } from "../../tsconfig/index.js";
 import type { PackageJson } from "../../types/package-json.js";
 import { createEnvLogger } from "./utils/build-logger.js";
+import { EntryExtractor } from "./utils/entry-extractor.js";
 import { getApiExtractorPath } from "./utils/file-utils.js";
 import { TsconfigResolver } from "./utils/tsconfig-resolver.js";
 
@@ -127,12 +128,17 @@ export interface TsDocOptions {
 
 	/**
 	 * Persist tsdoc.json to disk for tool integration (ESLint, IDEs).
-	 * - `true`: Write to project root as "tsdoc.json"
-	 * - `PathLike`: Write to specified path
-	 * - `false`: Clean up after API Extractor
+	 * - `true`: Write to project root as "tsdoc.json" (or validate in CI)
+	 * - `PathLike`: Write to specified path (or validate in CI)
+	 * - `false`: Clean up after API Extractor (not recommended)
 	 *
-	 * @defaultValue `true` when `CI` and `GITHUB_ACTIONS` env vars are not "true",
-	 *               `false` otherwise (CI environments)
+	 * @remarks
+	 * In CI environments (`CI` or `GITHUB_ACTIONS` env vars set to "true"),
+	 * the config file is validated instead of written. If the existing file
+	 * doesn't match the expected configuration, the build fails with an error
+	 * instructing the developer to regenerate the file locally.
+	 *
+	 * @defaultValue `true`
 	 */
 	persistConfig?: boolean | PathLike;
 
@@ -281,8 +287,8 @@ export class TsDocConfigBuilder {
 	static shouldPersist(persistConfig: boolean | PathLike | undefined): boolean {
 		if (persistConfig === false) return false;
 		if (persistConfig !== undefined) return true;
-		// Default: persist unless in CI
-		return !TsDocConfigBuilder.isCI();
+		// Default: always persist (local writes, CI validates)
+		return true;
 	}
 
 	/**
@@ -360,18 +366,10 @@ export class TsDocConfigBuilder {
 	}
 
 	/**
-	 * Generates a tsdoc.json file from options.
-	 *
-	 * @remarks
-	 * When all groups are enabled (default), generates a minimal config with
-	 * `noStandardTags: false` so TSDoc automatically loads all standard tags.
-	 * Only custom tags need to be defined in this case.
-	 *
-	 * When a subset of groups is specified, generates a config with
-	 * `noStandardTags: true` and explicitly defines only the tags from
-	 * the enabled groups.
+	 * Builds the tsdoc.json configuration object from options.
+	 * @internal
 	 */
-	static async writeConfigFile(options: TsDocOptions = {}, outputDir: string): Promise<string> {
+	static buildConfigObject(options: TsDocOptions = {}): Record<string, unknown> {
 		const { tagDefinitions, supportForTags, useStandardTags } = TsDocConfigBuilder.build(options);
 
 		const tsdocConfig: Record<string, unknown> = {
@@ -390,7 +388,71 @@ export class TsDocConfigBuilder {
 			tsdocConfig.supportForTags = supportForTags;
 		}
 
+		return tsdocConfig;
+	}
+
+	/**
+	 * Validates that the existing tsdoc.json matches the expected configuration.
+	 * Used in CI environments to ensure the committed config is up-to-date.
+	 *
+	 * @param options - TSDoc options to build expected configuration
+	 * @param configPath - Path to the existing tsdoc.json file
+	 * @throws Error if the file doesn't exist, can't be parsed, or doesn't match
+	 */
+	static async validateConfigFile(options: TsDocOptions = {}, configPath: string): Promise<void> {
+		const expectedConfig = TsDocConfigBuilder.buildConfigObject(options);
+
+		if (!existsSync(configPath)) {
+			throw new Error(
+				`tsdoc.json not found at ${configPath}. ` + "Run the build locally to generate it, then commit the file.",
+			);
+		}
+
+		let existingConfig: unknown;
+		try {
+			const existingContent = await readFile(configPath, "utf-8");
+			existingConfig = JSON.parse(existingContent);
+		} catch (error) {
+			throw new Error(
+				`Failed to parse existing tsdoc.json at ${configPath}: ${error instanceof Error ? error.message : String(error)}`,
+			);
+		}
+
+		if (!deepEqual(existingConfig, expectedConfig, { strict: true })) {
+			throw new Error(
+				`tsdoc.json is out of date. Run the build locally to regenerate it, then commit the changes.\n` +
+					`Expected:\n${JSON.stringify(expectedConfig, null, 2)}\n\n` +
+					`Actual:\n${JSON.stringify(existingConfig, null, 2)}`,
+			);
+		}
+	}
+
+	/**
+	 * Generates a tsdoc.json file from options.
+	 *
+	 * @remarks
+	 * When all groups are enabled (default), generates a minimal config with
+	 * `noStandardTags: false` so TSDoc automatically loads all standard tags.
+	 * Only custom tags need to be defined in this case.
+	 *
+	 * When a subset of groups is specified, generates a config with
+	 * `noStandardTags: true` and explicitly defines only the tags from
+	 * the enabled groups.
+	 *
+	 * In CI environments (`CI` or `GITHUB_ACTIONS` env vars set to "true"),
+	 * this method validates the existing file instead of writing, throwing
+	 * an error if the config is out of date.
+	 */
+	static async writeConfigFile(options: TsDocOptions = {}, outputDir: string): Promise<string> {
 		const configPath = join(outputDir, "tsdoc.json");
+
+		// In CI, validate instead of write
+		if (TsDocConfigBuilder.isCI()) {
+			await TsDocConfigBuilder.validateConfigFile(options, configPath);
+			return configPath;
+		}
+
+		const tsdocConfig = TsDocConfigBuilder.buildConfigObject(options);
 
 		// Check if file exists and compare objects to avoid unnecessary writes
 		if (existsSync(configPath)) {
@@ -696,6 +758,7 @@ export async function collectDtsFiles(
 
 /**
  * Result of bundling declaration files.
+ * @internal
  */
 interface BundleDtsResult {
 	/** Map of entry names to their bundled file paths in temp */
@@ -761,9 +824,8 @@ async function bundleDtsFiles(options: {
 	// Validate that API Extractor is installed before attempting import
 	getApiExtractorPath();
 
-	// Determine TSDoc config persistence behavior
+	// Determine TSDoc config output path
 	const persistConfig = tsdocOptions?.persistConfig;
-	const shouldPersist = TsDocConfigBuilder.shouldPersist(persistConfig);
 	const tsdocConfigOutputPath = TsDocConfigBuilder.getConfigPath(persistConfig, cwd);
 
 	// Generate tsdoc.json config file for API Extractor
@@ -1003,23 +1065,7 @@ async function bundleDtsFiles(options: {
 		bundledFiles.set(entryName, tempBundledPath);
 	}
 
-	// Clean up or persist the generated tsdoc.json based on configuration
-	let persistedTsdocConfigPath: string | undefined;
-	if (tsdocConfigPath) {
-		if (shouldPersist) {
-			// Keep the file on disk for tool integration
-			persistedTsdocConfigPath = tsdocConfigPath;
-		} else {
-			// Clean up the temporary file
-			try {
-				await unlink(tsdocConfigPath);
-			} catch {
-				// Ignore cleanup errors
-			}
-		}
-	}
-
-	return { bundledFiles, apiModelPath, tsdocMetadataPath, tsdocConfigPath: persistedTsdocConfigPath };
+	return { bundledFiles, apiModelPath, tsdocMetadataPath, tsdocConfigPath };
 }
 /* v8 ignore stop */
 
@@ -1057,11 +1103,8 @@ export async function ensureTempDeclarationDir(cwd: string, name: string): Promi
  */
 export function findTsConfig(cwd: string, tsconfigPath?: string): string | null {
 	// If a path is provided and it's absolute or exists, use it directly
-	if (tsconfigPath) {
-		const { isAbsolute } = require("node:path");
-		if (isAbsolute(tsconfigPath) && sys.fileExists(tsconfigPath)) {
-			return tsconfigPath;
-		}
+	if (tsconfigPath && isAbsolute(tsconfigPath) && sys.fileExists(tsconfigPath)) {
+		return tsconfigPath;
 	}
 	// Otherwise, search for the config file starting from cwd
 	return findConfigFile(cwd, sys.fileExists.bind(sys), tsconfigPath) ?? null;
@@ -1383,46 +1426,46 @@ export const DtsPlugin = (options: DtsPluginOptions = {}): RsbuildPlugin => {
 									packageJson = exposedPackageJson;
 								}
 
-								// Only process the main export (".") for API Extractor bundling
+								// Extract ALL TypeScript exports using EntryExtractor (skip bin entries)
+								const extractor = new EntryExtractor();
+								const { entries } = extractor.extract(packageJson);
 								const entryPoints = new Map<string, string>();
 
-								if (packageJson.exports) {
-									const exports = packageJson.exports as Record<string, unknown>;
-									const mainExport = exports["."];
-
-									if (mainExport) {
-										// Handle both string and object export values
-										const sourcePath =
-											typeof mainExport === "string" ? mainExport : (mainExport as { default?: string })?.default;
-
-										if (sourcePath && typeof sourcePath === "string") {
-											// Only process TypeScript source files (skip JSON, CSS, declaration files, etc.)
-											if (sourcePath.match(/\.(ts|mts|cts|tsx)$/)) {
-												// Skip test files
-												if (!sourcePath.includes(".test.") && !sourcePath.includes("__test__")) {
-													// Skip files outside the package root (e.g., temp files in /tmp/)
-													const resolvedSourcePath = sourcePath.startsWith(".") ? join(cwd, sourcePath) : sourcePath;
-													if (resolvedSourcePath.startsWith(cwd)) {
-														// If this is the temp api-extractor file, use the original path instead
-														let finalSourcePath = sourcePath;
-														if (apiExtractorMapping && resolvedSourcePath === apiExtractorMapping.tempPath) {
-															finalSourcePath = apiExtractorMapping.originalPath;
-															log.global.info(`Using original path for api-extractor: ${finalSourcePath}`);
-														}
-
-														// Store main export as "index" entry
-														entryPoints.set("index", finalSourcePath);
-													} else {
-														log.global.info(`Skipping main export (source outside package: ${sourcePath})`);
-													}
-												}
-											}
-										}
+								for (const [entryName, sourcePath] of Object.entries(entries)) {
+									// Skip bin entries - CLI tools don't need bundled type declarations
+									if (entryName.startsWith("bin/")) {
+										continue;
 									}
+
+									// Only process TypeScript source files (skip JSON, CSS, declaration files, etc.)
+									if (!sourcePath.match(/\.(ts|mts|cts|tsx)$/)) {
+										continue;
+									}
+
+									// Skip test files
+									if (sourcePath.includes(".test.") || sourcePath.includes("__test__")) {
+										continue;
+									}
+
+									// Skip files outside the package root (e.g., temp files in /tmp/)
+									const resolvedSourcePath = sourcePath.startsWith(".") ? join(cwd, sourcePath) : sourcePath;
+									if (!resolvedSourcePath.startsWith(cwd)) {
+										log.global.info(`Skipping export "${entryName}" (source outside package: ${sourcePath})`);
+										continue;
+									}
+
+									// If this is the temp api-extractor file, use the original path instead
+									let finalSourcePath = sourcePath;
+									if (apiExtractorMapping && resolvedSourcePath === apiExtractorMapping.tempPath) {
+										finalSourcePath = apiExtractorMapping.originalPath;
+										log.global.info(`Using original path for api-extractor: ${finalSourcePath}`);
+									}
+
+									entryPoints.set(entryName, finalSourcePath);
 								}
 
 								if (entryPoints.size === 0) {
-									log.global.warn("No main export found in package.json exports, skipping bundling");
+									log.global.warn("No TypeScript exports found in package.json, skipping declaration bundling");
 								} else {
 									// Create temp directory for bundled output
 									const tempBundledDir = join(tempDtsDir, "bundled");

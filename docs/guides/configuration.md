@@ -14,6 +14,9 @@ Complete reference for all `NodeLibraryBuilder` configuration options.
 - [API Model Generation](#api-model-generation)
 - [TSDoc Linting](#tsdoc-linting)
 - [ImportGraph Utility](#importgraph-utility)
+- [TsconfigResolver Utility](#tsconfigresolver-utility)
+- [EntryExtractor Utility](#entryextractor-utility)
+- [Define Constants](#define-constants)
 
 ## Basic Options
 
@@ -724,6 +727,145 @@ for (const error of result.errors) {
 - **Dependency analysis**: Understand which files depend on which
 - **Code coverage**: Identify public API surface for coverage targets
 - **Documentation**: Discover files that need documentation
+
+## TsconfigResolver Utility
+
+The `TsconfigResolver` class converts TypeScript's internal `ParsedCommandLine`
+representation to a JSON-serializable format suitable for virtual TypeScript
+environments and documentation tooling.
+
+### TsconfigResolver Usage
+
+```typescript
+import { parseJsonConfigFileContent, readConfigFile, sys } from 'typescript';
+import { TsconfigResolver } from '@savvy-web/rslib-builder';
+
+// Parse tsconfig using TypeScript API
+const configFile = readConfigFile('tsconfig.json', sys.readFile.bind(sys));
+const parsed = parseJsonConfigFileContent(configFile.config, sys, process.cwd());
+
+// Resolve to JSON-serializable format
+const resolver = new TsconfigResolver();
+const resolved = resolver.resolve(parsed, process.cwd());
+
+console.log(JSON.stringify(resolved, null, 2));
+```
+
+### Static Enum Conversion Methods
+
+TsconfigResolver provides static methods for converting individual TypeScript
+enum values to their string representations:
+
+```typescript
+import { ScriptTarget, ModuleKind, ModuleResolutionKind } from 'typescript';
+import { TsconfigResolver } from '@savvy-web/rslib-builder';
+
+// Convert individual enum values
+TsconfigResolver.convertScriptTarget(ScriptTarget.ES2022);     // "es2022"
+TsconfigResolver.convertModuleKind(ModuleKind.NodeNext);       // "nodenext"
+TsconfigResolver.convertModuleResolution(ModuleResolutionKind.Bundler); // "bundler"
+TsconfigResolver.convertJsxEmit(JsxEmit.ReactJSX);             // "react-jsx"
+TsconfigResolver.convertLibReference('lib.esnext.d.ts');       // "esnext"
+```
+
+### What Gets Resolved
+
+The resolver transforms the configuration for virtual environments:
+
+**Included:**
+
+- Enum values converted to strings (target, module, moduleResolution, jsx)
+- Lib array converted from paths to canonical names
+- Boolean type-checking options (strict, noImplicitAny, etc.)
+- `composite: false` and `noEmit: true` for virtual compatibility
+- `$schema` for IDE support
+
+**Excluded:**
+
+- Path-dependent: `rootDir`, `outDir`, `baseUrl`, `paths`, `typeRoots`
+- Emit-related: `declaration`, `sourceMap`, `inlineSourceMap`
+- File selection: `include`, `exclude`, `files`, `references`
+
+### TsconfigResolver Use Cases
+
+- Documentation tooling that needs TypeScript configuration
+- Language service implementations for virtual file systems
+- API documentation generators analyzing type annotations
+- IDE plugins needing TypeScript config without file system access
+
+## EntryExtractor Utility
+
+The `EntryExtractor` class analyzes package.json to identify TypeScript entry
+points for build configuration.
+
+### EntryExtractor Usage
+
+```typescript
+import { EntryExtractor } from '@savvy-web/rslib-builder';
+
+const extractor = new EntryExtractor();
+
+const packageJson = {
+  exports: {
+    ".": "./src/index.ts",
+    "./utils": "./src/utils.ts",
+  },
+  bin: {
+    "my-cli": "./src/bin/cli.ts"
+  }
+};
+
+const result = extractor.extract(packageJson);
+console.log(result.entries);
+// {
+//   "index": "./src/index.ts",
+//   "utils": "./src/utils.ts",
+//   "bin/my-cli": "./src/bin/cli.ts"
+// }
+```
+
+### Functional Interface
+
+For one-off use, the functional interface is more convenient:
+
+```typescript
+import { extractEntriesFromPackageJson } from '@savvy-web/rslib-builder';
+
+const result = extractEntriesFromPackageJson(packageJson);
+```
+
+### EntryExtractorOptions
+
+| Option | Type | Default | Description |
+| :----- | :--- | :------ | :---------- |
+| `exportsAsIndexes` | `boolean` | `false` | Preserve path structure |
+
+**With `exportsAsIndexes: false` (default):**
+
+- `"./foo/bar"` becomes entry name `"foo-bar"`
+
+**With `exportsAsIndexes: true`:**
+
+- `"./foo/bar"` becomes entry name `"foo/bar/index"`
+
+### Export Path Mapping
+
+The extractor handles various export formats:
+
+| Export Key | Entry Name |
+| :--------- | :--------- |
+| `"."` | `"index"` |
+| `"./utils"` | `"utils"` |
+| `"./foo/bar"` | `"foo-bar"` |
+| `"./package.json"` | (skipped) |
+
+### Source Path Resolution
+
+EntryExtractor prioritizes TypeScript sources:
+
+- Prefers `.ts`/`.tsx` files over `.js` files
+- Maps `/dist/` JavaScript paths back to `/src/` TypeScript sources
+- Supports conditional exports (import, default, types fields)
 
 ## Define Constants
 

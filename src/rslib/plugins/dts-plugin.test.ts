@@ -458,6 +458,19 @@ export declare const bar: number;`);
 	});
 
 	describe("TsDocConfigBuilder.writeConfigFile", () => {
+		// Clear CI env vars so tests run in "local" mode (writes config instead of validates)
+		const originalEnv = process.env;
+
+		beforeEach(() => {
+			process.env = { ...originalEnv };
+			delete process.env.CI;
+			delete process.env.GITHUB_ACTIONS;
+		});
+
+		afterEach(() => {
+			process.env = originalEnv;
+		});
+
 		it("should generate config with supportForTags when all groups enabled", async () => {
 			const testDir = createTestDir();
 			await mkdir(testDir, { recursive: true });
@@ -684,18 +697,18 @@ export declare const bar: number;`);
 			expect(TsDocConfigBuilder.shouldPersist("./config/tsdoc.json")).toBe(true);
 		});
 
-		it("should return true when undefined and not in CI", () => {
+		it("should return true when undefined (always persists by default)", () => {
 			expect(TsDocConfigBuilder.shouldPersist(undefined)).toBe(true);
 		});
 
-		it("should return false when undefined and CI=true", () => {
+		it("should return true when undefined even with CI=true (CI validates instead of deletes)", () => {
 			process.env.CI = "true";
-			expect(TsDocConfigBuilder.shouldPersist(undefined)).toBe(false);
+			expect(TsDocConfigBuilder.shouldPersist(undefined)).toBe(true);
 		});
 
-		it("should return false when undefined and GITHUB_ACTIONS=true", () => {
+		it("should return true when undefined even with GITHUB_ACTIONS=true (CI validates instead of deletes)", () => {
 			process.env.GITHUB_ACTIONS = "true";
-			expect(TsDocConfigBuilder.shouldPersist(undefined)).toBe(false);
+			expect(TsDocConfigBuilder.shouldPersist(undefined)).toBe(true);
 		});
 
 		it("should return true when true even in CI", () => {
@@ -740,6 +753,77 @@ export declare const bar: number;`);
 			const buffer = Buffer.from("custom/tsdoc.json");
 			const result = TsDocConfigBuilder.getConfigPath(buffer, "/project");
 			expect(result).toBe("/project/custom/tsdoc.json");
+		});
+	});
+
+	describe("TsDocConfigBuilder.buildConfigObject", () => {
+		it("should build config with default options", () => {
+			const config = TsDocConfigBuilder.buildConfigObject();
+			expect(config.$schema).toBe("https://developer.microsoft.com/json-schemas/tsdoc/v0/tsdoc.schema.json");
+			expect(config.noStandardTags).toBe(false);
+			expect(config.reportUnsupportedHtmlElements).toBe(false);
+		});
+
+		it("should include tagDefinitions for custom tags", () => {
+			const config = TsDocConfigBuilder.buildConfigObject({
+				tagDefinitions: [{ tagName: "@custom", syntaxKind: "block" }],
+			});
+			expect(config.tagDefinitions).toBeDefined();
+			expect(config.tagDefinitions).toContainEqual({ tagName: "@custom", syntaxKind: "block" });
+		});
+
+		it("should not include empty tagDefinitions array", () => {
+			const config = TsDocConfigBuilder.buildConfigObject({});
+			// With all groups enabled, tagDefinitions should not be present (empty)
+			expect(config.tagDefinitions).toBeUndefined();
+		});
+	});
+
+	describe("TsDocConfigBuilder.validateConfigFile", () => {
+		const originalEnv = process.env;
+		let testDir: string;
+
+		beforeEach(async () => {
+			vi.resetModules();
+			process.env = { ...originalEnv };
+			// Create a temp directory for tests
+			const { mkdtempSync } = await import("node:fs");
+			const { tmpdir } = await import("node:os");
+			testDir = mkdtempSync(join(tmpdir(), "tsdoc-validate-test-"));
+		});
+
+		afterEach(async () => {
+			process.env = originalEnv;
+			// Clean up temp directory
+			const { rm } = await import("node:fs/promises");
+			await rm(testDir, { recursive: true, force: true });
+		});
+
+		it("should throw when file does not exist", async () => {
+			const configPath = join(testDir, "tsdoc.json");
+			await expect(TsDocConfigBuilder.validateConfigFile({}, configPath)).rejects.toThrow(/tsdoc\.json not found/);
+		});
+
+		it("should throw when file cannot be parsed", async () => {
+			const configPath = join(testDir, "tsdoc.json");
+			const { writeFile } = await import("node:fs/promises");
+			await writeFile(configPath, "not valid json");
+			await expect(TsDocConfigBuilder.validateConfigFile({}, configPath)).rejects.toThrow(/Failed to parse/);
+		});
+
+		it("should throw when config does not match", async () => {
+			const configPath = join(testDir, "tsdoc.json");
+			const { writeFile } = await import("node:fs/promises");
+			await writeFile(configPath, JSON.stringify({ outdated: true }));
+			await expect(TsDocConfigBuilder.validateConfigFile({}, configPath)).rejects.toThrow(/out of date/);
+		});
+
+		it("should not throw when config matches", async () => {
+			const configPath = join(testDir, "tsdoc.json");
+			const { writeFile } = await import("node:fs/promises");
+			const expectedConfig = TsDocConfigBuilder.buildConfigObject({});
+			await writeFile(configPath, JSON.stringify(expectedConfig));
+			await expect(TsDocConfigBuilder.validateConfigFile({}, configPath)).resolves.toBeUndefined();
 		});
 	});
 });

@@ -3,9 +3,9 @@ status: current
 module: rslib-builder
 category: testing
 created: 2026-01-18
-updated: 2026-01-20
-last-synced: 2026-01-18
-completeness: 85
+updated: 2026-02-02
+last-synced: 2026-02-02
+completeness: 95
 related:
   - rslib-builder/architecture.md
 dependencies: []
@@ -27,7 +27,8 @@ v8 coverage, co-located test files, and type-safe mocking patterns.
 7. [Plugin Testing Approach](#plugin-testing-approach)
 8. [Coverage Strategy](#coverage-strategy)
 9. [Shared Test Utilities](#shared-test-utilities)
-10. [Best Practices](#best-practices)
+10. [E2E Testing Infrastructure](#e2e-testing-infrastructure)
+11. [Best Practices](#best-practices)
 
 ---
 
@@ -85,8 +86,18 @@ src/
 │           └── ...
 ├── exports.test.ts
 └── __test__/rslib/
-    ├── types/test-types.ts
-    └── utils/test-types.ts
+    └── types/test-types.ts
+test/
+├── e2e/
+│   ├── dts-bundling.test.ts
+│   └── utils/
+│       ├── assertions.ts
+│       ├── build-fixture.ts
+│       └── index.ts
+└── fixtures/
+    ├── single-entry/
+    ├── multi-entry/
+    └── with-bin/
 ```
 
 ### Test Files
@@ -110,8 +121,13 @@ Current test file inventory:
 
 Located in `src/__test__/rslib/`:
 
-- **`types/test-types.ts`**: Mock type definitions
-- **`utils/test-types.ts`**: Utility functions for creating mocks
+- **`types/test-types.ts`**: Mock type definitions and utility functions
+
+Located in `test/e2e/utils/`:
+
+- **`build-fixture.ts`**: Fixture build runner and result types
+- **`assertions.ts`**: E2E test assertion helpers
+- **`index.ts`**: Re-exports for convenience
 
 ---
 
@@ -558,29 +574,23 @@ Generated reports:
 
 ### types/test-types.ts
 
-Provides mock type definitions:
+Provides mock type definitions and utility functions:
 
 - `MockAsset` - Interface for mock compilation assets
 - `MockAssetRegistry` - Record type for asset collections
 - `MockSource` - Interface for webpack/rspack source objects
 - `createMockStats()` - Factory for mock `fs.Stats` objects
-
-### utils/test-types.ts
-
-Provides utility functions:
-
-- `createMockStats()` - Extended mock Stats with all properties
 - `createMockProcessAssetsContext()` - Mock for processAssets handlers
 - `ProcessAssetsContext` - Type alias for handler parameter
 
 ### Usage Example
 
 ```typescript
-import type { MockAssetRegistry } from "../../../__test__/rslib/types/test-types.js";
+import type { MockAssetRegistry } from "../../__test__/rslib/types/test-types.js";
 import {
   createMockStats,
   createMockProcessAssetsContext
-} from "../../../__test__/rslib/utils/test-types.js";
+} from "../../__test__/rslib/types/test-types.js";
 
 describe("MyPlugin", () => {
   it("should process assets", async () => {
@@ -595,6 +605,192 @@ describe("MyPlugin", () => {
   });
 });
 ```
+
+---
+
+## E2E Testing Infrastructure
+
+End-to-end tests verify the complete build pipeline by building real fixture
+packages and asserting on the generated outputs. This catches integration issues
+that unit tests cannot detect.
+
+### Fixture Structure
+
+Fixtures are minimal workspace packages in `test/fixtures/`:
+
+```text
+test/fixtures/
+├── single-entry/          # Single export package
+│   ├── package.json       # workspace:* dependency on rslib-builder
+│   ├── tsconfig.json      # Extends @savvy-web/rslib-builder/tsconfig/ecma/lib.json
+│   ├── rslib.config.ts    # Uses NodeLibraryBuilder
+│   ├── turbo.json         # dependsOn: ["^build"]
+│   └── src/
+│       └── index.ts
+├── multi-entry/           # Multiple exports (./utils, ./types)
+│   └── ...
+└── with-bin/              # Library with CLI bin entry
+    └── ...
+```
+
+Each fixture:
+
+- Uses `workspace:*` to link to the local rslib-builder build
+- Extends the module's exported tsconfig for consistency
+- Has its own `turbo.json` to ensure build ordering
+- Contains minimal source files with TSDoc comments
+
+### E2E Test Utilities
+
+Located in `test/e2e/utils/`:
+
+#### build-fixture.ts
+
+```typescript
+export async function buildFixture(
+  fixtureName: string,
+  options: BuildFixtureOptions = {},
+): Promise<BuildFixtureResult>;
+```
+
+- Runs `pnpm exec rslib build --env-mode <target>` in the fixture directory
+- Cleans dist and .rslib before building
+- Collects all output files into a `Map<string, string>`
+- Returns cleanup function for test teardown
+
+#### assertions.ts
+
+```typescript
+// Verify build succeeded
+assertBuildSucceeded(result);
+
+// Check output file exists and contains expected content
+assertOutputFile(result, "index.d.ts", {
+  exists: true,
+  contains: ["export declare function add"],
+});
+
+// Verify package.json structure
+assertPackageJson(result, {
+  hasExport: ".",
+  hasTypes: ".",
+  hasFile: "index.d.ts",
+});
+```
+
+### Vitest E2E Configuration
+
+Separate config in `vitest.config.e2e.ts`:
+
+```typescript
+export default defineConfig({
+  test: {
+    globals: true,
+    environment: "node",
+    include: ["test/e2e/**/*.test.ts"],
+    testTimeout: 120000,
+    hookTimeout: 60000,
+    sequence: {
+      concurrent: false, // Run tests sequentially
+    },
+    coverage: {
+      enabled: false, // E2E tests don't contribute to coverage
+    },
+  },
+});
+```
+
+### Turbo Integration
+
+E2E tests require the module to be built first:
+
+**turbo.json (root)**:
+
+```json
+{
+  "test:e2e": {
+    "cache": false,
+    "dependsOn": ["^build", "build"],
+    "inputs": ["test/fixtures/**", "test/e2e/**"]
+  }
+}
+```
+
+**Fixture turbo.json**:
+
+```json
+{
+  "extends": ["//"],
+  "tasks": {
+    "build": {
+      "dependsOn": ["^build"],
+      "outputs": ["dist/**"]
+    }
+  }
+}
+```
+
+### CI Integration
+
+E2E tests run as part of the `ci:test` script:
+
+```json
+{
+  "ci:test": "CI=\"true\" vitest run --coverage && CI=\"true\" vitest run --config vitest.config.e2e.ts"
+}
+```
+
+This ensures:
+
+1. Unit tests run first with coverage
+2. E2E tests run after, building fixtures against the fresh build
+
+### Example E2E Test
+
+```typescript
+describe("multi-entry fixture", () => {
+  let result: BuildFixtureResult | null = null;
+
+  afterEach(async () => {
+    if (result) {
+      await result.cleanup();
+      result = null;
+    }
+  });
+
+  it("should generate bundled .d.ts for ALL entry points", async () => {
+    result = await buildFixture("multi-entry");
+
+    assertBuildSucceeded(result);
+
+    // Main entry
+    assertOutputFile(result, "index.d.ts", {
+      exists: true,
+      contains: ["export declare function greet"],
+    });
+
+    // Secondary entries
+    assertOutputFile(result, "utils.d.ts", { exists: true });
+    assertOutputFile(result, "types.d.ts", { exists: true });
+  });
+});
+```
+
+### When to Add E2E Tests
+
+Add E2E tests for:
+
+- New build output formats or structures
+- Multi-entry point handling
+- Package.json transformation logic
+- Declaration bundling behavior
+- Bin entry handling
+
+Skip E2E tests for:
+
+- Internal utility functions (unit test instead)
+- Configuration parsing (unit test instead)
+- Error message formatting
 
 ---
 
@@ -671,7 +867,5 @@ expect(() => mySyncFn()).toThrow("Expected error message");
 
 ---
 
-**Document Status:** Current - Comprehensive testing strategy documented
-
-**Next Steps:** Document integration testing patterns, add CI/CD test
-configuration guidance
+**Document Status:** Current - Comprehensive testing strategy documented with
+unit testing patterns, E2E testing infrastructure, and CI integration.

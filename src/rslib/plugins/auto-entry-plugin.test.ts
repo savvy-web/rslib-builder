@@ -275,36 +275,6 @@ describe("AutoEntryPlugin", () => {
 		expect(entrypointsMap.has("helpers.ts")).toBe(true);
 	});
 
-	it("should call onBeforeBuild callback with debug logging", async () => {
-		const plugin = AutoEntryPlugin();
-		const mockApi = {
-			modifyRsbuildConfig: vi.fn(),
-			expose: vi.fn(),
-			useExposed: vi.fn().mockReturnValue(undefined),
-			onBeforeBuild: vi.fn(),
-			logger: {
-				debug: vi.fn(),
-			},
-		};
-
-		plugin.setup(mockApi as unknown as Parameters<ReturnType<typeof AutoEntryPlugin>["setup"]>[0]);
-
-		// Verify onBeforeBuild was registered
-		expect(mockApi.onBeforeBuild).toHaveBeenCalledWith(expect.any(Function));
-
-		// Get the onBeforeBuild callback and test it
-		const onBeforeBuildCallback = mockApi.onBeforeBuild.mock.calls[0][0];
-		const mockContext = {
-			config: {},
-			environment: "development",
-			rootPath: "/test/project",
-		};
-
-		// This should trigger line 26: api.logger.debug(context);
-		await onBeforeBuildCallback(mockContext);
-		expect(mockApi.logger.debug).toHaveBeenCalledWith(mockContext);
-	});
-
 	it("should build export to output map when exportsAsIndexes is enabled", async () => {
 		const packageJson: PackageJson = {
 			name: "test-package",

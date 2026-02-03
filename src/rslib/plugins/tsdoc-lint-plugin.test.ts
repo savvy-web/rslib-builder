@@ -293,6 +293,19 @@ describe("tsdoc-lint-plugin", () => {
 	});
 
 	describe("runTsDocLint", () => {
+		// Clear CI env vars so tests run in "local" mode (writes config instead of validates)
+		const originalEnv = process.env;
+
+		beforeEach(() => {
+			process.env = { ...originalEnv };
+			delete process.env.CI;
+			delete process.env.GITHUB_ACTIONS;
+		});
+
+		afterEach(() => {
+			process.env = originalEnv;
+		});
+
 		it("should return no errors for valid TSDoc", async () => {
 			const testDir = createTestDir();
 			const srcDir = join(testDir, "src");
@@ -538,7 +551,7 @@ export function internal(): void {}
 			process.env = originalEnv;
 		});
 
-		it("should not persist config in CI by default", async () => {
+		it("should validate existing config in CI instead of writing", async () => {
 			process.env.CI = "true";
 
 			const testDir = createTestDir();
@@ -554,10 +567,59 @@ export function valid(): void {}
 `,
 			);
 
+			// Create a valid tsdoc.json that matches expected config
+			const { TsDocConfigBuilder } = await import("./dts-plugin.js");
+			const expectedConfig = TsDocConfigBuilder.buildConfigObject({});
+			await writeFile(join(testDir, "tsdoc.json"), JSON.stringify(expectedConfig, null, "\t"));
+
 			const { tsdocConfigPath } = await runTsDocLint({}, testDir);
 
-			// In CI, config should not be persisted (undefined)
-			expect(tsdocConfigPath).toBeUndefined();
+			// In CI, config path should still be returned (file is validated, not written)
+			expect(tsdocConfigPath).toBeDefined();
+			expect(tsdocConfigPath).toContain("tsdoc.json");
+		});
+
+		it("should throw in CI when tsdoc.json is missing", async () => {
+			process.env.CI = "true";
+
+			const testDir = createTestDir();
+			const srcDir = join(testDir, "src");
+			await mkdir(srcDir, { recursive: true });
+
+			await writeFile(
+				join(srcDir, "index.ts"),
+				`/**
+ * Valid function.
+ */
+export function valid(): void {}
+`,
+			);
+
+			// No tsdoc.json file - should throw
+			await expect(runTsDocLint({}, testDir)).rejects.toThrow(/tsdoc\.json not found/);
+		});
+
+		it("should throw in CI when tsdoc.json is out of date", async () => {
+			process.env.CI = "true";
+
+			const testDir = createTestDir();
+			const srcDir = join(testDir, "src");
+			await mkdir(srcDir, { recursive: true });
+
+			await writeFile(
+				join(srcDir, "index.ts"),
+				`/**
+ * Valid function.
+ */
+export function valid(): void {}
+`,
+			);
+
+			// Create an outdated tsdoc.json
+			await writeFile(join(testDir, "tsdoc.json"), JSON.stringify({ outdated: true }, null, "\t"));
+
+			// Should throw with mismatch error
+			await expect(runTsDocLint({}, testDir)).rejects.toThrow(/tsdoc\.json is out of date/);
 		});
 
 		it("should persist config locally by default", async () => {
@@ -601,6 +663,11 @@ export function valid(): void {}
 `,
 			);
 
+			// Create a valid tsdoc.json that matches expected config
+			const { TsDocConfigBuilder } = await import("./dts-plugin.js");
+			const expectedConfig = TsDocConfigBuilder.buildConfigObject({});
+			await writeFile(join(testDir, "tsdoc.json"), JSON.stringify(expectedConfig, null, "\t"));
+
 			const { tsdocConfigPath } = await runTsDocLint(
 				{
 					persistConfig: true,
@@ -608,7 +675,7 @@ export function valid(): void {}
 				testDir,
 			);
 
-			// Explicit true should persist even in CI
+			// Explicit true should validate the config in CI
 			expect(tsdocConfigPath).toBeDefined();
 		});
 	});
