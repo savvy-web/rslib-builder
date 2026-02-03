@@ -260,7 +260,8 @@ export class LibraryTSConfigFile extends TSConfigFile {
 				outDir: "dist",
 				tsBuildInfoFile: `${process.cwd()}/dist/.tsbuildinfo.${target}.bundle`,
 			},
-			include,
+			// Only include the filtered patterns if they exist (avoids undefined with exactOptionalPropertyTypes)
+			...(include !== undefined && include.length > 0 ? { include } : {}),
 		};
 	}
 
@@ -268,8 +269,9 @@ export class LibraryTSConfigFile extends TSConfigFile {
 	 * Write the bundle-mode configuration to a temporary file.
 	 *
 	 * @remarks
-	 * Creates a temporary tsconfig.json file with the bundle-mode transformations applied.
-	 * This is useful for passing to RSlib or other build tools that need a file path.
+	 * Creates a temporary tsconfig.json file with absolute paths that work from /tmp.
+	 * Uses the base compiler options from the template but generates include patterns
+	 * dynamically based on the actual package structure.
 	 *
 	 * The temporary file will be automatically cleaned up when the process exits.
 	 *
@@ -278,40 +280,39 @@ export class LibraryTSConfigFile extends TSConfigFile {
 	 */
 	writeBundleTempConfig(target: "dev" | "npm"): string {
 		const cwd = process.cwd();
-		const config = this.bundle(target);
+		const baseConfig = this.config;
 
-		// Helper to convert relative paths to absolute
-		const toAbsolute = (path: string): string => {
-			if (path.startsWith("../") || path === "..") {
-				// Replace all leading ../ segments with cwd
-				// Handle paths like "../../.." (ending without slash) by adding optional ".." at end
-				return path.replace(/^((\.\.\/)+\.\.?|\.\.\/*)$/, cwd).replace(/^(\.\.\/)+/, `${cwd}/`);
-			}
-			return path;
-		};
-
-		// Convert all relative paths to absolute paths since temp file is not in package
+		// Generate a self-contained config with absolute paths
+		// This works for any package regardless of their tsconfig setup
 		const absoluteConfig = {
-			...config,
+			$schema: "https://json.schemastore.org/tsconfig.json",
 			compilerOptions: {
-				...config.compilerOptions,
-				// Set rootDir to package root so TypeScript outputs:
-				// - src/rslib/index.ts -> src/rslib/index.d.ts
-				// - types/foo.d.ts -> types/foo.d.ts
-				// The DtsPlugin will strip the src/ prefix when collecting files
+				...baseConfig.compilerOptions,
+				// Disable composite/incremental to avoid caching issues with temp configs
+				// These cause tsgo to skip emission if build info suggests no changes
+				composite: false,
+				incremental: false,
+				tsBuildInfoFile: undefined,
+				// Override path-dependent options with absolute paths
 				rootDir: cwd,
-				// Override these settings for declaration generation since DtsPlugin uses this config
-				// and we need declarationMap enabled and emitDeclarationOnly explicitly false
-				// (DtsPlugin will pass --emitDeclarationOnly via CLI args)
+				outDir: join(cwd, "dist"),
+				declarationDir: join(cwd, "dist"),
+				// Use default @types resolution from node_modules
+				typeRoots: [join(cwd, "node_modules/@types"), join(cwd, "types")],
+				// Override these settings for declaration generation
 				declarationMap: true,
 				emitDeclarationOnly: false,
-				declarationDir: config.compilerOptions?.declarationDir
-					? toAbsolute(config.compilerOptions.declarationDir)
-					: undefined,
-				typeRoots: config.compilerOptions?.typeRoots?.map(toAbsolute),
 			},
-			include: config.include?.map(toAbsolute),
-			exclude: config.exclude?.map(toAbsolute),
+			// Standard include patterns that work for any Node.js library
+			include: [
+				join(cwd, "src/**/*.ts"),
+				join(cwd, "src/**/*.mts"),
+				join(cwd, "src/**/*.tsx"),
+				join(cwd, "src/**/*.json"),
+				join(cwd, "types/*.ts"),
+				join(cwd, "package.json"),
+			],
+			exclude: [join(cwd, "node_modules"), join(cwd, "dist/**/*")],
 		};
 
 		const tmpFile = requireCJS("tmp").fileSync({ prefix: "tsconfig-bundle-", postfix: ".json" });

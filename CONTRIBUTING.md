@@ -29,7 +29,7 @@ pnpm install
 pnpm build:dev
 
 # Production build (optimized for npm)
-pnpm build:npm
+pnpm build:prod
 
 # Inspect generated RSlib config
 pnpm build:inspect
@@ -43,8 +43,8 @@ Tests are co-located with source files (e.g., `foo.test.ts` next to `foo.ts`).
 # Run unit tests
 pnpm test
 
-# Run with coverage report
-pnpm test:coverage
+# Run all tests (unit + e2e)
+pnpm test:all
 
 # Watch mode for development
 pnpm test:watch

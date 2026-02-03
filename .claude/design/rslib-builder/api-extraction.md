@@ -3,8 +3,8 @@ status: current
 module: rslib-builder
 category: integration
 created: 2026-01-19
-updated: 2026-01-28
-last-synced: 2026-01-28
+updated: 2026-02-03
+last-synced: 2026-02-03
 completeness: 95
 related:
   - rslib-builder/architecture.md
@@ -75,6 +75,7 @@ bundled declarations and an API model file.
 ### Current Capabilities
 
 - Generate API model for main entry point ("." export only)
+- **API model enabled by default** (apiModel: true in DEFAULT_OPTIONS)
 - Exclude API model from npm publish via negated files array pattern
 - Copy API model to local paths for documentation development
 - Bundle declarations using API Extractor
@@ -83,8 +84,13 @@ bundled declarations and an API model file.
 - TSDoc metadata file generation (`tsdoc-metadata.json`)
 - TSDoc config persistence (`persistConfig` option)
   - Persist `tsdoc.json` to disk for tool integration (ESLint, IDEs)
-  - Auto-detect CI environment to skip persistence
+  - Validate existing config in CI environments instead of writing
   - Support custom output paths via `PathLike`
+- **Integrated TSDoc linting** via `apiModel.tsdoc.lint`
+  - Lint enabled by default when apiModel is enabled
+  - Uses parent tsdoc config for tag validation
+  - Environment-aware error handling (throw in CI, error locally)
+- Resolved tsconfig.json emission for virtual TS environments
 
 ### Planned Capabilities
 
@@ -225,7 +231,6 @@ no purpose. CI detection uses `CI` or `GITHUB_ACTIONS` environment variables.
 
 ```typescript
 interface ApiModelOptions {
-  enabled?: boolean;
   filename?: string;
   localPaths?: string[];
   tsdoc?: TsDocOptions;
@@ -234,7 +239,10 @@ interface ApiModelOptions {
 }
 ```
 
-**TsDocOptions** - TSDoc configuration:
+**Note:** API model generation is **enabled by default** (`apiModel: true` in
+`NodeLibraryBuilder.DEFAULT_OPTIONS`).
+
+**TsDocOptions** - TSDoc configuration with integrated lint:
 
 ```typescript
 import type { PathLike } from "node:fs";
@@ -243,10 +251,17 @@ interface TsDocOptions {
   groups?: TsDocTagGroup[];        // Default: all groups
   tagDefinitions?: TsDocTagDefinition[];
   supportForTags?: Record<string, boolean>;  // Only for disabling
-  persistConfig?: boolean | PathLike;  // Persist tsdoc.json to disk
   warnings?: "log" | "fail" | "none";  // Default: "fail" in CI, "log" locally
+  lint?: TsDocLintOptions | boolean;  // Default: true (enabled with apiModel)
 }
 
+interface TsDocLintOptions {
+  include?: string[];               // Override automatic file discovery
+  onError?: TsDocLintErrorBehavior; // Default: "throw" in CI, "error" locally
+  persistConfig?: boolean | PathLike; // Persist tsdoc.json (validates in CI)
+}
+
+type TsDocLintErrorBehavior = "warn" | "error" | "throw";
 type TsDocTagGroup = "core" | "extended" | "discretionary";
 
 interface TsDocTagDefinition {
@@ -465,7 +480,9 @@ support declarations for each tag (defining tags isn't sufficient).
 
 ### Config Persistence Behavior
 
-The `persistConfig` option controls whether `tsdoc.json` remains on disk:
+The `persistConfig` option (nested under `apiModel.tsdoc.lint`) controls whether
+`tsdoc.json` remains on disk. In CI environments, persistence validates the
+existing file instead of writing:
 
 | Environment | `persistConfig` | Behavior |
 | ----------- | --------------- | -------- |
@@ -473,10 +490,16 @@ The `persistConfig` option controls whether `tsdoc.json` remains on disk:
 | Local dev | `true` | Persist to project root |
 | Local dev | `PathLike` | Persist to custom path |
 | Local dev | `false` | Clean up after build |
-| CI | `undefined` | Clean up after build |
-| CI | `true` | Persist (override CI detection) |
+| CI | `undefined` | Validate existing file matches expected config |
+| CI | `true` | Validate existing file matches expected config |
+| CI | `false` | Skip validation, clean up |
 
 **CI Detection:** Environment variables `CI=true` or `GITHUB_ACTIONS=true`.
+
+**Validation in CI:** When `persistConfig` is true or undefined in CI, the
+existing `tsdoc.json` is validated against the expected configuration. If it
+doesn't match, the build fails with an error instructing the developer to
+regenerate the file locally and commit the changes.
 
 **Usage examples:**
 

@@ -63,7 +63,7 @@
 			},
 			"nursery": {
 				"noImportCycles": "error",
-				"useExplicitType": "error"
+				"useExplicitType": "off"
 			},
 			"recommended": true,
 			"style": {

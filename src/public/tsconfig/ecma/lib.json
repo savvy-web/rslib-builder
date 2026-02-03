@@ -13,6 +13,7 @@
 		"incremental": true,
 		"isolatedDeclarations": false,
 		"isolatedModules": true,
+		"exactOptionalPropertyTypes": true,
 		"jsx": "preserve",
 		"lib": ["esnext"],
 		"module": "nodenext",

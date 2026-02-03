@@ -369,7 +369,10 @@ export function applyRslibTransformations(
 	}
 
 	if (processedManifest.bin) {
-		processedManifest.bin = transformPackageBin(processedManifest.bin, processTSExports);
+		const transformedBin = transformPackageBin(processedManifest.bin, processTSExports);
+		if (transformedBin) {
+			processedManifest.bin = transformedBin;
+		}
 	}
 
 	if (originalPackageJson.typesVersions) {

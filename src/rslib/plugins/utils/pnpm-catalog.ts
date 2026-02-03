@@ -152,19 +152,19 @@ export class PnpmCatalog {
 				logger.info(`Resolving ${workspaceDeps.length} ${WORKSPACE_PREFIX} dependencies`);
 			}
 
-			const result = await createExportableManifest(dir, packageJson as ProjectManifest, {
+			const result = await createExportableManifest(dir, packageJson as unknown as ProjectManifest, {
 				catalogs: { default: catalog },
 			});
 
 			// Log resolved dependencies
 			if (hasCatalogDeps || hasWorkspaceDeps) {
-				this.logResolvedDependencies(result as PackageJson, [...catalogDeps, ...workspaceDeps], logger);
+				this.logResolvedDependencies(result as unknown as PackageJson, [...catalogDeps, ...workspaceDeps], logger);
 			}
 
 			// Validate no unresolved references remain
-			this.validateNoUnresolvedReferences(result as PackageJson, logger);
+			this.validateNoUnresolvedReferences(result as unknown as PackageJson, logger);
 
-			return result as PackageJson;
+			return result as unknown as PackageJson;
 		} catch (error) {
 			const errorMessage = error instanceof Error ? error.message : String(error);
 

@@ -27,6 +27,17 @@ For detailed architecture understanding, load the design doc:
 - Debugging cross-plugin data flow issues
 - Extending the builder API with new options
 
+For API model generation and TSDoc configuration:
+
+--> `@./.claude/design/rslib-builder/api-extraction.md`
+
+**Load when:**
+
+- Modifying API model generation in DtsPlugin
+- Adding custom TSDoc tags for documentation
+- Debugging API Extractor output issues
+- Working with tsdoc.json or forgottenExports configuration
+
 ## Architecture
 
 ### Directory Structure
@@ -89,6 +100,7 @@ export default NodeLibraryBuilder.create({
 Custom RSlib plugins handle complex build scenarios:
 
 1. **TsDocLintPlugin** - Validates TSDoc comments before build using ESLint
+   - Enabled by default when apiModel is enabled (configured via `apiModel.tsdoc.lint`)
 2. **AutoEntryPlugin** - Automatically extracts entry points from package.json exports
 3. **PackageJsonTransformPlugin** - Transforms package.json for different targets
 4. **DtsPlugin** - Generates TypeScript declarations using tsgo and API Extractor
@@ -117,7 +129,7 @@ This module produces bundled ESM output with rolled-up types:
 - TypeScript declarations bundled via API Extractor
 - Optimized for npm publishing and fast runtime loading
 
-When `apiModel` is enabled, DtsPlugin also emits:
+**Note:** `apiModel` is enabled by default. When enabled, DtsPlugin also emits:
 
 - `<package>.api.json` - API model for documentation tooling (excluded from npm)
 - `tsdoc-metadata.json` - TSDoc metadata for downstream tools (published)
@@ -145,6 +157,24 @@ const mockAssets: MockAssetRegistry = {
 
 **Never use `as any`**. Always create proper mock types.
 
+### E2E Tests
+
+E2E tests verify builder options by building isolated fixture copies with
+dynamically generated configs. Located in `test/e2e/builder-options/`:
+
+- `api-model.test.ts` - API model generation options
+- `build-options.test.ts` - General build options (externals, transform)
+- `tsdoc-lint.test.ts` - TSDoc lint configuration
+
+For testing strategy details:
+--> `@./.claude/design/rslib-builder/testing-strategy.md`
+
+**Load when:**
+
+- Writing new tests for plugins or utilities
+- Creating mock types for Rsbuild/Rspack APIs
+- Debugging coverage gaps or test failures
+
 ## Plugin Execution Order
 
 Plugins execute in this order during the build:
@@ -170,4 +200,5 @@ and troubleshooting.
 
 - [RSlib Documentation](https://rslib.dev/)
 - [Rsbuild Plugin API](https://rsbuild.dev/plugins/dev/core)
+- [API Extractor](https://api-extractor.com/)
 - [PNPM Catalog Protocol](https://pnpm.io/catalogs)

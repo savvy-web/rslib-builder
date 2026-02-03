@@ -253,74 +253,39 @@ export interface NodeLibraryBuilderOptions {
 	transform?: TransformPackageJsonFn;
 	/**
 	 * Options for API model generation.
-	 * When enabled, generates an `<unscopedPackageName>.api.json` file in the dist directory.
+	 * Generates an `<unscopedPackageName>.api.json` file in the dist directory.
 	 * Only applies when target is "npm".
 	 *
 	 * @remarks
-	 * The generated API model file contains the full API documentation
-	 * in a machine-readable format for use by documentation generators.
+	 * API model generation is **enabled by default**. The generated file contains
+	 * full API documentation in a machine-readable format for documentation generators.
 	 * The file is emitted to dist but excluded from npm publish (added as negated pattern in `files` array).
 	 *
+	 * @defaultValue true
+	 *
 	 * @example
-	 * Enable API model generation with defaults:
+	 * Disable API model generation:
 	 * ```typescript
 	 * import { NodeLibraryBuilder } from '@savvy-web/rslib-builder';
 	 *
 	 * export default NodeLibraryBuilder.create({
-	 *   apiModel: true,
+	 *   apiModel: false,
 	 * });
 	 * ```
 	 *
 	 * @example
-	 * Enable with custom filename:
+	 * Customize with options (implicitly enabled):
 	 * ```typescript
 	 * import { NodeLibraryBuilder } from '@savvy-web/rslib-builder';
 	 *
 	 * export default NodeLibraryBuilder.create({
 	 *   apiModel: {
-	 *     enabled: true,
 	 *     filename: 'my-package.api.json',
 	 *   },
 	 * });
 	 * ```
 	 */
 	apiModel?: ApiModelOptions | boolean;
-	/**
-	 * Options for TSDoc lint validation.
-	 * When enabled, validates TSDoc comments before the build starts.
-	 *
-	 * @remarks
-	 * Uses ESLint with `eslint-plugin-tsdoc` to validate TSDoc syntax.
-	 * By default, throws errors in CI environments and logs errors locally.
-	 * The generated `tsdoc.json` config is persisted locally for IDE integration.
-	 *
-	 * @example
-	 * Enable with defaults (throws in CI, errors locally):
-	 * ```typescript
-	 * import { NodeLibraryBuilder } from '@savvy-web/rslib-builder';
-	 *
-	 * export default NodeLibraryBuilder.create({
-	 *   tsdocLint: true,
-	 * });
-	 * ```
-	 *
-	 * @example
-	 * Enable with custom configuration:
-	 * ```typescript
-	 * import { NodeLibraryBuilder } from '@savvy-web/rslib-builder';
-	 *
-	 * export default NodeLibraryBuilder.create({
-	 *   tsdocLint: {
-	 *     tsdoc: {
-	 *       tagDefinitions: [{ tagName: '@error', syntaxKind: 'block' }],
-	 *     },
-	 *     onError: 'throw',
-	 *     persistConfig: true,
-	 *   },
-	 * });
-	 * ```
-	 */
-	tsdocLint?: TsDocLintPluginOptions | boolean;
 }
 
 /**
@@ -354,7 +319,6 @@ export interface NodeLibraryBuilderOptions {
  * export default NodeLibraryBuilder.create({
  *   externals: ['@rslib/core', '@rsbuild/core'],
  *   dtsBundledPackages: ['picocolors'],
- *   apiModel: true,
  *   transform({ target, pkg }) {
  *     if (target === 'npm') {
  *       delete pkg.devDependencies;
@@ -389,18 +353,14 @@ export class NodeLibraryBuilder {
 	 * These defaults are merged with user-provided options in {@link NodeLibraryBuilder.mergeOptions}.
 	 * Arrays are deep-copied to prevent mutation of this object.
 	 */
-	static readonly DEFAULT_OPTIONS: NodeLibraryBuilderOptions = {
-		entry: undefined,
+	static readonly DEFAULT_OPTIONS = {
 		plugins: [],
 		define: {},
 		copyPatterns: [],
 		targets: ["dev", "npm"],
-		tsconfigPath: undefined,
 		externals: [],
-		dtsBundledPackages: undefined,
-		transformFiles: undefined,
-		tsdocLint: undefined,
-	};
+		apiModel: true,
+	} satisfies Partial<NodeLibraryBuilderOptions>;
 
 	/**
 	 * Merges user-provided options with default options.
@@ -414,15 +374,31 @@ export class NodeLibraryBuilder {
 	 * @returns Complete configuration with all required fields
 	 */
 	static mergeOptions(options: Partial<NodeLibraryBuilderOptions> = {}): NodeLibraryBuilderOptions {
-		const merged = {
-			...NodeLibraryBuilder.DEFAULT_OPTIONS,
-			...options,
-			// Deep copy arrays to avoid mutating DEFAULT_OPTIONS
-			copyPatterns: [...(options.copyPatterns ?? NodeLibraryBuilder.DEFAULT_OPTIONS.copyPatterns)],
-		};
+		// Deep copy arrays to avoid mutating DEFAULT_OPTIONS
+		const copyPatterns = [...(options.copyPatterns ?? NodeLibraryBuilder.DEFAULT_OPTIONS.copyPatterns)];
 		if (existsSync(join(process.cwd(), "public"))) {
-			merged.copyPatterns.unshift({ from: "./public", to: "./", context: process.cwd() });
+			copyPatterns.unshift({ from: "./public", to: "./", context: process.cwd() });
 		}
+
+		// Build merged options, using defaults for undefined values
+		const merged: NodeLibraryBuilderOptions = {
+			// Required properties with defaults
+			copyPatterns,
+			plugins: options.plugins ?? NodeLibraryBuilder.DEFAULT_OPTIONS.plugins,
+			define: options.define ?? NodeLibraryBuilder.DEFAULT_OPTIONS.define,
+			tsconfigPath: options.tsconfigPath,
+			// Optional properties with defaults
+			targets: options.targets ?? NodeLibraryBuilder.DEFAULT_OPTIONS.targets,
+			externals: options.externals ?? NodeLibraryBuilder.DEFAULT_OPTIONS.externals,
+			apiModel: options.apiModel ?? NodeLibraryBuilder.DEFAULT_OPTIONS.apiModel,
+			// Optional properties - only include if explicitly defined
+			...(options.entry !== undefined && { entry: options.entry }),
+			...(options.exportsAsIndexes !== undefined && { exportsAsIndexes: options.exportsAsIndexes }),
+			...(options.dtsBundledPackages !== undefined && { dtsBundledPackages: options.dtsBundledPackages }),
+			...(options.transformFiles !== undefined && { transformFiles: options.transformFiles }),
+			...(options.transform !== undefined && { transform: options.transform }),
+		};
+
 		return merged;
 	}
 
@@ -475,21 +451,31 @@ export class NodeLibraryBuilder {
 		const plugins: RsbuildPlugin[] = [];
 
 		// Add TSDoc lint plugin if enabled (runs before build via onBeforeBuild)
-		if (options.tsdocLint) {
-			const lintOptions: TsDocLintPluginOptions = options.tsdocLint === true ? {} : options.tsdocLint;
-			// Share tsdoc config with apiModel if configured
-			if (!lintOptions.tsdoc && typeof options.apiModel === "object" && options.apiModel.tsdoc) {
-				lintOptions.tsdoc = options.apiModel.tsdoc;
-			}
+		// Lint is enabled by default when apiModel is enabled
+		const apiModelConfig = typeof options.apiModel === "object" ? options.apiModel : {};
+		const tsdocConfig = apiModelConfig.tsdoc;
+		const lintConfig = tsdocConfig?.lint;
+
+		// Lint is enabled by default (unless explicitly set to false or apiModel is false)
+		const lintEnabled = options.apiModel !== false && lintConfig !== false;
+
+		if (lintEnabled) {
+			// Build lint plugin options from tsdoc config + lint-specific options
+			// Exclude `lint` property from tsdoc config to avoid circular reference
+			const { lint: _lint, ...tsdocWithoutLint } = tsdocConfig ?? {};
+			const lintOptions: TsDocLintPluginOptions = {
+				// Pass parent tsdoc config (tagDefinitions, groups, etc.)
+				...(tsdocConfig && Object.keys(tsdocWithoutLint).length > 0 && { tsdoc: tsdocWithoutLint }),
+				// Add lint-specific options if provided
+				...(typeof lintConfig === "object" ? lintConfig : {}),
+			};
 			plugins.push(TsDocLintPlugin(lintOptions));
 		}
 
 		// Add auto-entry plugin if no explicit entries provided
 		if (!options.entry) {
 			plugins.push(
-				AutoEntryPlugin({
-					exportsAsIndexes: options.exportsAsIndexes,
-				}),
+				AutoEntryPlugin(options.exportsAsIndexes != null ? { exportsAsIndexes: options.exportsAsIndexes } : undefined),
 			);
 		}
 
@@ -503,7 +489,7 @@ export class NodeLibraryBuilder {
 				forcePrivate: target === "dev",
 				bundle: true,
 				target,
-				transform: transformFn,
+				...(transformFn && { transform: transformFn }),
 			}),
 		);
 
@@ -511,7 +497,7 @@ export class NodeLibraryBuilder {
 		plugins.push(
 			FilesArrayPlugin({
 				target,
-				transformFiles: options.transformFiles,
+				...(options.transformFiles && { transformFiles: options.transformFiles }),
 			}),
 		);
 
@@ -532,12 +518,12 @@ export class NodeLibraryBuilder {
 
 		plugins.push(
 			DtsPlugin({
-				tsconfigPath: options.tsconfigPath, // Pass through user's tsconfig if provided
+				...(options.tsconfigPath && { tsconfigPath: options.tsconfigPath }),
 				abortOnError: true,
 				bundle: true,
-				bundledPackages: options.dtsBundledPackages,
+				...(options.dtsBundledPackages && { bundledPackages: options.dtsBundledPackages }),
 				buildTarget: target,
-				apiModel: apiModelForTarget,
+				...(apiModelForTarget !== undefined && { apiModel: apiModelForTarget }),
 			}),
 		);
 
@@ -555,7 +541,7 @@ export class NodeLibraryBuilder {
 				copy: {
 					patterns: options.copyPatterns,
 				},
-				externals: options.externals && options.externals.length > 0 ? options.externals : undefined,
+				...(options.externals && options.externals.length > 0 && { externals: options.externals }),
 			},
 			format: "esm",
 			experiments: {
@@ -566,8 +552,8 @@ export class NodeLibraryBuilder {
 			source: {
 				// Don't set tsconfigPath here - DtsPlugin will generate and use its own temp config
 				// RSLib will use its default tsconfig resolution for JS compilation
-				tsconfigPath: options.tsconfigPath, // Only pass through if user explicitly provided one
-				entry,
+				...(options.tsconfigPath && { tsconfigPath: options.tsconfigPath }),
+				...(entry && { entry }),
 				define: {
 					"process.env.__PACKAGE_VERSION__": JSON.stringify(VERSION),
 					...options.define,
@@ -582,9 +568,7 @@ export class NodeLibraryBuilder {
 			lib: [lib],
 			// RSLib will use its default tsconfig resolution for JS compilation
 			// Declaration generation is handled by DtsPlugin
-			source: {
-				tsconfigPath: options.tsconfigPath, // Only pass through if user explicitly provided one
-			},
+			...(options.tsconfigPath && { source: { tsconfigPath: options.tsconfigPath } }),
 			performance: {
 				buildCache: {
 					cacheDirectory: `.rslib/cache/${target}`,

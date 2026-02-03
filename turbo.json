@@ -1,50 +1,46 @@
 {
 	"$schema": "https://turborepo.com/schema.v2.json",
-	"globalPassThroughEnv": ["RSLIB_BUILDER_LOCAL_PATH", "GITHUB_ACTIONS", "CI"],
+	"globalPassThroughEnv": ["RSLIB_BUILDER_LOCAL_PATH"],
+	"globalEnv": ["GITHUB_ACTIONS", "CI"],
+	"envMode": "strict",
 	"tasks": {
-		"build": {
-			"cache": true,
-			"outputs": ["dist/**"]
-		},
 		"build:dev": {
-			"dependsOn": ["typecheck"],
+			"cache": true,
+			"dependsOn": ["types:check"],
 			"inputs": [
 				"$TURBO_DEFAULT$",
 				"$TURBO_ROOT$/package.json",
 				"$TURBO_ROOT$/pnpm-lock.yml",
 				"$TURBO_ROOT$/pnpm-workspace.yml",
 				"package.json",
-				"*.ts",
+				"rslib.config.ts",
 				"tsconfig.json",
-				"src/**/*"
+				"src/**/*.ts",
+				"README.md",
+				"LICENSE"
 			],
-			"outputs": ["dist/dev/**"]
+			"outputLogs": "errors-only",
+			"outputs": ["dist/dev/**", ".rslib/declarations/dev/**"]
 		},
-		"build:npm": {
-			"dependsOn": ["typecheck"],
+		"build:prod": {
+			"cache": true,
+			"dependsOn": ["types:check"],
 			"inputs": [
 				"$TURBO_DEFAULT$",
 				"$TURBO_ROOT$/package.json",
 				"$TURBO_ROOT$/pnpm-lock.yml",
 				"$TURBO_ROOT$/pnpm-workspace.yml",
 				"package.json",
-				"*.ts",
+				"rslib.config.ts",
 				"tsconfig.json",
-				"src/**/*"
+				"src/**/*.ts",
+				"README.md",
+				"LICENSE"
 			],
-			"outputs": ["dist/npm/**"]
+			"outputLogs": "full",
+			"outputs": ["dist/npm/**", ".rslib/declarations/npm/**"]
 		},
-		"test": {
-			"cache": false,
-			"dependsOn": ["typecheck"]
-		},
-		"test:e2e": {
-			"cache": false,
-			"dependsOn": ["^build", "build"],
-			"inputs": ["test/fixtures/**", "test/e2e/**"],
-			"outputs": []
-		},
-		"typecheck": {
+		"types:check": {
 			"cache": true,
 			"inputs": [
 				"$TURBO_DEFAULT$",
@@ -62,7 +58,26 @@
 				"lib/**/*.mts",
 				"lib/**/*.cts"
 			],
+			"dependsOn": ["^build:dev"],
 			"outputLogs": "errors-only"
+		},
+		"vitest:all": {
+			"cache": false,
+			"dependsOn": ["types:check", "build:dev"],
+			"inputs": ["src/**", "test/**"],
+			"outputs": []
+		},
+		"vitest:e2e": {
+			"cache": false,
+			"dependsOn": ["types:check", "build:dev"],
+			"inputs": ["test/fixtures/**", "test/e2e/**"],
+			"outputs": []
+		},
+		"vitest:unit": {
+			"cache": false,
+			"dependsOn": ["types:check", "build:dev"],
+			"inputs": ["src/**"],
+			"outputs": []
 		}
 	}
 }

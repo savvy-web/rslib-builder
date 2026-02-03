@@ -33,16 +33,30 @@ of the build process.
 
 **Configuration:**
 
+TSDoc lint is controlled via `apiModel.tsdoc.lint`:
+
 ```typescript
+// Lint enabled by default (apiModel: true is the default)
+NodeLibraryBuilder.create({});
+
+// Disable lint explicitly
 NodeLibraryBuilder.create({
-  tsdocLint: true,  // Enable with defaults
+  apiModel: {
+    tsdoc: {
+      lint: false,
+    },
+  },
 });
 
-// Or with options
+// Or with custom options
 NodeLibraryBuilder.create({
-  tsdocLint: {
-    onError: 'throw',      // 'warn' | 'error' | 'throw'
-    persistConfig: true,   // Keep tsdoc.json for IDE integration
+  apiModel: {
+    tsdoc: {
+      lint: {
+        onError: 'throw',      // 'warn' | 'error' | 'throw'
+        persistConfig: true,   // Keep tsdoc.json for IDE integration
+      },
+    },
   },
 });
 ```
@@ -67,9 +81,13 @@ part of the export graph, or to override automatic discovery entirely:
 
 ```typescript
 NodeLibraryBuilder.create({
-  tsdocLint: {
-    // Override automatic discovery with explicit patterns
-    include: ['src/**/*.ts', '!**/*.test.ts'],
+  apiModel: {
+    tsdoc: {
+      lint: {
+        // Override automatic discovery with explicit patterns
+        include: ['src/**/*.ts', '!**/*.test.ts'],
+      },
+    },
   },
 });
 ```
@@ -79,7 +97,7 @@ NodeLibraryBuilder.create({
 | Environment | Default `onError` | Default `persistConfig` |
 | :---------- | :---------------- | :---------------------- |
 | Local       | `'error'`         | `true`                  |
-| CI          | `'throw'`         | `false`                 |
+| CI          | `'throw'`         | validates existing      |
 
 ### AutoEntryPlugin
 

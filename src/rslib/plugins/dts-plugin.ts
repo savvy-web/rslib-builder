@@ -127,22 +127,6 @@ export interface TsDocOptions {
 	supportForTags?: Record<string, boolean>;
 
 	/**
-	 * Persist tsdoc.json to disk for tool integration (ESLint, IDEs).
-	 * - `true`: Write to project root as "tsdoc.json" (or validate in CI)
-	 * - `PathLike`: Write to specified path (or validate in CI)
-	 * - `false`: Clean up after API Extractor (not recommended)
-	 *
-	 * @remarks
-	 * In CI environments (`CI` or `GITHUB_ACTIONS` env vars set to "true"),
-	 * the config file is validated instead of written. If the existing file
-	 * doesn't match the expected configuration, the build fails with an error
-	 * instructing the developer to regenerate the file locally.
-	 *
-	 * @defaultValue `true`
-	 */
-	persistConfig?: boolean | PathLike;
-
-	/**
 	 * How to handle TSDoc validation warnings from API Extractor.
 	 * - `"log"`: Show warnings in the console but continue the build
 	 * - `"fail"`: Show warnings and fail the build if any are found
@@ -161,6 +145,105 @@ export interface TsDocOptions {
 	 *               `"log"` otherwise
 	 */
 	warnings?: "log" | "fail" | "none";
+
+	/**
+	 * TSDoc lint validation options.
+	 * Validates TSDoc comments before the build starts using ESLint.
+	 *
+	 * @remarks
+	 * Lint validation is **enabled by default**. Set to `false` to disable.
+	 * When enabled, it uses the parent TSDoc configuration (tagDefinitions, groups, etc.)
+	 * for validation rules.
+	 *
+	 * @defaultValue true
+	 *
+	 * @example
+	 * Disable lint validation:
+	 * ```typescript
+	 * apiModel: {
+	 *   tsdoc: {
+	 *     lint: false,
+	 *   },
+	 * }
+	 * ```
+	 *
+	 * @example
+	 * Customize lint behavior:
+	 * ```typescript
+	 * apiModel: {
+	 *   tsdoc: {
+	 *     tagDefinitions: [{ tagName: '@error', syntaxKind: 'inline' }],
+	 *     lint: {
+	 *       onError: 'throw',
+	 *       include: ['src/**\/*.ts'],
+	 *     },
+	 *   },
+	 * }
+	 * ```
+	 */
+	lint?: TsDocLintOptions | boolean;
+}
+
+/**
+ * Error behavior for TSDoc lint errors.
+ *
+ * @remarks
+ * - `"warn"`: Log warnings but continue the build
+ * - `"error"`: Log errors but continue the build
+ * - `"throw"`: Fail the build with an error
+ *
+ * @public
+ */
+export type TsDocLintErrorBehavior = "warn" | "error" | "throw";
+
+/**
+ * Options for TSDoc lint validation (subset of TsDocLintPluginOptions).
+ * TSDoc configuration is inherited from the parent TsDocOptions.
+ *
+ * @public
+ */
+export interface TsDocLintOptions {
+	/**
+	 * Override automatic file discovery with explicit file paths or glob patterns.
+	 *
+	 * @remarks
+	 * By default, uses import graph analysis to discover files from your package's exports.
+	 * This ensures only public API files are linted.
+	 *
+	 * @example
+	 * ```typescript
+	 * lint: {
+	 *   include: ["src/**\/*.ts", "!**\/*.test.ts"],
+	 * }
+	 * ```
+	 */
+	include?: string[];
+
+	/**
+	 * How to handle TSDoc lint errors.
+	 * - `"warn"`: Log warnings but continue the build
+	 * - `"error"`: Log errors but continue the build
+	 * - `"throw"`: Fail the build with an error
+	 *
+	 * @defaultValue `"throw"` in CI environments, `"error"` locally
+	 */
+	onError?: TsDocLintErrorBehavior;
+
+	/**
+	 * Persist tsdoc.json to disk for tool integration (ESLint, IDEs).
+	 * - `true`: Write to project root as "tsdoc.json" (or validate in CI)
+	 * - `PathLike`: Write to specified path (or validate in CI)
+	 * - `false`: Clean up after linting (not recommended)
+	 *
+	 * @remarks
+	 * In CI environments (`CI` or `GITHUB_ACTIONS` env vars set to "true"),
+	 * the config file is validated instead of written. If the existing file
+	 * doesn't match the expected configuration, the build fails with an error
+	 * instructing the developer to regenerate the file locally.
+	 *
+	 * @defaultValue `true`
+	 */
+	persistConfig?: boolean | PathLike;
 }
 
 /**
@@ -404,7 +487,7 @@ export class TsDocConfigBuilder {
 
 		if (!existsSync(configPath)) {
 			throw new Error(
-				`tsdoc.json not found at ${configPath}. ` + "Run the build locally to generate it, then commit the file.",
+				`tsdoc.json not found at ${configPath}. Run the build locally to generate it, then commit the file.`,
 			);
 		}
 
@@ -441,13 +524,22 @@ export class TsDocConfigBuilder {
 	 *
 	 * In CI environments (`CI` or `GITHUB_ACTIONS` env vars set to "true"),
 	 * this method validates the existing file instead of writing, throwing
-	 * an error if the config is out of date.
+	 * an error if the config is out of date. Set `skipCIValidation` to true
+	 * to skip this validation (useful when `persistConfig: false`).
+	 *
+	 * @param options - TSDoc configuration options
+	 * @param outputDir - Directory to write the config file
+	 * @param skipCIValidation - Skip CI validation even in CI environments
 	 */
-	static async writeConfigFile(options: TsDocOptions = {}, outputDir: string): Promise<string> {
+	static async writeConfigFile(
+		options: TsDocOptions = {},
+		outputDir: string,
+		skipCIValidation = false,
+	): Promise<string> {
 		const configPath = join(outputDir, "tsdoc.json");
 
-		// In CI, validate instead of write
-		if (TsDocConfigBuilder.isCI()) {
+		// In CI, validate instead of write (unless explicitly skipped)
+		if (TsDocConfigBuilder.isCI() && !skipCIValidation) {
 			await TsDocConfigBuilder.validateConfigFile(options, configPath);
 			return configPath;
 		}
@@ -488,9 +580,12 @@ export class TsDocConfigBuilder {
 
 /**
  * Options for API model generation.
- * When enabled, generates an `<unscopedPackageName>.api.json` file using API Extractor.
+ * Generates an `<unscopedPackageName>.api.json` file using API Extractor.
  *
  * @remarks
+ * API model generation is enabled by default. To disable, set `apiModel: false`.
+ * Providing an options object implicitly enables API model generation.
+ *
  * API models are only generated for the main "index" entry point (the "." export).
  * Additional entry points like "./hooks" or "./utils" do not generate separate API models.
  * This prevents multiple conflicting API models and ensures a single source of truth
@@ -499,12 +594,6 @@ export class TsDocConfigBuilder {
  * @public
  */
 export interface ApiModelOptions {
-	/**
-	 * Whether to enable API model generation.
-	 * @defaultValue false
-	 */
-	enabled?: boolean;
-
 	/**
 	 * Filename for the generated API model file.
 	 * @defaultValue `<unscopedPackageName>.api.json` (e.g., `rslib-builder.api.json`)
@@ -528,7 +617,6 @@ export interface ApiModelOptions {
 	 * import type { ApiModelOptions } from '@savvy-web/rslib-builder';
 	 *
 	 * const apiModel: ApiModelOptions = {
-	 *   enabled: true,
 	 *   localPaths: ['../docs-site/lib/packages/my-package'],
 	 * };
 	 * ```
@@ -549,7 +637,6 @@ export interface ApiModelOptions {
 	 * import type { ApiModelOptions } from '@savvy-web/rslib-builder';
 	 *
 	 * const apiModel: ApiModelOptions = {
-	 *   enabled: true,
 	 *   tsdoc: {
 	 *     tagDefinitions: [{ tagName: '@error', syntaxKind: 'inline' }],
 	 *   },
@@ -569,11 +656,12 @@ export interface ApiModelOptions {
 	 * A forgotten export occurs when a public API references a declaration
 	 * that isn't exported from the entry point.
 	 *
-	 * - `"include"` (default): Log a warning, include in the API model
+	 * - `"include"`: Log a warning, include in the API model
 	 * - `"error"`: Fail the build with details about the forgotten exports
 	 * - `"ignore"`: Turn off detection — suppress all messages
 	 *
-	 * @defaultValue "include"
+	 * @defaultValue `"error"` in CI environments (`CI` or `GITHUB_ACTIONS` env vars),
+	 *               `"include"` otherwise
 	 */
 	forgottenExports?: "include" | "error" | "ignore";
 }
@@ -796,10 +884,8 @@ async function bundleDtsFiles(options: {
 	let apiModelPath: string | undefined;
 	let tsdocMetadataPath: string | undefined;
 
-	// Normalize apiModel options - enabled by default when apiModel is true or an object without enabled: false
-	const apiModelEnabled =
-		apiModel === true ||
-		(typeof apiModel === "object" && (apiModel.enabled === undefined || apiModel.enabled === true));
+	// apiModel is enabled when it's true or an object (any object implicitly enables)
+	const apiModelEnabled = apiModel === true || typeof apiModel === "object";
 	// Temp filename for internal use - final output filename is determined at emission time
 	const apiModelFilename = typeof apiModel === "object" && apiModel.filename ? apiModel.filename : "api.json";
 
@@ -808,7 +894,10 @@ async function bundleDtsFiles(options: {
 	const tsdocMetadataOption = typeof apiModel === "object" ? apiModel.tsdocMetadata : undefined;
 	// Default: "fail" in CI, "log" locally (user can override with explicit value)
 	const tsdocWarnings = tsdocOptions?.warnings ?? (TsDocConfigBuilder.isCI() ? "fail" : "log");
-	const forgottenExports = (typeof apiModel === "object" ? apiModel.forgottenExports : undefined) ?? "include";
+	// Default: "error" in CI, "include" locally (user can override with explicit value)
+	const forgottenExports =
+		(typeof apiModel === "object" ? apiModel.forgottenExports : undefined) ??
+		(TsDocConfigBuilder.isCI() ? "error" : "include");
 
 	// tsdocMetadata defaults to enabled when apiModel is enabled
 	const tsdocMetadataEnabled =
@@ -824,16 +913,22 @@ async function bundleDtsFiles(options: {
 	// Validate that API Extractor is installed before attempting import
 	getApiExtractorPath();
 
-	// Determine TSDoc config output path
-	const persistConfig = tsdocOptions?.persistConfig;
+	// Determine TSDoc config output path and CI validation behavior
+	const lintConfig = typeof tsdocOptions?.lint === "object" ? tsdocOptions.lint : undefined;
+	const persistConfig = lintConfig?.persistConfig;
 	const tsdocConfigOutputPath = TsDocConfigBuilder.getConfigPath(persistConfig, cwd);
+	const skipCIValidation = persistConfig === false;
 
 	// Generate tsdoc.json config file for API Extractor
 	// Write to the determined path (project root by default, or custom path)
 	let tsdocConfigPath: string | undefined;
 	let tsdocConfigFile: unknown; // TSDocConfigFile type from @microsoft/tsdoc-config
 	if (apiModelEnabled) {
-		tsdocConfigPath = await TsDocConfigBuilder.writeConfigFile(tsdocOptions ?? {}, dirname(tsdocConfigOutputPath));
+		tsdocConfigPath = await TsDocConfigBuilder.writeConfigFile(
+			tsdocOptions ?? {},
+			dirname(tsdocConfigOutputPath),
+			skipCIValidation,
+		);
 
 		// Load the TSDocConfigFile object for API Extractor
 		// Use loadForFolder to properly resolve the config from the project directory
@@ -841,7 +936,7 @@ async function bundleDtsFiles(options: {
 		tsdocConfigFile = TSDocConfigFile.loadForFolder(dirname(tsdocConfigPath));
 	}
 
-	const { Extractor, ExtractorConfig } = await import("@microsoft/api-extractor");
+	const { Extractor, ExtractorConfig, ExtractorMessage, ExtractorLogLevel } = await import("@microsoft/api-extractor");
 
 	// Process each entry point
 	for (const [entryName, sourcePath] of entryPoints) {
@@ -885,13 +980,12 @@ async function bundleDtsFiles(options: {
 		const tempTsdocMetadataPath = generateTsdocMetadata ? join(tempOutputDir, tsdocMetadataFilename) : undefined;
 
 		// Create API Extractor configuration
-		const extractorConfig = ExtractorConfig.prepare({
+		type PrepareOptions = Parameters<typeof ExtractorConfig.prepare>[0];
+		const prepareOptions: PrepareOptions = {
 			configObject: {
 				projectFolder: cwd,
 				mainEntryPointFilePath: tempDtsPath,
-				enumMemberOrder: "preserve" as NonNullable<
-					Parameters<typeof ExtractorConfig.prepare>[0]["configObject"]["enumMemberOrder"]
-				>,
+				enumMemberOrder: "preserve" as NonNullable<PrepareOptions["configObject"]["enumMemberOrder"]>,
 				compiler: {
 					tsconfigFilePath: tsconfigPath,
 				},
@@ -899,24 +993,27 @@ async function bundleDtsFiles(options: {
 					enabled: true,
 					untrimmedFilePath: tempBundledPath,
 				},
-				docModel: generateApiModel
-					? {
-							enabled: true,
-							apiJsonFilePath: tempApiModelPath,
-						}
-					: undefined,
-				tsdocMetadata: generateTsdocMetadata
-					? {
-							enabled: true,
-							tsdocMetadataFilePath: tempTsdocMetadataPath,
-						}
-					: undefined,
+				...(generateApiModel && {
+					docModel: {
+						enabled: true as const,
+						...(tempApiModelPath && { apiJsonFilePath: tempApiModelPath }),
+					},
+				}),
+				...(generateTsdocMetadata && {
+					tsdocMetadata: {
+						enabled: true as const,
+						...(tempTsdocMetadataPath && { tsdocMetadataFilePath: tempTsdocMetadataPath }),
+					},
+				}),
 				bundledPackages: bundledPackages,
 			},
 			packageJsonFullPath: join(cwd, "package.json"),
 			configObjectFullPath: undefined,
-			tsdocConfigFile: tsdocConfigFile as Parameters<typeof ExtractorConfig.prepare>[0]["tsdocConfigFile"],
-		});
+		};
+		if (tsdocConfigFile) {
+			prepareOptions.tsdocConfigFile = tsdocConfigFile as NonNullable<PrepareOptions["tsdocConfigFile"]>;
+		}
+		const extractorConfig = ExtractorConfig.prepare(prepareOptions);
 
 		// Collect TSDoc warnings if needed
 		interface TsDocWarning {
@@ -932,27 +1029,19 @@ async function bundleDtsFiles(options: {
 		const extractorResult = Extractor.invoke(extractorConfig, {
 			localBuild: true,
 			showVerboseMessages: false,
-			messageCallback: (message: {
-				text?: string;
-				logLevel?: string;
-				messageId?: string;
-				category?: string;
-				sourceFilePath?: string;
-				sourceFileLine?: number;
-				sourceFileColumn?: number;
-			}) => {
+			messageCallback: (message: InstanceType<typeof ExtractorMessage>) => {
 				// Suppress TypeScript version mismatch warnings
 				if (
 					message.text?.includes("Analysis will use the bundled TypeScript version") ||
 					message.text?.includes("The target project appears to use TypeScript")
 				) {
-					message.logLevel = "none";
+					message.logLevel = ExtractorLogLevel.None;
 					return;
 				}
 
 				// Suppress API signature change warnings
 				if (message.text?.includes("You have changed the public API signature")) {
-					message.logLevel = "none";
+					message.logLevel = ExtractorLogLevel.None;
 					return;
 				}
 
@@ -961,33 +1050,33 @@ async function bundleDtsFiles(options: {
 				const isTsdocMessage = message.messageId?.startsWith("tsdoc-");
 				if (isTsdocMessage && message.text) {
 					if (tsdocWarnings === "none") {
-						message.logLevel = "none";
+						message.logLevel = ExtractorLogLevel.None;
 					} else {
 						// Collect for logging or failing (with location info if available)
 						collectedTsdocWarnings.push({
 							text: message.text,
-							sourceFilePath: message.sourceFilePath,
-							sourceFileLine: message.sourceFileLine,
-							sourceFileColumn: message.sourceFileColumn,
+							...(message.sourceFilePath != null && { sourceFilePath: message.sourceFilePath }),
+							...(message.sourceFileLine != null && { sourceFileLine: message.sourceFileLine }),
+							...(message.sourceFileColumn != null && { sourceFileColumn: message.sourceFileColumn }),
 						});
 						// Still suppress from API Extractor's default output - we'll handle it ourselves
-						message.logLevel = "none";
+						message.logLevel = ExtractorLogLevel.None;
 					}
 				}
 
 				// Handle forgotten export messages based on the forgottenExports option
 				if (message.messageId === "ae-forgotten-export" && message.text) {
 					if (forgottenExports === "ignore") {
-						message.logLevel = "none";
+						message.logLevel = ExtractorLogLevel.None;
 					} else {
 						// Collect for warning or failing — we handle output ourselves
 						collectedForgottenExports.push({
 							text: message.text,
-							sourceFilePath: message.sourceFilePath,
-							sourceFileLine: message.sourceFileLine,
-							sourceFileColumn: message.sourceFileColumn,
+							...(message.sourceFilePath != null && { sourceFilePath: message.sourceFilePath }),
+							...(message.sourceFileLine != null && { sourceFileLine: message.sourceFileLine }),
+							...(message.sourceFileColumn != null && { sourceFileColumn: message.sourceFileColumn }),
 						});
-						message.logLevel = "none";
+						message.logLevel = ExtractorLogLevel.None;
 					}
 				}
 			},
@@ -1065,7 +1154,12 @@ async function bundleDtsFiles(options: {
 		bundledFiles.set(entryName, tempBundledPath);
 	}
 
-	return { bundledFiles, apiModelPath, tsdocMetadataPath, tsdocConfigPath };
+	return {
+		bundledFiles,
+		...(apiModelPath && { apiModelPath }),
+		...(tsdocMetadataPath && { tsdocMetadataPath }),
+		...(tsdocConfigPath && { tsdocConfigPath }),
+	};
 }
 /* v8 ignore stop */
 
@@ -1149,7 +1243,12 @@ function runTsgo(options: {
 	const { configPath, declarationDir, rootDir, tsBuildInfoFile, name } = options;
 
 	const tsgoBinPath = getTsgoBinPath();
-	const args = generateTsgoArgs({ configPath, declarationDir, rootDir, tsBuildInfoFile });
+	const args = generateTsgoArgs({
+		configPath,
+		declarationDir,
+		...(rootDir && { rootDir }),
+		...(tsBuildInfoFile && { tsBuildInfoFile }),
+	});
 
 	return new Promise((resolve) => {
 		// Spawn tsgo directly (it's a shell script in node_modules/.bin)
@@ -1266,23 +1365,29 @@ export const DtsPlugin = (options: DtsPluginOptions = {}): RsbuildPlugin => {
 				const cwd = api.context.rootPath;
 
 				try {
-					// Use explicitly provided tsconfigPath first, then fall back to config
-					let configTsconfigPath = options.tsconfigPath || config.source?.tsconfigPath;
+					// Always generate a temp config when buildTarget is provided
+					// This ensures consistent declaration generation regardless of the user's tsconfig setup:
+					// 1. The temp config uses absolute paths that work from /tmp
+					// 2. It handles packages extending our templates (which use ${configDir})
+					// 3. It provides correct typeRoots for Node.js type resolution
+					//
+					// The user's tsconfig.json is still used by their IDE - this temp config
+					// is only for the declaration generation step
+					let configTsconfigPath = options.tsconfigPath;
 
-					// If no tsconfig provided and we have a buildTarget, generate a temp config
-					if (!configTsconfigPath && options.buildTarget) {
-						// Import TSConfigs dynamically to avoid circular dependencies
-
+					if (options.buildTarget) {
 						// Change working directory temporarily to package root so process.cwd() works correctly
 						const originalCwd = process.cwd();
 						try {
 							process.chdir(cwd);
 							configTsconfigPath = TSConfigs.node.ecma.lib.writeBundleTempConfig(options.buildTarget);
-							log.global.info(`Using tsconfig: ${configTsconfigPath}`);
 						} finally {
 							// Restore original working directory
 							process.chdir(originalCwd);
 						}
+					} else if (!configTsconfigPath) {
+						// Fall back to RSLib's detected tsconfig if no buildTarget
+						configTsconfigPath = config.source?.tsconfigPath;
 					}
 
 					// Find tsconfig
@@ -1336,8 +1441,10 @@ export const DtsPlugin = (options: DtsPluginOptions = {}): RsbuildPlugin => {
 						const { success, output } = await runTsgo({
 							configPath: state.tsconfigPath,
 							declarationDir: tempDtsDir,
-							rootDir: state.parsedConfig.options.rootDir,
-							tsBuildInfoFile: state.parsedConfig.options.tsBuildInfoFile,
+							...(state.parsedConfig.options.rootDir && { rootDir: state.parsedConfig.options.rootDir }),
+							...(state.parsedConfig.options.tsBuildInfoFile && {
+								tsBuildInfoFile: state.parsedConfig.options.tsBuildInfoFile,
+							}),
 							name: envId,
 						});
 
@@ -1479,9 +1586,9 @@ export const DtsPlugin = (options: DtsPluginOptions = {}): RsbuildPlugin => {
 										tsconfigPath: state.tsconfigPath,
 										bundledPackages: options.bundledPackages || [],
 										entryPoints,
-										banner: options.banner,
-										footer: options.footer,
-										apiModel: options.apiModel,
+										...(options.banner && { banner: options.banner }),
+										...(options.footer && { footer: options.footer }),
+										...(options.apiModel !== undefined && { apiModel: options.apiModel }),
 									});
 
 									// Emit bundled .d.ts files from temp directory through asset pipeline
