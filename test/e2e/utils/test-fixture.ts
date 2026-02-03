@@ -39,7 +39,7 @@ export interface FixtureContext {
  * ```
  */
 export const test = baseTest.extend<FixtureContext>({
-	result: async ({}, use) => {
+	result: async (_, use) => {
 		// Create mutable container for result
 		const container: ResultContainer = { value: null };
 

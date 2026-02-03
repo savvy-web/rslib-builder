@@ -278,7 +278,7 @@ export class LibraryTSConfigFile extends TSConfigFile {
 	 * @param target - Build target (dev, npm)
 	 * @returns Absolute path to the temporary file
 	 */
-	writeBundleTempConfig(target: "dev" | "npm"): string {
+	writeBundleTempConfig(_target: "dev" | "npm"): string {
 		const cwd = process.cwd();
 		const baseConfig = this.config;
 
