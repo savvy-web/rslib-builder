@@ -1,7 +1,7 @@
 import { spawn } from "node:child_process";
+import { randomUUID } from "node:crypto";
 import { cp, mkdir, readFile, readdir, rm, symlink, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { randomUUID } from "node:crypto";
 import type { NodeLibraryBuilderOptions } from "../../../src/rslib/builders/node-library-builder.js";
 
 /**
@@ -160,9 +160,7 @@ async function copyFixtureToTemp(fixtureName: string): Promise<string> {
 			const relativePath = src.replace(sourcePath, "");
 			// Exclude dist, .rslib, and node_modules directories
 			return (
-				!relativePath.includes("/dist") &&
-				!relativePath.includes("/.rslib") &&
-				!relativePath.includes("/node_modules")
+				!relativePath.includes("/dist") && !relativePath.includes("/.rslib") && !relativePath.includes("/node_modules")
 			);
 		},
 	});

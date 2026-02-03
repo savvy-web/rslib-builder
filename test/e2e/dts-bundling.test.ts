@@ -1,4 +1,11 @@
-import { assertBuildSucceeded, assertOutputFile, assertPackageJson, buildFixture, describe, test } from "./utils/index.js";
+import {
+	assertBuildSucceeded,
+	assertOutputFile,
+	assertPackageJson,
+	buildFixture,
+	describe,
+	test,
+} from "./utils/index.js";
 
 describe("DTS Bundling E2E", () => {
 	describe("single-entry fixture", () => {

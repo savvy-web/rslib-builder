@@ -14,9 +14,7 @@ import {
 
 describe("NodeLibraryBuilder apiModel Options E2E", () => {
 	describe("apiModel: false", () => {
-		test("should not generate API model, tsdoc-metadata, or tsconfig when apiModel is disabled", async ({
-			result,
-		}) => {
+		test("should not generate API model, tsdoc-metadata, or tsconfig when apiModel is disabled", async ({ result }) => {
 			result.value = await buildFixture("options-testing", {
 				config: {
 					builderOptions: {

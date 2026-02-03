@@ -22,7 +22,7 @@
 		},
 		"build:prod": {
 			"cache": true,
-				"dependsOn": ["types:check"],
+			"dependsOn": ["types:check"],
 			"inputs": [
 				"$TURBO_DEFAULT$",
 				"$TURBO_ROOT$/package.json",
