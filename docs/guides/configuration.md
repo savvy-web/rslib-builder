@@ -35,8 +35,7 @@ interface NodeLibraryBuilderOptions {
   dtsBundledPackages?: string[];
   transformFiles?: TransformFilesCallback;
   transform?: TransformPackageJsonFn;
-  apiModel?: ApiModelOptions | boolean;
-  tsdocLint?: TsDocLintPluginOptions | boolean;
+  apiModel?: ApiModelOptions | boolean;  // TSDoc lint is controlled via apiModel.tsdoc.lint
 }
 
 type BuildTarget = 'dev' | 'npm';
@@ -466,40 +465,51 @@ apiModel: {
 
 ## TSDoc Linting
 
-### tsdocLint
+TSDoc linting is controlled via the `apiModel.tsdoc.lint` option. When enabled,
+it validates TSDoc comments before the build starts using ESLint.
 
-Validate TSDoc comments before build using ESLint:
+### Enabling TSDoc Lint
+
+TSDoc lint is **enabled by default** when `apiModel` is enabled (which is the
+default). To disable or customize lint behavior:
 
 ```typescript
-// Enable with defaults (automatic file discovery)
+// Lint enabled by default (apiModel: true is the default)
+NodeLibraryBuilder.create({});
+
+// Disable lint explicitly
 NodeLibraryBuilder.create({
-  tsdocLint: true,
+  apiModel: {
+    tsdoc: {
+      lint: false,
+    },
+  },
 });
 
-// Enable with custom options
+// Customize lint behavior
 NodeLibraryBuilder.create({
-  tsdocLint: {
-    enabled: true,
-    onError: 'throw',
-    persistConfig: true,
+  apiModel: {
     tsdoc: {
       tagDefinitions: [
         { tagName: '@error', syntaxKind: 'block' },
       ],
+      lint: {
+        onError: 'throw',
+        include: ['src/**/*.ts'],
+        persistConfig: true,
+      },
     },
   },
 });
 ```
 
-**TSDoc Lint Options:**
+**TSDoc Lint Options (nested under `apiModel.tsdoc.lint`):**
 
 | Option | Type | Default | Description |
 | :----- | :--- | :------ | :---------- |
-| `enabled` | `boolean` | `true` | Enable TSDoc linting |
-| `onError` | `TsDocLintErrorBehavior` | `throw`/`error` | Error mode |
+| `onError` | `TsDocLintErrorBehavior` | `throw` (CI) / `error` (local) | Error mode |
 | `include` | `string[]` | Auto from exports | Override discovery |
-| `persistConfig` | `boolean \| string` | `true`/`false` | Keep config |
-| `tsdoc` | `TsDocOptions` | Shared with apiModel | TSDoc configuration |
+| `persistConfig` | `boolean \| PathLike` | `true` (local) | Keep tsdoc.json |
 
 ### Automatic File Discovery
 
@@ -539,9 +549,13 @@ Use the `include` option when you need to:
 
 ```typescript
 NodeLibraryBuilder.create({
-  tsdocLint: {
-    // Override automatic discovery with explicit patterns
-    include: ['src/**/*.ts', '!**/*.test.ts'],
+  apiModel: {
+    tsdoc: {
+      lint: {
+        // Override automatic discovery with explicit patterns
+        include: ['src/**/*.ts', '!**/*.test.ts'],
+      },
+    },
   },
 });
 ```
@@ -549,20 +563,24 @@ NodeLibraryBuilder.create({
 When `include` is specified, automatic discovery is bypassed entirely and
 only the specified glob patterns are used.
 
-### Configuration Sharing
+### TSDoc Configuration Sharing
 
-When both `tsdocLint` and `apiModel` are enabled, TSDoc configuration is
-automatically shared from `apiModel.tsdoc` if `tsdocLint.tsdoc` is not set:
+TSDoc lint uses the parent TSDoc configuration (`apiModel.tsdoc`) for validation
+rules. Tag definitions, groups, and support settings are shared automatically:
 
 ```typescript
 NodeLibraryBuilder.create({
   apiModel: {
-    enabled: true,
     tsdoc: {
+      // These settings apply to both API Extractor and lint validation
       tagDefinitions: [{ tagName: '@error', syntaxKind: 'block' }],
+      groups: ['core', 'extended'],
+      // Lint-specific settings
+      lint: {
+        onError: 'throw',
+      },
     },
   },
-  tsdocLint: true,  // Automatically uses apiModel.tsdoc
 });
 ```
 
@@ -572,6 +590,18 @@ NodeLibraryBuilder.create({
 | :---------- | :---------------- | :---------- | :------------------- |
 | Local       | `'error'`         | Yes         | Continue, log errors |
 | CI          | `'throw'`         | Yes         | Fail build           |
+
+### persistConfig Behavior
+
+The `persistConfig` option controls whether the generated `tsdoc.json` file
+is kept after linting:
+
+| Value | Local Behavior | CI Behavior |
+| :---- | :------------- | :---------- |
+| `true` | Persist to project root | Validate existing file |
+| `false` | Clean up after linting | Skip validation, clean up |
+| `PathLike` | Persist to custom path | Validate at custom path |
+| undefined | Persist to project root | Validate existing file |
 
 ## ImportGraph Utility
 
@@ -916,22 +946,20 @@ export default NodeLibraryBuilder.create({
     return pkg;
   },
 
-  // API documentation
+  // API documentation and TSDoc validation
   apiModel: {
-    enabled: true,
     forgottenExports: 'error',
     tsdoc: {
       tagDefinitions: [
         { tagName: '@error', syntaxKind: 'block' },
       ],
       warnings: 'fail',
+      // TSDoc lint options (nested under tsdoc)
+      lint: {
+        onError: 'throw',
+        persistConfig: true,
+      },
     },
-  },
-
-  // TSDoc validation
-  tsdocLint: {
-    onError: 'throw',
-    persistConfig: true,
   },
 
   // Build constants

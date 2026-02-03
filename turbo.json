@@ -1,51 +1,48 @@
 {
 	"$schema": "https://turborepo.com/schema.v2.json",
-	"globalPassThroughEnv": ["RSLIB_BUILDER_LOCAL_PATH", "GITHUB_ACTIONS", "CI"],
+	"envMode": "strict",
+	"globalEnv": ["GITHUB_ACTIONS", "CI"],
+	"globalPassThroughEnv": ["RSLIB_BUILDER_LOCAL_PATH"],
 	"tasks": {
-		"build": {
-			"cache": true,
-			"outputs": ["dist/**"]
-		},
 		"build:dev": {
-			"dependsOn": ["typecheck"],
-			"inputs": [
-				"$TURBO_DEFAULT$",
-				"$TURBO_ROOT$/package.json",
-				"$TURBO_ROOT$/pnpm-lock.yml",
-				"$TURBO_ROOT$/pnpm-workspace.yml",
-				"package.json",
-				"*.ts",
-				"tsconfig.json",
-				"src/**/*"
-			],
-			"outputs": ["dist/dev/**"]
-		},
-		"build:npm": {
-			"dependsOn": ["typecheck"],
-			"inputs": [
-				"$TURBO_DEFAULT$",
-				"$TURBO_ROOT$/package.json",
-				"$TURBO_ROOT$/pnpm-lock.yml",
-				"$TURBO_ROOT$/pnpm-workspace.yml",
-				"package.json",
-				"*.ts",
-				"tsconfig.json",
-				"src/**/*"
-			],
-			"outputs": ["dist/npm/**"]
-		},
-		"test": {
-			"cache": false,
-			"dependsOn": ["typecheck"]
-		},
-		"test:e2e": {
-			"cache": false,
-			"dependsOn": ["^build", "build"],
-			"inputs": ["test/fixtures/**", "test/e2e/**"],
-			"outputs": []
-		},
-		"typecheck": {
 			"cache": true,
+			"dependsOn": ["types:check"],
+			"inputs": [
+				"$TURBO_DEFAULT$",
+				"$TURBO_ROOT$/package.json",
+				"$TURBO_ROOT$/pnpm-lock.yml",
+				"$TURBO_ROOT$/pnpm-workspace.yml",
+				"package.json",
+				"rslib.config.ts",
+				"tsconfig.json",
+				"src/**/*.ts",
+				"README.md",
+				"LICENSE"
+			],
+			"outputLogs": "errors-only",
+			"outputs": ["dist/dev/**", ".rslib/declarations/dev/**"]
+		},
+		"build:prod": {
+			"cache": true,
+			"dependsOn": ["types:check"],
+			"inputs": [
+				"$TURBO_DEFAULT$",
+				"$TURBO_ROOT$/package.json",
+				"$TURBO_ROOT$/pnpm-lock.yml",
+				"$TURBO_ROOT$/pnpm-workspace.yml",
+				"package.json",
+				"rslib.config.ts",
+				"tsconfig.json",
+				"src/**/*.ts",
+				"README.md",
+				"LICENSE"
+			],
+			"outputLogs": "full",
+			"outputs": ["dist/npm/**", ".rslib/declarations/npm/**"]
+		},
+		"types:check": {
+			"cache": true,
+			"dependsOn": ["^build:dev"],
 			"inputs": [
 				"$TURBO_DEFAULT$",
 				"$TURBO_ROOT$/package.json",
@@ -63,6 +60,24 @@
 				"lib/**/*.cts"
 			],
 			"outputLogs": "errors-only"
+		},
+		"vitest:all": {
+			"cache": false,
+			"dependsOn": ["types:check", "build:dev"],
+			"inputs": ["src/**", "test/**"],
+			"outputs": []
+		},
+		"vitest:e2e": {
+			"cache": false,
+			"dependsOn": ["types:check", "build:dev"],
+			"inputs": ["test/fixtures/**", "test/e2e/**"],
+			"outputs": []
+		},
+		"vitest:unit": {
+			"cache": false,
+			"dependsOn": ["types:check", "build:dev"],
+			"inputs": ["src/**"],
+			"outputs": []
 		}
 	}
 }

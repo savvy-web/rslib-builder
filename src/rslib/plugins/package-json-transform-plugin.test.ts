@@ -212,7 +212,7 @@ describe("PackageJsonTransformPlugin", () => {
 		mockBuildPackageJson.mockResolvedValue(originalPackageJson);
 
 		const mockContext = createMockContext();
-		delete mockContext.compilation.name; // No name property - should default to unknown
+		mockContext.compilation.name = undefined; // No name property - should default to unknown
 
 		await callback(mockContext);
 

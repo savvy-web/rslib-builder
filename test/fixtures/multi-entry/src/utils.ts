@@ -6,6 +6,9 @@
 
 import type { User } from "./types.js";
 
+// Re-export User type so consumers of this module can see it in the public API
+export type { User };
+
 /**
  * Formats a user's full name.
  *

@@ -42,7 +42,7 @@
 	"geminicodeassist.enable": false,
 	"files.exclude": {
 		"**/.coverage": true,
-		"**/.rslib": true,
+		"**/.rslib": false,
 		"**/.turbo": true,
 		"**/.vitest": true,
 		"**/*.tsbuildinfo": true,

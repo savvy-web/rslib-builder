@@ -3,11 +3,12 @@ status: current
 module: rslib-builder
 category: architecture
 created: 2026-01-18
-updated: 2026-01-28
-last-synced: 2026-01-28
+updated: 2026-02-03
+last-synced: 2026-02-03
 completeness: 95
 related:
   - rslib-builder/api-extraction.md
+  - rslib-builder/testing-strategy.md
 dependencies: []
 ---
 
@@ -89,7 +90,7 @@ libraries.
 interface NodeLibraryBuilderOptions {
   entry?: Record<string, string | string[]>;
   exportsAsIndexes?: boolean;
-  copyPatterns: (string | RawCopyPattern)[];
+  copyPatterns: (string | CopyPatternConfig)[];
   plugins: RsbuildPlugin[];
   define: SourceConfig["define"];
   tsconfigPath: string | undefined;
@@ -98,15 +99,27 @@ interface NodeLibraryBuilderOptions {
   dtsBundledPackages?: string[];
   transformFiles?: (context: TransformFilesContext) => void;
   transform?: TransformPackageJsonFn;
-  apiModel?: ApiModelOptions | boolean;
-  tsdocLint?: TsDocLintPluginOptions | boolean;
+  apiModel?: ApiModelOptions | boolean;  // Default: true
 }
 
 type BuildTarget = "dev" | "npm";
 
+// Default options
+NodeLibraryBuilder.DEFAULT_OPTIONS = {
+  plugins: [],
+  define: {},
+  copyPatterns: [],
+  targets: ["dev", "npm"],
+  externals: [],
+  apiModel: true,  // API model enabled by default
+};
+
 // Factory method
 NodeLibraryBuilder.create(options): RslibConfigAsyncFn
 ```
+
+**Note:** TSDoc linting is controlled via `apiModel.tsdoc.lint` option (not a separate
+top-level option). Lint is enabled by default when `apiModel` is enabled.
 
 **Dependencies:**
 
@@ -127,11 +140,13 @@ processing stages.
   - Uses ImportGraph for automatic file discovery from package.json exports
   - Supports explicit include patterns to override automatic discovery
   - Bundled dependencies: eslint, @typescript-eslint/parser, eslint-plugin-tsdoc
+  - Enabled by default when apiModel is enabled (controlled via `apiModel.tsdoc.lint`)
 - **AutoEntryPlugin** - Discover entries from package.json exports/bin
   - Stage: modifyRsbuildConfig
 - **DtsPlugin** - Generate .d.ts with tsgo, optional API Extractor bundling
-  - Stages: modifyRsbuildConfig, pre-process, summarize
+  - Stages: modifyRsbuildConfig, pre-process, summarize, onCloseBuild
   - When apiModel enabled: emits tsconfig.json, api model, tsdoc-metadata.json
+  - API model is enabled by default for npm target
 - **PackageJsonTransformPlugin** - Transform package.json for dist
   - Stages: pre-process, optimize, optimize-inline
 - **FilesArrayPlugin** - Build package.json files array, exclude source maps
@@ -698,15 +713,47 @@ The TsDocLintPlugin validates TSDoc comments before the build starts using
 ESLint with `eslint-plugin-tsdoc`. It shares TSDoc configuration with the
 DtsPlugin through the `TsDocConfigBuilder` utility.
 
-**Options interface:**
+**Configuration via apiModel.tsdoc.lint:**
+
+TSDoc linting is now configured through the `apiModel.tsdoc.lint` option in
+`NodeLibraryBuilderOptions`. Lint is enabled by default when `apiModel` is
+enabled (which is the default).
 
 ```typescript
-interface TsDocLintPluginOptions {
-  enabled?: boolean;                    // Default: true
-  tsdoc?: TsDocOptions;                 // Shared with DtsPlugin apiModel.tsdoc
+// Lint enabled by default (apiModel: true is the default)
+NodeLibraryBuilder.create({})
+
+// Disable lint explicitly
+NodeLibraryBuilder.create({
+  apiModel: {
+    tsdoc: {
+      lint: false,
+    },
+  },
+})
+
+// Customize lint behavior
+NodeLibraryBuilder.create({
+  apiModel: {
+    tsdoc: {
+      tagDefinitions: [{ tagName: "@error", syntaxKind: "inline" }],
+      lint: {
+        onError: "throw",
+        include: ["src/**/*.ts"],
+        persistConfig: true,
+      },
+    },
+  },
+})
+```
+
+**Lint options interface (nested under `apiModel.tsdoc.lint`):**
+
+```typescript
+interface TsDocLintOptions {
   include?: string[];                   // Override automatic file discovery
   onError?: TsDocLintErrorBehavior;     // Default: "throw" in CI, "error" locally
-  persistConfig?: boolean | PathLike;   // Default: true locally, false in CI
+  persistConfig?: boolean | PathLike;   // Default: true locally, validates in CI
 }
 
 type TsDocLintErrorBehavior = "warn" | "error" | "throw";
@@ -731,15 +778,13 @@ Use the `include` option when you need to lint specific files that are not
 part of the export graph, or to override automatic discovery entirely:
 
 ```typescript
-// Override with explicit glob patterns
-TsDocLintPlugin({
-  include: ["src/**/*.ts", "!**/*.test.ts"],
-})
-
-// Lint only specific files
-TsDocLintPlugin({
-  include: ["src/public-api.ts", "src/types.ts"],
-})
+apiModel: {
+  tsdoc: {
+    lint: {
+      include: ["src/**/*.ts", "!**/*.test.ts"],
+    },
+  },
+}
 ```
 
 When `include` is specified:
@@ -758,26 +803,21 @@ Controls how TSDoc lint errors are handled:
 | `"error"` | Log errors, continue build (default local) |
 | `"throw"` | Fail build immediately (default CI)        |
 
-Environment detection uses `CI`, `GITHUB_ACTIONS`, or `CONTINUOUS_INTEGRATION`
-environment variables to determine if running in CI.
+Environment detection uses `CI` or `GITHUB_ACTIONS` environment variables
+to determine if running in CI.
 
 **The `persistConfig` option (tsdoc.json management):**
 
 Controls whether the generated `tsdoc.json` configuration file is kept after
-linting:
+linting. In CI environments, this validates the existing file matches expected
+configuration instead of writing.
 
-| Value      | Behavior                                      |
-| ---------- | --------------------------------------------- |
-| `true`     | Keep tsdoc.json in project root (IDE support) |
-| `false`    | Delete after linting completes                |
-| `PathLike` | Write to custom path                          |
-
-Default: `true` locally (for IDE integration), `false` in CI environments.
-
-**Configuration sharing:** When `NodeLibraryBuilder` has both `apiModel.tsdoc`
-and `tsdocLint` configured, the same tag definitions and TSDoc configuration
-are used by both plugins to ensure consistent validation and API model
-generation.
+| Value      | Local Behavior                       | CI Behavior                      |
+| ---------- | ------------------------------------ | -------------------------------- |
+| `true`     | Persist to project root              | Validate existing file           |
+| `false`    | Clean up after linting               | Skip validation, clean up        |
+| `PathLike` | Persist to custom path               | Validate at custom path          |
+| undefined  | Persist to project root (default)    | Validate existing file           |
 
 **Error handling matrix:**
 

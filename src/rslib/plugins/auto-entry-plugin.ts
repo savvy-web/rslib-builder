@@ -124,9 +124,10 @@ export const AutoEntryPlugin = (options?: AutoEntryPluginOptions): RsbuildPlugin
 					const packageJson = JSON.parse(packageJsonContent) as PackageJson;
 
 					// Extract entries from package.json exports and bin fields
-					const { entries } = extractEntriesFromPackageJson(packageJson, {
-						exportsAsIndexes: options?.exportsAsIndexes,
-					});
+					const { entries } = extractEntriesFromPackageJson(
+						packageJson,
+						options?.exportsAsIndexes != null ? { exportsAsIndexes: options.exportsAsIndexes } : undefined,
+					);
 
 					// When exportsAsIndexes is enabled, build a mapping from export keys to output paths
 					if (options?.exportsAsIndexes && packageJson.exports) {

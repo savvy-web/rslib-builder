@@ -30,6 +30,7 @@ describe("NodeLibraryBuilder", () => {
 				externals: [],
 				dtsBundledPackages: undefined,
 				transformFiles: undefined,
+				apiModel: true,
 			});
 		});
 	});

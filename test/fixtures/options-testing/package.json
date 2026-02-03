@@ -1,13 +1,11 @@
 {
-	"name": "@fixtures/with-bin",
+	"name": "@fixtures/options-testing",
 	"version": "1.0.0",
 	"private": true,
 	"type": "module",
 	"exports": {
-		".": "./src/index.ts"
-	},
-	"bin": {
-		"my-cli": "./src/cli.ts"
+		".": "./src/index.ts",
+		"./types": "./src/types.ts"
 	},
 	"scripts": {
 		"build:prod": "rslib build --env-mode npm"

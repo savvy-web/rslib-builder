@@ -25,7 +25,7 @@ that simplifies building TypeScript packages for npm distribution.
 | Declaration Bundling | Bundles .d.ts files with API Extractor |
 | API Model Generation | Creates machine-readable API docs for tooling |
 | Resolved tsconfig Export | Exports flattened tsconfig for virtual TS environments |
-| TSDoc Validation | Optional pre-build TSDoc comment validation |
+| TSDoc Validation | Pre-build TSDoc comment validation (enabled by default) |
 | Package Transform | Resolves PNPM references, updates export paths |
 | Multi-Target | Separate dev (debugging) and npm (production) builds |
 | Utility Classes | Reusable TsconfigResolver, EntryExtractor, ImportGraph |

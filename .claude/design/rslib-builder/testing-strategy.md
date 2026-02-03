@@ -3,8 +3,8 @@ status: current
 module: rslib-builder
 category: testing
 created: 2026-01-18
-updated: 2026-02-02
-last-synced: 2026-02-02
+updated: 2026-02-03
+last-synced: 2026-02-03
 completeness: 95
 related:
   - rslib-builder/architecture.md
@@ -89,14 +89,20 @@ src/
     └── types/test-types.ts
 test/
 ├── e2e/
+│   ├── builder-options/
+│   │   ├── api-model.test.ts      # API model generation options
+│   │   ├── build-options.test.ts   # General build options (externals, transform)
+│   │   └── tsdoc-lint.test.ts      # TSDoc lint configuration
 │   ├── dts-bundling.test.ts
 │   └── utils/
-│       ├── assertions.ts
-│       ├── build-fixture.ts
-│       └── index.ts
+│       ├── assertions.ts           # E2E test assertion helpers
+│       ├── build-fixture.ts        # Fixture build runner with isolation
+│       ├── test-fixture.ts         # Vitest test wrapper with auto-cleanup
+│       └── index.ts                # Re-exports for convenience
 └── fixtures/
     ├── single-entry/
     ├── multi-entry/
+    ├── options-testing/            # Fixture for builder options E2E tests
     └── with-bin/
 ```
 
@@ -125,7 +131,8 @@ Located in `src/__test__/rslib/`:
 
 Located in `test/e2e/utils/`:
 
-- **`build-fixture.ts`**: Fixture build runner and result types
+- **`build-fixture.ts`**: Fixture build runner with isolation and config generation
+- **`test-fixture.ts`**: Vitest test wrapper with automatic cleanup
 - **`assertions.ts`**: E2E test assertion helpers
 - **`index.ts`**: Re-exports for convenience
 
@@ -629,6 +636,13 @@ test/fixtures/
 │       └── index.ts
 ├── multi-entry/           # Multiple exports (./utils, ./types)
 │   └── ...
+├── options-testing/       # Fixture for builder options E2E tests
+│   ├── package.json
+│   ├── src/
+│   │   ├── index.ts       # Valid TSDoc comments
+│   │   ├── types.ts       # Additional export
+│   │   └── bad-docs.ts    # Invalid TSDoc for testing lint errors
+│   └── ...
 └── with-bin/              # Library with CLI bin entry
     └── ...
 ```
@@ -647,22 +661,67 @@ Located in `test/e2e/utils/`:
 #### build-fixture.ts
 
 ```typescript
+export interface BuildFixtureOptions {
+  target?: "dev" | "npm";      // Default: "npm"
+  config?: ConfigOptions;       // NodeLibraryBuilder options
+  env?: Record<string, string>; // Additional env vars
+  timeout?: number;             // Default: 60000
+}
+
+export interface ConfigOptions {
+  builderOptions?: Partial<NodeLibraryBuilderOptions>;
+}
+
 export async function buildFixture(
   fixtureName: string,
   options: BuildFixtureOptions = {},
 ): Promise<BuildFixtureResult>;
 ```
 
-- Runs `pnpm exec rslib build --env-mode <target>` in the fixture directory
-- Cleans dist and .rslib before building
+- Copies fixture to isolated temp directory with unique UUID
+- Generates `rslib.config.ts` from provided `config.builderOptions`
+- Symlinks `node_modules` from source fixture for fast resolution
+- Runs `pnpm exec rslib build --env-mode <target>` in isolated directory
 - Collects all output files into a `Map<string, string>`
-- Returns cleanup function for test teardown
+- Returns cleanup function that removes the isolated copy
+
+**Key features:**
+
+- **Isolated builds**: Each test gets its own copy, enabling parallel execution
+- **Config generation**: Tests can pass builder options directly
+- **Automatic cleanup**: Isolated directories removed after test completion
+- **Function serialization**: `transform` callbacks serialized to generated config
+
+#### test-fixture.ts
+
+Extended Vitest test wrapper with automatic cleanup:
+
+```typescript
+import { test, describe, expect } from "../utils/index.js";
+
+describe("My tests", () => {
+  test("my test", async ({ result }) => {
+    result.value = await buildFixture("options-testing", {
+      config: {
+        builderOptions: {
+          apiModel: true,
+        },
+      },
+    });
+    assertBuildSucceeded(result.value);
+  });
+});
+```
+
+The `result` context provides automatic cleanup - just set `result.value` to
+your build result and the isolated fixture is cleaned up automatically.
 
 #### assertions.ts
 
 ```typescript
-// Verify build succeeded
+// Verify build succeeded/failed
 assertBuildSucceeded(result);
+assertBuildFailed(result);
 
 // Check output file exists and contains expected content
 assertOutputFile(result, "index.d.ts", {
@@ -675,26 +734,40 @@ assertPackageJson(result, {
   hasExport: ".",
   hasTypes: ".",
   hasFile: "index.d.ts",
+  notHasFile: "options-testing.api.json",  // Negated patterns
+  fieldEquals: { customField: "value" },
+});
+
+// Verify API model generation
+assertApiModelFile(result, { exists: true, filename: "custom.api.json" });
+assertTsDocMetadata(result, { exists: true });
+assertResolvedTsconfig(result, { exists: true });
+
+// Check build output (stdout/stderr)
+assertBuildOutput(result, {
+  stdoutContains: "Validating TSDoc comments",
+  stdoutNotContains: "error",
 });
 ```
 
 ### Vitest E2E Configuration
 
-Separate config in `vitest.config.e2e.ts`:
+E2E tests use the same `vitest.config.ts` with separate file patterns:
 
 ```typescript
 export default defineConfig({
   test: {
     globals: true,
     environment: "node",
-    include: ["test/e2e/**/*.test.ts"],
+    include: [
+      "src/**/*.test.ts",      // Unit tests
+      "test/e2e/**/*.test.ts", // E2E tests (same config)
+    ],
     testTimeout: 120000,
     hookTimeout: 60000,
-    sequence: {
-      concurrent: false, // Run tests sequentially
-    },
     coverage: {
-      enabled: false, // E2E tests don't contribute to coverage
+      include: ["src/**/*.ts"],
+      exclude: ["test/**"],  // E2E tests don't contribute to coverage
     },
   },
 });
@@ -736,42 +809,83 @@ E2E tests run as part of the `ci:test` script:
 
 ```json
 {
-  "ci:test": "CI=\"true\" vitest run --coverage && CI=\"true\" vitest run --config vitest.config.e2e.ts"
+  "ci:test": "CI=\"true\" vitest run --coverage"
 }
 ```
 
 This ensures:
 
 1. Unit tests run first with coverage
-2. E2E tests run after, building fixtures against the fresh build
+2. E2E tests run with same configuration
 
-### Example E2E Test
+### Example E2E Tests
+
+**Testing builder options:**
 
 ```typescript
-describe("multi-entry fixture", () => {
-  let result: BuildFixtureResult | null = null;
+import { describe, test, buildFixture, assertBuildSucceeded, assertApiModelFile } from "../utils/index.js";
 
-  afterEach(async () => {
-    if (result) {
-      await result.cleanup();
-      result = null;
-    }
+describe("NodeLibraryBuilder apiModel Options E2E", () => {
+  describe("apiModel: false", () => {
+    test("should not generate API model", async ({ result }) => {
+      result.value = await buildFixture("options-testing", {
+        config: {
+          builderOptions: {
+            apiModel: false,
+          },
+        },
+      });
+
+      assertBuildSucceeded(result.value);
+      assertApiModelFile(result.value, { exists: false });
+    });
   });
 
-  it("should generate bundled .d.ts for ALL entry points", async () => {
-    result = await buildFixture("multi-entry");
+  describe("apiModel with custom tsdoc tags", () => {
+    test("should accept custom tag definitions", async ({ result }) => {
+      result.value = await buildFixture("options-testing", {
+        config: {
+          builderOptions: {
+            apiModel: {
+              tsdoc: {
+                tagDefinitions: [
+                  { tagName: "@customTag", syntaxKind: "block" }
+                ],
+                lint: { persistConfig: false },
+              },
+            },
+          },
+        },
+      });
 
-    assertBuildSucceeded(result);
+      assertBuildSucceeded(result.value);
+    });
+  });
+});
+```
 
-    // Main entry
-    assertOutputFile(result, "index.d.ts", {
-      exists: true,
-      contains: ["export declare function greet"],
+**Testing TSDoc lint options:**
+
+```typescript
+describe("lint with onError: throw", () => {
+  test("should fail build on lint errors", async ({ result }) => {
+    result.value = await buildFixture("options-testing", {
+      config: {
+        builderOptions: {
+          apiModel: {
+            tsdoc: {
+              lint: {
+                onError: "throw",
+                include: ["src/bad-docs.ts"],
+              },
+            },
+          },
+        },
+      },
     });
 
-    // Secondary entries
-    assertOutputFile(result, "utils.d.ts", { exists: true });
-    assertOutputFile(result, "types.d.ts", { exists: true });
+    assertBuildFailed(result.value);
+    expect(result.value.stdout + result.value.stderr).toContain("TSDoc validation failed");
   });
 });
 ```
@@ -780,11 +894,14 @@ describe("multi-entry fixture", () => {
 
 Add E2E tests for:
 
-- New build output formats or structures
+- New builder options (test via `config.builderOptions`)
+- Build output formats or structures
 - Multi-entry point handling
 - Package.json transformation logic
 - Declaration bundling behavior
 - Bin entry handling
+- TSDoc lint behavior
+- API model generation options
 
 Skip E2E tests for:
 

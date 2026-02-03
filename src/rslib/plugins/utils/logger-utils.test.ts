@@ -141,7 +141,11 @@ describe("logger-utils", () => {
 			expect(mockLogger.error).toHaveBeenCalledWith("global error");
 
 			// Restore original environment
-			process.env.NODE_ENV = originalEnv;
+			if (originalEnv !== undefined) {
+				process.env.NODE_ENV = originalEnv;
+			} else {
+				delete process.env.NODE_ENV;
+			}
 			if (originalVitest) process.env.VITEST = originalVitest;
 			if (originalJest) process.env.JEST_WORKER_ID = originalJest;
 			process.argv = originalArgv;

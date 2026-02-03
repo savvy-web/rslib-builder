@@ -5,8 +5,7 @@ export default NodeLibraryBuilder.create({
 	// Generate API model for npm target (used by documentation tooling)
 	// Set RSLIB_BUILDER_LOCAL_PATH env var for local API model path resolution
 	apiModel: {
-		enabled: true,
-		localPaths: process.env.RSLIB_BUILDER_LOCAL_PATH ? [process.env.RSLIB_BUILDER_LOCAL_PATH] : undefined,
+		...(process.env.RSLIB_BUILDER_LOCAL_PATH && { localPaths: [process.env.RSLIB_BUILDER_LOCAL_PATH] }),
 		tsdoc: {
 			tagDefinitions: [
 				{
@@ -20,7 +19,6 @@ export default NodeLibraryBuilder.create({
 			],
 		},
 	},
-	tsdocLint: true,
 	// Externalize build tools (peerDependencies) and internal cross-module imports
 	// source-map-support is optionally required by TypeScript internals (in try/catch)
 	externals: [

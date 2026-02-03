@@ -3,13 +3,12 @@ status: current
 module: rslib-builder
 category: reference
 created: 2026-01-20
-updated: 2026-01-27
-last-synced: 2026-01-27
+updated: 2026-02-03
+last-synced: 2026-02-03
 completeness: 95
 related:
   - rslib-builder/architecture.md
   - rslib-builder/api-extraction.md
-  - rslib-builder/tsdoc-lint-options.md
 dependencies: []
 ---
 
@@ -52,7 +51,6 @@ packages using Microsoft's API Extractor. When enabled, it generates:
 
 ```typescript
 interface ApiModelOptions {
-  enabled?: boolean;
   filename?: string;
   localPaths?: string[];
   tsdoc?: TsDocOptions;
@@ -64,9 +62,17 @@ interface TsDocOptions {
   groups?: TsDocTagGroup[];
   tagDefinitions?: TsDocTagDefinition[];
   supportForTags?: Record<string, boolean>;
-  persistConfig?: boolean | PathLike;
   warnings?: "log" | "fail" | "none";
+  lint?: TsDocLintOptions | boolean;  // TSDoc lint configuration
 }
+
+interface TsDocLintOptions {
+  include?: string[];                   // Override automatic file discovery
+  onError?: TsDocLintErrorBehavior;     // Default: "throw" in CI, "error" locally
+  persistConfig?: boolean | PathLike;   // Default: true locally, validates in CI
+}
+
+type TsDocLintErrorBehavior = "warn" | "error" | "throw";
 
 interface TsDocMetadataOptions {
   enabled?: boolean;
@@ -82,33 +88,35 @@ interface TsDocTagDefinition {
 }
 ```
 
+**Note:** API model generation is **enabled by default** (`apiModel: true` in
+`NodeLibraryBuilder.DEFAULT_OPTIONS`). TSDoc linting is controlled via
+`apiModel.tsdoc.lint` and is also enabled by default when `apiModel` is enabled.
+
 ---
 
 ## Option Reference
 
 ### ApiModelOptions
 
-#### `enabled`
-
-| Property | Value |
-| -------- | ----- |
-| Type | `boolean` |
-| Default | `false` |
-| Required | No |
-
-Whether to enable API model generation. When `true` or when `ApiModelOptions`
-is provided as an object without `enabled: false`, API Extractor generates
-an API model file.
+**Note:** API model generation is **enabled by default**. The `apiModel` option
+defaults to `true` in `NodeLibraryBuilder.DEFAULT_OPTIONS`. To disable API
+model generation, explicitly set `apiModel: false`.
 
 ```typescript
-// Enable with defaults
-apiModel: true
+// API model enabled by default (implicit)
+NodeLibraryBuilder.create({})
 
-// Enable with options
-apiModel: { enabled: true, filename: "my-api.json" }
+// API model enabled with custom options
+NodeLibraryBuilder.create({
+  apiModel: {
+    filename: "my-api.json",
+  },
+})
 
-// Explicitly disable
-apiModel: { enabled: false }
+// Explicitly disable API model
+NodeLibraryBuilder.create({
+  apiModel: false,
+})
 ```
 
 #### `filename`
@@ -233,12 +241,10 @@ apiModel: { enabled: true }
 
 ### TsDocOptions
 
-**Shared Configuration:** The `TsDocOptions` interface is shared between
-`apiModel.tsdoc` and `tsdocLint.tsdoc`. When both features are enabled in
-NodeLibraryBuilder and `tsdocLint.tsdoc` is not explicitly set, the TSDoc
-configuration is automatically shared from `apiModel.tsdoc`. See
-[tsdoc-lint-options.md](./tsdoc-lint-options.md) for TsDocLintPlugin
-configuration.
+**Integrated Lint Configuration:** TSDoc linting is now controlled via the
+`apiModel.tsdoc.lint` option. When `apiModel` is enabled (the default), lint
+is also enabled by default. The lint plugin uses the TSDoc tag configuration
+from the parent `tsdoc` object (tagDefinitions, groups, etc.).
 
 #### `groups`
 
@@ -308,40 +314,53 @@ tsdoc: {
 }
 ```
 
-#### `persistConfig`
+#### `lint`
 
 | Property | Value |
 | -------- | ----- |
-| Type | `boolean \| PathLike` |
-| Default | `true` locally, `false` in CI |
+| Type | `TsDocLintOptions \| boolean` |
+| Default | `true` (enabled when apiModel is enabled) |
 | Required | No |
 
-Controls whether `tsdoc.json` persists to disk after build.
-
-| Environment | `persistConfig` | Behavior |
-| ----------- | --------------- | -------- |
-| Local dev | `undefined` | Persist to project root |
-| Local dev | `true` | Persist to project root |
-| Local dev | `PathLike` | Persist to custom path |
-| Local dev | `false` | Clean up after build |
-| CI | `undefined` | Clean up after build |
-| CI | `true` | Persist (override CI detection) |
-
-**CI Detection:** Environment variables `CI=true` or `GITHUB_ACTIONS=true`.
+Controls TSDoc linting before the build. Lint is enabled by default when
+`apiModel` is enabled.
 
 ```typescript
-// Default: persist locally, clean up in CI
-tsdoc: {}
+// Lint enabled by default (apiModel: true is the default)
+apiModel: {}
 
-// Custom path
-tsdoc: { persistConfig: "./config/tsdoc.json" }
+// Disable lint explicitly
+apiModel: {
+  tsdoc: {
+    lint: false,
+  },
+}
 
-// Force persistence in CI
-tsdoc: { persistConfig: true }
-
-// Never persist
-tsdoc: { persistConfig: false }
+// Customize lint behavior
+apiModel: {
+  tsdoc: {
+    tagDefinitions: [{ tagName: "@error", syntaxKind: "inline" }],
+    lint: {
+      onError: "throw",
+      include: ["src/**/*.ts"],
+      persistConfig: true,
+    },
+  },
+}
 ```
+
+**TsDocLintOptions fields:**
+
+| Field | Type | Default | Description |
+| ----- | ---- | ------- | ----------- |
+| `include` | `string[]` | Auto-discovery | Override automatic file discovery |
+| `onError` | `TsDocLintErrorBehavior` | `"throw"` in CI, `"error"` locally | Error handling behavior |
+| `persistConfig` | `boolean \| PathLike` | `true` locally | Persist tsdoc.json (validates in CI) |
+
+**Lint persistence behavior in CI:** When `persistConfig` is `true` or undefined
+in CI environments, the existing `tsdoc.json` is validated against the expected
+configuration. If it doesn't match, the build fails with instructions to
+regenerate locally. Set `persistConfig: false` to skip validation.
 
 #### `warnings`
 
@@ -513,8 +532,6 @@ explicitly defined.
   execution model
 - [API Extraction](./api-extraction.md) - Detailed API extraction process and
   TSDoc configuration rationale
-- [TSDoc Lint Options](./tsdoc-lint-options.md) - TsDocLintPlugin configuration
-  reference (shares `TsDocOptions` interface)
 
 **Source Code:**
 

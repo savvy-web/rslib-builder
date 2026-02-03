@@ -9,16 +9,23 @@ import { createEnvLogger } from "./build-logger.js";
 
 /**
  * Configuration structure for pnpm workspace files (pnpm-workspace.yaml).
+ * @internal
  */
 interface PnpmWorkspace {
+	/** Workspace package patterns. */
 	packages?: string[];
+	/** Version catalog mapping dependency names to versions. */
 	catalog?: Record<string, string>;
+	/** Packages that should only be rebuilt when their dependencies change. */
 	onlyBuiltDependencies?: string[];
+	/** Patterns for hoisting packages to the root node_modules. */
 	publicHoistPattern?: string[];
 }
 
-const CATALOG_PREFIX = "catalog:";
-const WORKSPACE_PREFIX = "workspace:";
+/** Prefix for catalog references in dependency versions. */
+const CATALOG_PREFIX = "catalog:" as const;
+/** Prefix for workspace references in dependency versions. */
+const WORKSPACE_PREFIX = "workspace:" as const;
 
 /**
  * Manages PNPM catalog resolution with caching.
@@ -33,6 +40,8 @@ const WORKSPACE_PREFIX = "workspace:";
  *
  * @example
  * ```typescript
+ * import { PnpmCatalog } from './pnpm-catalog.js';
+ *
  * const catalog = new PnpmCatalog();
  *
  * // Get the catalog data
@@ -44,7 +53,7 @@ const WORKSPACE_PREFIX = "workspace:";
  * const resolved = await catalog.resolvePackageJson(packageJson);
  * ```
  *
- * @public
+ * @internal
  */
 export class PnpmCatalog {
 	private catalogCache: Record<string, string> | null = null;
@@ -152,19 +161,19 @@ export class PnpmCatalog {
 				logger.info(`Resolving ${workspaceDeps.length} ${WORKSPACE_PREFIX} dependencies`);
 			}
 
-			const result = await createExportableManifest(dir, packageJson as ProjectManifest, {
+			const result = await createExportableManifest(dir, packageJson as unknown as ProjectManifest, {
 				catalogs: { default: catalog },
 			});
 
 			// Log resolved dependencies
 			if (hasCatalogDeps || hasWorkspaceDeps) {
-				this.logResolvedDependencies(result as PackageJson, [...catalogDeps, ...workspaceDeps], logger);
+				this.logResolvedDependencies(result as unknown as PackageJson, [...catalogDeps, ...workspaceDeps], logger);
 			}
 
 			// Validate no unresolved references remain
-			this.validateNoUnresolvedReferences(result as PackageJson, logger);
+			this.validateNoUnresolvedReferences(result as unknown as PackageJson, logger);
 
-			return result as PackageJson;
+			return result as unknown as PackageJson;
 		} catch (error) {
 			const errorMessage = error instanceof Error ? error.message : String(error);
 

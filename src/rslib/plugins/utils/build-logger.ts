@@ -36,11 +36,12 @@ export function formatTime(ms: number): string {
 
 /**
  * Timer interface for measuring execution time.
+ * @internal
  */
 export interface Timer {
-	/** Returns elapsed time in milliseconds */
+	/** Returns elapsed time in milliseconds. */
 	elapsed: () => number;
-	/** Returns formatted elapsed time string */
+	/** Returns formatted elapsed time string. */
 	format: () => string;
 }
 
@@ -104,19 +105,31 @@ function isTestEnvironment(): boolean {
 }
 
 /**
- * Logger interface returned by createEnvLogger.
+ * Logger interface returned by {@link createEnvLogger}.
+ * @internal
  */
 export interface EnvLogger {
+	/** Logs an informational message with environment context. */
 	info: (message: string, ...args: unknown[]) => void;
+	/** Logs a warning message with environment context. */
 	warn: (message: string, ...args: unknown[]) => void;
+	/** Logs an error message with environment context. */
 	error: (message: string, ...args: unknown[]) => void;
+	/** Logs a message with timing information and environment context. */
 	withTime: (message: string, time: number, ...args: unknown[]) => void;
+	/** Logs a success message with optional colored filename and environment context. */
 	success: (message: string, filename?: string, ...args: unknown[]) => void;
+	/** Logs a file operation message with a list of colored filenames. */
 	fileOp: (message: string, files: string[], ...args: unknown[]) => void;
+	/** Logs entry point mappings with colored key-value pairs. */
 	entries: (message: string, entries: Record<string, string>, ...args: unknown[]) => void;
+	/** Global logging methods that output messages without environment context. */
 	global: {
+		/** Logs a global informational message without environment context. */
 		info: (message: string, ...args: unknown[]) => void;
+		/** Logs a global warning message without environment context. */
 		warn: (message: string, ...args: unknown[]) => void;
+		/** Logs a global error message without environment context. */
 		error: (message: string, ...args: unknown[]) => void;
 	};
 }

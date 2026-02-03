@@ -4,10 +4,13 @@ import type { RsbuildPlugin, RsbuildPluginAPI } from "@rsbuild/core";
 import { logger } from "@rsbuild/core";
 import type { ESLint as ESLintNamespace, Linter } from "eslint";
 import color from "picocolors";
-import type { TsDocOptions } from "./dts-plugin.js";
+import type { TsDocLintErrorBehavior, TsDocOptions } from "./dts-plugin.js";
 import { TsDocConfigBuilder } from "./dts-plugin.js";
 import type { ImportGraphError } from "./utils/import-graph.js";
 import { ImportGraph } from "./utils/import-graph.js";
+
+// Re-export for backwards compatibility
+export type { TsDocLintErrorBehavior } from "./dts-plugin.js";
 
 /**
  * Helper interface for handling ESM/CJS module format differences.
@@ -16,18 +19,6 @@ import { ImportGraph } from "./utils/import-graph.js";
 interface ESModuleExport<T> {
 	default?: T;
 }
-
-/**
- * Error behavior for TSDoc lint errors.
- *
- * @remarks
- * - `"warn"`: Log warnings but continue the build
- * - `"error"`: Log errors but continue the build
- * - `"throw"`: Fail the build with an error
- *
- * @public
- */
-export type TsDocLintErrorBehavior = "warn" | "error" | "throw";
 
 /**
  * Options for the TSDoc lint plugin.
@@ -300,7 +291,13 @@ export async function runTsDocLint(options: TsDocLintPluginOptions, cwd: string)
 	const shouldPersist = TsDocConfigBuilder.shouldPersist(persistConfig);
 	const tsdocConfigOutputPath = TsDocConfigBuilder.getConfigPath(persistConfig, cwd);
 
-	const tsdocConfigPath = await TsDocConfigBuilder.writeConfigFile(tsdocOptions, dirname(tsdocConfigOutputPath));
+	// Skip CI validation when persistConfig is explicitly false
+	const skipCIValidation = persistConfig === false;
+	const tsdocConfigPath = await TsDocConfigBuilder.writeConfigFile(
+		tsdocOptions,
+		dirname(tsdocConfigOutputPath),
+		skipCIValidation,
+	);
 
 	// Dynamic import ESLint and plugins
 	const eslintModule = await import("eslint");
@@ -322,8 +319,8 @@ export async function runTsDocLint(options: TsDocLintPluginOptions, cwd: string)
 	if (discovery.files.length === 0) {
 		return {
 			results: { errorCount: 0, warningCount: 0, messages: [] },
-			tsdocConfigPath: shouldPersist ? tsdocConfigPath : undefined,
-			discoveryErrors: discovery.errors,
+			...(shouldPersist && { tsdocConfigPath }),
+			...(discovery.errors.length > 0 && { discoveryErrors: discovery.errors }),
 		};
 	}
 
@@ -408,8 +405,8 @@ export async function runTsDocLint(options: TsDocLintPluginOptions, cwd: string)
 
 	return {
 		results: { errorCount, warningCount, messages },
-		tsdocConfigPath: shouldPersist ? tsdocConfigPath : undefined,
-		discoveryErrors: discovery.errors.length > 0 ? discovery.errors : undefined,
+		...(shouldPersist && { tsdocConfigPath }),
+		...(discovery.errors.length > 0 && { discoveryErrors: discovery.errors }),
 	};
 }
 

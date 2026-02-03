@@ -137,3 +137,154 @@ export function assertBuildSucceeded(result: BuildFixtureResult): void {
 export function assertBuildFailed(result: BuildFixtureResult): void {
 	expect(result.exitCode, "Expected build to fail but it succeeded").not.toBe(0);
 }
+
+/**
+ * Assertions for API model files.
+ */
+export interface ApiModelAssertions {
+	/** Assert file exists (default: true) */
+	exists?: boolean;
+
+	/** Expected filename (default: auto-detect based on package name) */
+	filename?: string;
+}
+
+/**
+ * Assert properties of the API model file.
+ *
+ * @param result - Build result
+ * @param assertions - Assertions to make
+ */
+export function assertApiModelFile(result: BuildFixtureResult, assertions: ApiModelAssertions = {}): void {
+	const { exists = true, filename } = assertions;
+
+	// Find the API model file (*.api.json)
+	let apiModelFilename = filename;
+	if (!apiModelFilename) {
+		// Auto-detect: look for any *.api.json file
+		for (const key of result.outputs.keys()) {
+			if (key.endsWith(".api.json")) {
+				apiModelFilename = key;
+				break;
+			}
+		}
+	}
+
+	if (exists) {
+		expect(apiModelFilename, "Expected to find an API model file (*.api.json) in output").toBeDefined();
+		if (apiModelFilename) {
+			const content = result.outputs.get(apiModelFilename);
+			expect(content, `Expected API model file "${apiModelFilename}" to exist in output`).toBeDefined();
+		}
+	} else {
+		// Assert NO API model file exists
+		const foundApiModel = Array.from(result.outputs.keys()).find((key) => key.endsWith(".api.json"));
+		expect(foundApiModel, `Expected NO API model file to exist, but found "${foundApiModel}"`).toBeUndefined();
+	}
+}
+
+/**
+ * Assertions for TSDoc metadata files.
+ */
+export interface TsDocMetadataAssertions {
+	/** Assert file exists (default: true) */
+	exists?: boolean;
+
+	/** Expected filename (default: "tsdoc-metadata.json") */
+	filename?: string;
+}
+
+/**
+ * Assert properties of the TSDoc metadata file.
+ *
+ * @param result - Build result
+ * @param assertions - Assertions to make
+ */
+export function assertTsDocMetadata(result: BuildFixtureResult, assertions: TsDocMetadataAssertions = {}): void {
+	const { exists = true, filename = "tsdoc-metadata.json" } = assertions;
+	const content = result.outputs.get(filename);
+
+	if (exists) {
+		expect(content, `Expected TSDoc metadata file "${filename}" to exist in output`).toBeDefined();
+	} else {
+		expect(content, `Expected TSDoc metadata file "${filename}" to NOT exist in output`).toBeUndefined();
+	}
+}
+
+/**
+ * Assertions for build output (stdout/stderr).
+ */
+export interface BuildOutputAssertions {
+	/** Assert stderr contains this string */
+	stderrContains?: string | string[];
+
+	/** Assert stderr does NOT contain this string */
+	stderrNotContains?: string | string[];
+
+	/** Assert stdout contains this string */
+	stdoutContains?: string | string[];
+
+	/** Assert stdout does NOT contain this string */
+	stdoutNotContains?: string | string[];
+}
+
+/**
+ * Assert properties of the build output (stdout/stderr).
+ *
+ * @param result - Build result
+ * @param assertions - Assertions to make
+ */
+export function assertBuildOutput(result: BuildFixtureResult, assertions: BuildOutputAssertions): void {
+	if (assertions.stderrContains) {
+		const containsArr = Array.isArray(assertions.stderrContains)
+			? assertions.stderrContains
+			: [assertions.stderrContains];
+		for (const str of containsArr) {
+			expect(result.stderr, `Expected stderr to contain "${str}"`).toContain(str);
+		}
+	}
+
+	if (assertions.stderrNotContains) {
+		const notContainsArr = Array.isArray(assertions.stderrNotContains)
+			? assertions.stderrNotContains
+			: [assertions.stderrNotContains];
+		for (const str of notContainsArr) {
+			expect(result.stderr, `Expected stderr to NOT contain "${str}"`).not.toContain(str);
+		}
+	}
+
+	if (assertions.stdoutContains) {
+		const containsArr = Array.isArray(assertions.stdoutContains)
+			? assertions.stdoutContains
+			: [assertions.stdoutContains];
+		for (const str of containsArr) {
+			expect(result.stdout, `Expected stdout to contain "${str}"`).toContain(str);
+		}
+	}
+
+	if (assertions.stdoutNotContains) {
+		const notContainsArr = Array.isArray(assertions.stdoutNotContains)
+			? assertions.stdoutNotContains
+			: [assertions.stdoutNotContains];
+		for (const str of notContainsArr) {
+			expect(result.stdout, `Expected stdout to NOT contain "${str}"`).not.toContain(str);
+		}
+	}
+}
+
+/**
+ * Assert the resolved tsconfig.json file is present/absent in output.
+ *
+ * @param result - Build result
+ * @param assertions - Assertions to make (exists: true/false)
+ */
+export function assertResolvedTsconfig(result: BuildFixtureResult, assertions: { exists?: boolean } = {}): void {
+	const { exists = true } = assertions;
+	const content = result.outputs.get("tsconfig.json");
+
+	if (exists) {
+		expect(content, "Expected resolved tsconfig.json to exist in output").toBeDefined();
+	} else {
+		expect(content, "Expected resolved tsconfig.json to NOT exist in output").toBeUndefined();
+	}
+}
