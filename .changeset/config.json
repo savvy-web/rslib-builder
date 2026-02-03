@@ -7,7 +7,7 @@
 	"updateInternalDependencies": "patch",
 	"ignore": ["@fixtures/*"],
 	"privatePackages": {
-		"tag": true,
-		"version": true
+		"tag": false,
+		"version": false
 	}
 }
