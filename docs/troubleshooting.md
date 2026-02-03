@@ -280,6 +280,70 @@ Subsequent builds use `.rslib/cache/` and are much faster.
 2. **Reduce included files** - Use tsconfig `include`/`exclude`
 3. **Check for type complexity** - Simplify recursive/deep types
 
+## Virtual Entry Issues
+
+### Virtual entry not in output
+
+**Symptom:** Virtual entry file not appearing in dist directory.
+
+**Common causes:**
+
+1. **Source path incorrect**
+
+   Ensure the source path is correct and the file exists:
+
+   ```typescript
+   virtualEntries: {
+     'pnpmfile.cjs': {
+       source: './src/pnpmfile.ts',  // Must exist
+       format: 'cjs',
+     },
+   },
+   ```
+
+2. **Build target mismatch**
+
+   Virtual entries are built for all targets. Check the correct dist directory:
+
+   ```bash
+   ls dist/npm/pnpmfile.cjs
+   ls dist/dev/pnpmfile.cjs
+   ```
+
+### Virtual entry generating types
+
+**Symptom:** Unexpected .d.ts files for virtual entries.
+
+**Solution:** Ensure the entry is in `virtualEntries`, not in package.json exports:
+
+```typescript
+// Correct: virtual entry
+virtualEntries: {
+  'helper.cjs': { source: './src/helper.ts', format: 'cjs' },
+},
+
+// Incorrect: this would be a regular entry with types
+// package.json: "exports": { "./helper": "./src/helper.ts" }
+```
+
+### Wrong format in virtual entry output
+
+**Symptom:** Virtual entry bundled as ESM when CJS expected (or vice versa).
+
+**Solution:** Explicitly set the format for each virtual entry:
+
+```typescript
+virtualEntries: {
+  'pnpmfile.cjs': {
+    source: './src/pnpmfile.ts',
+    format: 'cjs',  // Explicit format
+  },
+},
+```
+
+Without explicit format, virtual entries inherit the top-level `format` option
+(default: `'esm'`).
+
 ## Plugin Issues
 
 ### Custom plugin not running

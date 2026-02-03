@@ -1,7 +1,7 @@
 import { existsSync } from "node:fs";
 import { readFile, stat } from "node:fs/promises";
 import { join } from "node:path";
-import { getWorkspaceRoot } from "workspace-tools";
+import { getWorkspaceManagerRoot } from "workspace-tools";
 
 /**
  * Result of checking file existence.
@@ -110,7 +110,7 @@ export function getApiExtractorPath(): string {
 
 	// If not found locally, use workspace-tools to find the workspace root
 	// This handles pnpm, npm, yarn, rush, and lerna workspaces
-	const workspaceRoot = getWorkspaceRoot(cwd);
+	const workspaceRoot = getWorkspaceManagerRoot(cwd);
 	if (workspaceRoot) {
 		const workspaceApiExtractor = join(workspaceRoot, "node_modules", "@microsoft", "api-extractor");
 		if (existsSync(workspaceApiExtractor)) {

@@ -626,6 +626,86 @@ describe("PackageJsonTransformPlugin", () => {
 		expect(mockPackageJsonAsset.data.exports["."].types).toBe("./dist/index.d.ts");
 	});
 
+	it("should set type to module when format is esm", async () => {
+		const plugin = PackageJsonTransformPlugin({ format: "esm" });
+		const mockApi = { processAssets: vi.fn(), expose: vi.fn(), useExposed: vi.fn().mockReturnValue(undefined) };
+
+		plugin.setup(mockApi as unknown as Parameters<ReturnType<typeof PackageJsonTransformPlugin>["setup"]>[0]);
+
+		const optimizeCallback = mockApi.processAssets.mock.calls[1][1];
+
+		const originalPackageJson: PackageJson = { name: "test", version: "1.0.0" };
+
+		const mockPackageJsonAsset = {
+			data: { ...originalPackageJson },
+			update: vi.fn(),
+		};
+		// biome-ignore lint/suspicious/noExplicitAny: Mock object for testing
+		mockJsonAssetCreate.mockResolvedValue(mockPackageJsonAsset as any);
+
+		mockBuildPackageJson.mockResolvedValue({ ...originalPackageJson });
+
+		const mockContext = createMockContext();
+		await optimizeCallback(mockContext);
+
+		// Should have set type to module
+		expect(mockPackageJsonAsset.data.type).toBe("module");
+		expect(mockPackageJsonAsset.update).toHaveBeenCalled();
+	});
+
+	it("should set type to commonjs when format is cjs", async () => {
+		const plugin = PackageJsonTransformPlugin({ format: "cjs" });
+		const mockApi = { processAssets: vi.fn(), expose: vi.fn(), useExposed: vi.fn().mockReturnValue(undefined) };
+
+		plugin.setup(mockApi as unknown as Parameters<ReturnType<typeof PackageJsonTransformPlugin>["setup"]>[0]);
+
+		const optimizeCallback = mockApi.processAssets.mock.calls[1][1];
+
+		const originalPackageJson: PackageJson = { name: "test", version: "1.0.0" };
+
+		const mockPackageJsonAsset = {
+			data: { ...originalPackageJson },
+			update: vi.fn(),
+		};
+		// biome-ignore lint/suspicious/noExplicitAny: Mock object for testing
+		mockJsonAssetCreate.mockResolvedValue(mockPackageJsonAsset as any);
+
+		mockBuildPackageJson.mockResolvedValue({ ...originalPackageJson });
+
+		const mockContext = createMockContext();
+		await optimizeCallback(mockContext);
+
+		// Should have set type to commonjs
+		expect(mockPackageJsonAsset.data.type).toBe("commonjs");
+		expect(mockPackageJsonAsset.update).toHaveBeenCalled();
+	});
+
+	it("should not set type when format is not provided", async () => {
+		const plugin = PackageJsonTransformPlugin(); // No format option
+		const mockApi = { processAssets: vi.fn(), expose: vi.fn(), useExposed: vi.fn().mockReturnValue(undefined) };
+
+		plugin.setup(mockApi as unknown as Parameters<ReturnType<typeof PackageJsonTransformPlugin>["setup"]>[0]);
+
+		const optimizeCallback = mockApi.processAssets.mock.calls[1][1];
+
+		const originalPackageJson: PackageJson = { name: "test", version: "1.0.0" };
+
+		const mockPackageJsonAsset = {
+			data: { ...originalPackageJson },
+			update: vi.fn(),
+		};
+		// biome-ignore lint/suspicious/noExplicitAny: Mock object for testing
+		mockJsonAssetCreate.mockResolvedValue(mockPackageJsonAsset as any);
+
+		mockBuildPackageJson.mockResolvedValue({ ...originalPackageJson });
+
+		const mockContext = createMockContext();
+		await optimizeCallback(mockContext);
+
+		// Should not have set type
+		expect(mockPackageJsonAsset.data.type).toBeUndefined();
+	});
+
 	it("should handle exports without types field when useRollupTypes is true", async () => {
 		const plugin = PackageJsonTransformPlugin();
 		const mockApi = {

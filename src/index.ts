@@ -45,9 +45,11 @@
 export type {
 	BuildTarget,
 	CopyPatternConfig,
+	LibraryFormat,
 	NodeLibraryBuilderOptions,
 	RslibConfigAsyncFn,
 	TransformPackageJsonFn,
+	VirtualEntryConfig,
 } from "./rslib/builders/node-library-builder.js";
 
 export { NodeLibraryBuilder } from "./rslib/builders/node-library-builder.js";
@@ -88,6 +90,8 @@ export type {
 	ResolvedTsconfig,
 } from "./rslib/plugins/utils/tsconfig-resolver.js";
 export { TsconfigResolver, TsconfigResolverError } from "./rslib/plugins/utils/tsconfig-resolver.js";
+export type { VirtualEntryPluginOptions } from "./rslib/plugins/virtual-entry-plugin.js";
+export { VirtualEntryPlugin } from "./rslib/plugins/virtual-entry-plugin.js";
 
 // Type utilities
 export type {

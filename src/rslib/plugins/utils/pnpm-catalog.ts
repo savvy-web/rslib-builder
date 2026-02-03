@@ -2,7 +2,7 @@ import { readFile, stat } from "node:fs/promises";
 import { resolve } from "node:path";
 import { createExportableManifest } from "@pnpm/exportable-manifest";
 import type { ProjectManifest } from "@pnpm/types";
-import { getWorkspaceRoot } from "workspace-tools";
+import { getWorkspaceManagerRoot } from "workspace-tools";
 import { parse } from "yaml";
 import type { PackageJson } from "../../../types/package-json.js";
 import { createEnvLogger } from "./build-logger.js";
@@ -84,7 +84,7 @@ export class PnpmCatalog {
 	async getCatalog(): Promise<Record<string, string>> {
 		try {
 			if (!this.cachedWorkspaceRoot) {
-				this.cachedWorkspaceRoot = getWorkspaceRoot(process.cwd());
+				this.cachedWorkspaceRoot = getWorkspaceManagerRoot(process.cwd());
 				if (!this.cachedWorkspaceRoot) {
 					throw new Error("Could not find workspace root - ensure you're in a workspace");
 				}

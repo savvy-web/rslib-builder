@@ -20,7 +20,7 @@ vi.mock("@pnpm/exportable-manifest", () => ({
 
 import { readFile, stat } from "node:fs/promises";
 import { createExportableManifest } from "@pnpm/exportable-manifest";
-import { getWorkspaceRoot } from "workspace-tools";
+import { getWorkspaceManagerRoot } from "workspace-tools";
 import { parse } from "yaml";
 import { PnpmCatalog } from "./pnpm-catalog.js";
 
@@ -38,7 +38,7 @@ describe("PnpmCatalog", () => {
 
 	describe("getCatalog", () => {
 		it("should return empty object when workspace root is not found", async () => {
-			vi.mocked(getWorkspaceRoot).mockReturnValue(undefined);
+			vi.mocked(getWorkspaceManagerRoot).mockReturnValue(undefined as unknown as string);
 
 			const result = await catalog.getCatalog();
 
@@ -46,7 +46,7 @@ describe("PnpmCatalog", () => {
 		});
 
 		it("should return empty object on ENOENT error", async () => {
-			vi.mocked(getWorkspaceRoot).mockReturnValue("/test/workspace");
+			vi.mocked(getWorkspaceManagerRoot).mockReturnValue("/test/workspace");
 			const enoentError = new Error("ENOENT: no such file or directory, open 'pnpm-workspace.yaml'");
 			vi.mocked(stat).mockRejectedValue(enoentError);
 
@@ -56,7 +56,7 @@ describe("PnpmCatalog", () => {
 		});
 
 		it("should return empty object on YAML parse error", async () => {
-			vi.mocked(getWorkspaceRoot).mockReturnValue("/test/workspace");
+			vi.mocked(getWorkspaceManagerRoot).mockReturnValue("/test/workspace");
 			vi.mocked(stat).mockResolvedValue(createMockStats(new Date(123456789)));
 			vi.mocked(readFile).mockResolvedValue("invalid yaml [");
 			vi.mocked(parse).mockImplementationOnce(() => {
@@ -69,7 +69,7 @@ describe("PnpmCatalog", () => {
 		});
 
 		it("should return empty object on generic error", async () => {
-			vi.mocked(getWorkspaceRoot).mockReturnValue("/test/workspace");
+			vi.mocked(getWorkspaceManagerRoot).mockReturnValue("/test/workspace");
 			vi.mocked(stat).mockResolvedValue(createMockStats(new Date(123456789)));
 			vi.mocked(readFile).mockRejectedValue(new Error("Permission denied"));
 
@@ -79,7 +79,7 @@ describe("PnpmCatalog", () => {
 		});
 
 		it("should successfully read catalog from pnpm-workspace.yaml", async () => {
-			vi.mocked(getWorkspaceRoot).mockReturnValue("/test/workspace");
+			vi.mocked(getWorkspaceManagerRoot).mockReturnValue("/test/workspace");
 			vi.mocked(stat).mockResolvedValue(createMockStats(new Date(123456789)));
 			vi.mocked(readFile).mockResolvedValue(`
 packages:
@@ -98,7 +98,7 @@ catalog:
 		});
 
 		it("should return empty object when catalog section is missing", async () => {
-			vi.mocked(getWorkspaceRoot).mockReturnValue("/test/workspace");
+			vi.mocked(getWorkspaceManagerRoot).mockReturnValue("/test/workspace");
 			vi.mocked(stat).mockResolvedValue(createMockStats(new Date(123456789)));
 			vi.mocked(readFile).mockResolvedValue(`
 packages:
@@ -111,7 +111,7 @@ packages:
 		});
 
 		it("should cache catalog based on file mtime", async () => {
-			vi.mocked(getWorkspaceRoot).mockReturnValue("/test/workspace");
+			vi.mocked(getWorkspaceManagerRoot).mockReturnValue("/test/workspace");
 			vi.mocked(stat).mockResolvedValue(createMockStats(new Date(999999999)));
 			vi.mocked(readFile).mockResolvedValue(`
 catalog:
@@ -132,7 +132,7 @@ catalog:
 		});
 
 		it("should invalidate cache when file mtime changes", async () => {
-			vi.mocked(getWorkspaceRoot).mockReturnValue("/test/workspace");
+			vi.mocked(getWorkspaceManagerRoot).mockReturnValue("/test/workspace");
 
 			// First call with initial mtime
 			vi.mocked(stat).mockResolvedValue(createMockStats(new Date(111111111)));
@@ -156,7 +156,7 @@ catalog:
 		});
 
 		it("should handle non-Error thrown objects", async () => {
-			vi.mocked(getWorkspaceRoot).mockReturnValue("/test/workspace");
+			vi.mocked(getWorkspaceManagerRoot).mockReturnValue("/test/workspace");
 			vi.mocked(stat).mockRejectedValue("string error");
 
 			const result = await catalog.getCatalog();
@@ -167,7 +167,7 @@ catalog:
 
 	describe("clearCache", () => {
 		it("should clear the cached catalog", async () => {
-			vi.mocked(getWorkspaceRoot).mockReturnValue("/test/workspace");
+			vi.mocked(getWorkspaceManagerRoot).mockReturnValue("/test/workspace");
 			vi.mocked(stat).mockResolvedValue(createMockStats(new Date(123456789)));
 			vi.mocked(readFile).mockResolvedValue(`
 catalog:
@@ -194,7 +194,7 @@ catalog:
 
 	describe("resolvePackageJson", () => {
 		beforeEach(() => {
-			vi.mocked(getWorkspaceRoot).mockReturnValue("/test/workspace");
+			vi.mocked(getWorkspaceManagerRoot).mockReturnValue("/test/workspace");
 			vi.mocked(stat).mockResolvedValue(createMockStats(new Date(123456789)));
 			vi.mocked(readFile).mockResolvedValue(`
 catalog:
@@ -456,7 +456,7 @@ packages:
 			const catalog1 = new PnpmCatalog();
 			const catalog2 = new PnpmCatalog();
 
-			vi.mocked(getWorkspaceRoot).mockReturnValue("/test/workspace");
+			vi.mocked(getWorkspaceManagerRoot).mockReturnValue("/test/workspace");
 			vi.mocked(stat).mockResolvedValue(createMockStats(new Date(123456789)));
 			vi.mocked(readFile).mockResolvedValue(`
 catalog:

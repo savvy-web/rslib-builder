@@ -21,15 +21,12 @@ describe("NodeLibraryBuilder", () => {
 	describe("DEFAULT_OPTIONS", () => {
 		it("should have expected default values", () => {
 			expect(NodeLibraryBuilder.DEFAULT_OPTIONS).toEqual({
-				entry: undefined,
+				format: "esm",
 				plugins: [],
 				define: {},
 				copyPatterns: [],
 				targets: ["dev", "npm"],
-				tsconfigPath: undefined,
 				externals: [],
-				dtsBundledPackages: undefined,
-				transformFiles: undefined,
 				apiModel: true,
 			});
 		});

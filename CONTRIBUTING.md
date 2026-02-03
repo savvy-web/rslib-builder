@@ -138,8 +138,8 @@ rslib-builder/
 
 When adding or modifying plugins:
 
-1. Plugins execute in order: AutoEntryPlugin → DtsPlugin →
-   PackageJsonTransformPlugin → FilesArrayPlugin
+1. Plugins execute in order: TsDocLintPlugin (pre-build) → AutoEntryPlugin →
+   DtsPlugin → PackageJsonTransformPlugin → VirtualEntryPlugin → FilesArrayPlugin
 2. Use `api.expose()` / `api.useExposed()` for cross-plugin state
 3. Understand Rsbuild `processAssets` stages: `pre-process`, `optimize`,
    `additional`, `optimize-inline`, `summarize`
