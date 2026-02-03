@@ -56,7 +56,6 @@
 		"lint:md:fix": "markdownlint-cli2  --config './lib/configs/.markdownlint-cli2.jsonc' --fix",
 		"lint:tsdoc": "eslint --config ./lib/configs/eslint.config.ts --ignore-pattern '**/*.test.ts'",
 		"prepare": "husky",
-		"postprepare": "turbo run build:dev",
 		"test": "turbo run vitest:unit --log-prefix=none",
 		"test:ai": "turbo run vitest:unit --log-prefix=none -- --reporter=basic",
 		"test:all": "turbo run vitest:all --log-prefix=none",
