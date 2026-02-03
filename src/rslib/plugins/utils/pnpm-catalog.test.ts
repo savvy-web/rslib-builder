@@ -38,7 +38,7 @@ describe("PnpmCatalog", () => {
 
 	describe("getCatalog", () => {
 		it("should return empty object when workspace root is not found", async () => {
-			vi.mocked(getWorkspaceManagerRoot).mockReturnValue(undefined);
+			vi.mocked(getWorkspaceManagerRoot).mockReturnValue(undefined as unknown as string);
 
 			const result = await catalog.getCatalog();
 

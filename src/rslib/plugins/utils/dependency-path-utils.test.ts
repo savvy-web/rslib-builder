@@ -57,7 +57,7 @@ describe("dependency-path-utils", () => {
 			vi.spyOn(process, "cwd").mockReturnValue(cwd);
 
 			vi.mocked(existsSync).mockReturnValue(false);
-			vi.mocked(getWorkspaceManagerRoot).mockReturnValue(undefined);
+			vi.mocked(getWorkspaceManagerRoot).mockReturnValue(undefined as unknown as string);
 
 			expect(() => getApiExtractorPath()).toThrow(
 				"API Extractor bundling requires @microsoft/api-extractor to be installed.\n" +
