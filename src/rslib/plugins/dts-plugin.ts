@@ -17,7 +17,7 @@ import {
 	readConfigFile,
 	sys,
 } from "typescript";
-import { getWorkspaceRoot } from "workspace-tools";
+import { getWorkspaceManagerRoot } from "workspace-tools";
 import { TSConfigs } from "../../tsconfig/index.js";
 import type { PackageJson } from "../../types/package-json.js";
 import { createEnvLogger } from "./utils/build-logger.js";
@@ -774,7 +774,7 @@ export function getTsgoBinPath(): string {
 
 	// If not found locally, use workspace-tools to find the workspace root
 	// This handles pnpm, npm, yarn, rush, and lerna workspaces
-	const workspaceRoot = getWorkspaceRoot(cwd);
+	const workspaceRoot = getWorkspaceManagerRoot(cwd);
 	/* v8 ignore start -- Workspace fallback difficult to test without mocking workspace-tools */
 	if (workspaceRoot) {
 		const workspaceTsgoBin = join(workspaceRoot, "node_modules", ".bin", "tsgo");
