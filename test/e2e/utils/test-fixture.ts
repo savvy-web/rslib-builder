@@ -39,7 +39,8 @@ export interface FixtureContext {
  * ```
  */
 export const test = baseTest.extend<FixtureContext>({
-	result: async (_, use) => {
+	// biome-ignore lint/correctness/noEmptyPattern: Vitest fixture API requires object destructuring
+	result: async ({}, use) => {
 		// Create mutable container for result
 		const container: ResultContainer = { value: null };
 
