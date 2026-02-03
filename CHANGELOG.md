@@ -1,5 +1,11 @@
 # @savvy-web/rslib-builder
 
+## 0.8.1
+
+### Patch Changes
+
+- ee04942: Adds standard commitlint system
+
 ## 0.8.0
 
 ### Minor Changes
