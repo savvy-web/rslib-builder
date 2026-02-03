@@ -72,7 +72,9 @@ export type {
 	TsDocLintPluginOptions,
 } from "./rslib/plugins/tsdoc-lint-plugin.js";
 export { TsDocLintPlugin } from "./rslib/plugins/tsdoc-lint-plugin.js";
-
+// Utilities - Entry Extraction
+export type { EntryExtractorOptions, ExtractedEntries } from "./rslib/plugins/utils/entry-extractor.js";
+export { EntryExtractor, extractEntriesFromPackageJson } from "./rslib/plugins/utils/entry-extractor.js";
 // Utilities - Import Graph Analysis
 export type {
 	ImportGraphError,
@@ -81,17 +83,12 @@ export type {
 	ImportGraphResult,
 } from "./rslib/plugins/utils/import-graph.js";
 export { ImportGraph } from "./rslib/plugins/utils/import-graph.js";
-
 // Utilities - TSConfig Resolution
 export type {
 	ResolvedCompilerOptions,
 	ResolvedTsconfig,
 } from "./rslib/plugins/utils/tsconfig-resolver.js";
 export { TsconfigResolver, TsconfigResolverError } from "./rslib/plugins/utils/tsconfig-resolver.js";
-
-// Utilities - Entry Extraction
-export type { EntryExtractorOptions, ExtractedEntries } from "./rslib/plugins/utils/entry-extractor.js";
-export { EntryExtractor, extractEntriesFromPackageJson } from "./rslib/plugins/utils/entry-extractor.js";
 
 // Type utilities
 export type {
