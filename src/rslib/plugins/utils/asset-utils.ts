@@ -15,23 +15,31 @@ import type { ProcessAssetsHandler, Rspack } from "@rsbuild/core";
  *
  * @example
  * ```typescript
- * // Create a text asset for a README file (optional)
- * const readme = await TextAsset.create(context, "README.md", false);
- * if (readme) {
- *   readme.source = "# Updated README\n\nNew content";
- *   readme.update();
- * }
+ * import type { ProcessAssetsHandler } from '@rsbuild/core';
  *
- * // Create a required license file
- * const license = await TextAsset.create(context, "LICENSE", true);
- * console.log(license.source); // File contents as string
+ * async function processAssets(context: Parameters<ProcessAssetsHandler>[0]): Promise<void> {
+ *   // Create a text asset for a README file (optional)
+ *   const readme = await TextAsset.create(context, "README.md", false);
+ *   if (readme) {
+ *     readme.source = "# Updated README\n\nNew content";
+ *     readme.update();
+ *   }
+ *
+ *   // Create a required license file
+ *   const license = await TextAsset.create(context, "LICENSE", true);
+ *   if (license) {
+ *     console.log(license.source); // File contents as string
+ *   }
+ * }
  * ```
+ *
+ * @internal
  */
 export class TextAsset {
-	/** The underlying Rsbuild asset source object */
-	protected asset: Rspack.sources.Source;
+	/** The underlying Rsbuild asset source object. */
+	protected readonly asset: Rspack.sources.Source;
 
-	/** The string content of the asset, editable for modifications */
+	/** The string content of the asset, editable for modifications. */
 	public source: string;
 
 	/**
@@ -46,8 +54,8 @@ export class TextAsset {
 	 * @throws Throws if the asset doesn't exist in the compilation context
 	 */
 	constructor(
-		protected compiler: Parameters<ProcessAssetsHandler>[0],
-		private _fileName: string,
+		protected readonly compiler: Parameters<ProcessAssetsHandler>[0],
+		private readonly _fileName: string,
 	) {
 		this.asset = compiler.assets[_fileName];
 		this.source = this.asset.source().toString();
@@ -149,7 +157,7 @@ export class TextAsset {
  * Represents a JSON-based asset in the Rsbuild compilation process.
  *
  * @remarks
- * This class extends TextAsset to provide specialized handling for JSON files such as
+ * This class extends {@link TextAsset} to provide specialized handling for JSON files such as
  * package.json, tsconfig.json, or other configuration files. It automatically parses
  * the JSON content and provides type-safe access to the data structure.
  *
@@ -160,16 +168,21 @@ export class TextAsset {
  *
  * @example
  * ```typescript
- * import type { PackageJson } from "type-fest";
+ * import type { ProcessAssetsHandler } from '@rsbuild/core';
+ * import type { PackageJson } from '@savvy-web/rslib-builder';
  *
- * // Load package.json with type safety
- * const pkg = await JsonAsset.create<PackageJson>(context, "package.json", true);
- * if (pkg) {
- *   console.log("Package name:", pkg.data.name);
- *   pkg.data.version = "2.0.0";
- *   pkg.update(); // Automatically stringifies and updates
+ * async function processAssets(context: Parameters<ProcessAssetsHandler>[0]): Promise<void> {
+ *   // Load package.json with type safety
+ *   const pkg = await JsonAsset.create<PackageJson>(context, "package.json", true);
+ *   if (pkg) {
+ *     console.log("Package name:", pkg.data.name);
+ *     pkg.data.version = "2.0.0";
+ *     pkg.update(); // Automatically stringifies and updates
+ *   }
  * }
  * ```
+ *
+ * @internal
  */
 export class JsonAsset<T> extends TextAsset {
 	/** The parsed JSON data with type safety */
@@ -285,8 +298,11 @@ export class JsonAsset<T> extends TextAsset {
 
 /**
  * Cache entry for file contents with modification time tracking.
+ * @internal
  */
 export interface CacheEntry {
+	/** The cached file content. */
 	content: string;
+	/** The file modification time in milliseconds since epoch. */
 	mtime: number;
 }

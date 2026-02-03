@@ -35,9 +35,13 @@ type FlexibleExports = PackageJson.Exports | Record<string, unknown> | FlexibleE
  *
  * @example
  * ```typescript
+ * import { transformExportPath } from './package-json-transformer.js';
+ *
  * transformExportPath("./src/index.ts"); // "./index.js"
  * transformExportPath("./bin/cli.ts"); // "./bin/cli.js"
  * ```
+ *
+ * @internal
  */
 export function transformExportPath(
 	path: string,
@@ -82,9 +86,13 @@ export function transformExportPath(
  *
  * @example
  * ```typescript
+ * import { createTypePath } from './package-json-transformer.js';
+ *
  * createTypePath("./index.js", true); // "./index.d.ts"
  * createTypePath("./rslib/index.js", true); // "./rslib.d.ts" (collapsed)
  * ```
+ *
+ * @internal
  */
 export function createTypePath(jsPath: string, collapseIndex: boolean = true): string {
 	if (collapseIndex && jsPath.endsWith("/index.js") && jsPath !== "./index.js") {
@@ -105,15 +113,19 @@ export function createTypePath(jsPath: string, collapseIndex: boolean = true): s
  * Non-TypeScript entries (shell scripts, compiled JS) are preserved as-is.
  *
  * @param bin - The bin field value from package.json
- * @param _processTSExports - Deprecated, kept for backwards compatibility
+ * @param _processTSExports - Unused, kept for backwards compatibility
  * @returns The transformed bin field with updated paths
  *
  * @example
  * ```typescript
+ * import { transformPackageBin } from './package-json-transformer.js';
+ *
  * transformPackageBin("./src/cli.ts"); // "./bin/cli.js"
  * transformPackageBin({ "my-tool": "./src/cli.ts" }); // { "my-tool": "./bin/my-tool.js" }
  * transformPackageBin("./scripts/cli.sh"); // "./scripts/cli.sh" (preserved)
  * ```
+ *
+ * @internal
  */
 export function transformPackageBin(bin: PackageJson["bin"], _processTSExports: boolean = true): PackageJson["bin"] {
 	if (typeof bin === "string") {
@@ -149,6 +161,7 @@ export function transformPackageBin(bin: PackageJson["bin"], _processTSExports: 
  *
  * @param exports - Export object to check
  * @returns True if the object contains export conditions, false for subpath exports
+ * @internal
  */
 export function isConditionsObject(exports: Record<string, unknown>): boolean {
 	return Object.keys(exports).some(
@@ -166,6 +179,7 @@ export function isConditionsObject(exports: Record<string, unknown>): boolean {
  * @param exportToOutputMap - Map of export paths to output files
  * @param collapseIndex - Whether to collapse index files (bundled mode)
  * @returns The transformed exports value
+ * @internal
  */
 export function transformPackageExports(
 	exports: FlexibleExports,
@@ -336,6 +350,7 @@ function transformExportEntry(
  * @param exportToOutputMap - Map of export paths to output files
  * @param bundle - Whether the build is in bundle mode
  * @returns The transformed package.json ready for build output
+ * @internal
  */
 export function applyRslibTransformations(
 	packageJson: PackageJson,
@@ -410,6 +425,7 @@ export function applyRslibTransformations(
  * @param packageJson - The source package.json to transform
  * @param dir - The directory containing the package (defaults to current working directory)
  * @returns Promise resolving to the transformed package.json
+ * @internal
  */
 export async function applyPnpmTransformations(
 	packageJson: PackageJson,
@@ -433,6 +449,7 @@ export async function applyPnpmTransformations(
  * @param bundle - Whether the build is in bundle mode
  * @param transform - Optional custom transform function to modify package.json after standard transformations
  * @returns Promise resolving to the fully transformed package.json
+ * @internal
  */
 export async function buildPackageJson(
 	packageJson: PackageJson,

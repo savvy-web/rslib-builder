@@ -5,10 +5,14 @@ import { getWorkspaceRoot } from "workspace-tools";
 
 /**
  * Result of checking file existence.
+ * @internal
  */
 export interface FileExistResult {
+	/** The original asset name that was checked. */
 	assetName: string;
+	/** The absolute path to the asset. */
 	assetPath: string;
+	/** Whether the asset exists on disk. */
 	assetExists: boolean;
 }
 
