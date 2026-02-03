@@ -8,6 +8,6 @@
 	"ignore": ["@fixtures/*"],
 	"privatePackages": {
 		"tag": false,
-		"version": false
+		"version": true
 	}
 }
