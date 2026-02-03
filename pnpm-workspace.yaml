@@ -12,6 +12,7 @@ overrides:
 preferFrozenLockfile: true
 publicHoistPattern:
   - "@commitlint/cli"
+  - "@commitlint/config-conventional"
   - "@commitlint/cz-commitlint"
   - husky
   - lint-staged
