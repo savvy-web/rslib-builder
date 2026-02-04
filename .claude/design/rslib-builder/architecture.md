@@ -3,8 +3,8 @@ status: current
 module: rslib-builder
 category: architecture
 created: 2026-01-18
-updated: 2026-02-03
-last-synced: 2026-02-03
+updated: 2026-02-04
+last-synced: 2026-02-04
 completeness: 95
 related:
   - rslib-builder/api-extraction.md
@@ -189,10 +189,24 @@ transformations. Consolidated from 14 files to 6 focused modules.
    - Orchestrates pnpm + RSlib transformation pipeline, handles exports/bin
      fields, path transformations, type conditions
 
-5. **`pnpm-catalog.ts`** - PNPM catalog resolution (unchanged)
-   - Exports: `PnpmCatalog` class
-   - Singleton with mtime-based cache invalidation for catalog/workspace
-     reference resolution
+5. **`workspace-catalog.ts`** - Multi-package-manager workspace catalog resolution
+   - Exports: `WorkspaceCatalog` class, `createWorkspaceCatalog()` factory
+   - Multi-package-manager support via `workspace-tools`:
+     - **pnpm**: Reads from `pnpm-lock.yaml` (primary, for config dependency
+       catalogs like `catalog:silk`) then falls back to `pnpm-workspace.yaml`
+     - **yarn**: Uses `workspace-tools`'s `getCatalogs()` function
+     - Other package managers return empty catalogs
+   - Factory pattern for dependency injection:
+     - `createWorkspaceCatalog()` returns new instances (no global singleton)
+     - Plugins can create, cache, and share their own instances
+     - `applyPnpmTransformations()` accepts optional `catalog?: WorkspaceCatalog`
+       parameter for DI
+   - Named catalog support: Handles `catalog:default`, `catalog:silk`,
+     `catalog:tools`, etc.
+   - Validation: Validates referenced catalogs exist before resolution with
+     clear error messages showing available catalogs
+   - Logging: Shows which catalog each dependency was resolved from
+     (e.g., `@microsoft/api-extractor: ^7.56.0 (catalog:silk)`)
 
 6. **`entry-extractor.ts`** - Entry point extraction (unchanged)
    - Exports: `EntryExtractor` class
@@ -426,11 +440,14 @@ iteration.
 - **Why used:** Simplify complex RSlib configuration to fluent API
 - **Implementation:** User options -> internal defaults -> RSlib config
 
-#### Pattern 4: Singleton with Caching
+#### Pattern 4: Factory with Instance Caching
 
-- **Where used:** PnpmCatalog class
-- **Why used:** Avoid repeated filesystem operations for catalog resolution
-- **Implementation:** Module-level instance with mtime-based cache invalidation
+- **Where used:** WorkspaceCatalog class
+- **Why used:** Avoid repeated filesystem operations while enabling DI and
+  plugin-level caching
+- **Implementation:** Factory function `createWorkspaceCatalog()` returns new
+  instances; each instance caches catalog data and workspace root internally;
+  plugins can create and share instances via dependency injection
 
 #### Pattern 5: Chain of Responsibility
 
@@ -866,11 +883,40 @@ Source package.json
 +----------------------------------------+
 | Production mode only:                  |
 | applyPnpmTransformations()             |
-|   - Delegates to PnpmCatalog           |
+|   - Accepts optional WorkspaceCatalog  |
+|     for dependency injection           |
+|   - Creates new instance if not        |
+|     provided                           |
+|   - Delegates to WorkspaceCatalog      |
 |     .resolvePackageJson()              |
-|   - Resolves catalog: references       |
-|   - Resolves workspace: references     |
-|   - Validates all resolved             |
++----------------------------------------+
+         |
+         v
++----------------------------------------+
+| WorkspaceCatalog.getCatalogs()         |
+|   1. Detect package manager via        |
+|      workspace-tools                   |
+|   2. For pnpm:                         |
+|      - Primary: Read pnpm-lock.yaml    |
+|        (config dependency catalogs)    |
+|      - Fallback: pnpm-workspace.yaml   |
+|   3. For yarn:                         |
+|      - Use workspace-tools getCatalogs |
+|   4. Other managers: return empty      |
++----------------------------------------+
+         |
+         v
++----------------------------------------+
+| WorkspaceCatalog.resolvePackageJson()  |
+|   - Parse catalog: specifiers with     |
+|     @pnpm/catalogs.protocol-parser     |
+|   - Validate all referenced catalogs   |
+|     exist (error with available list)  |
+|   - Resolve via @pnpm/exportable-      |
+|     manifest with loaded catalogs      |
+|   - Log resolved deps with catalog     |
+|     source (catalog:silk, workspace:)  |
+|   - Validate no unresolved references  |
 +----------------------------------------+
          |
          v
@@ -1167,18 +1213,26 @@ ImportGraph.traceFromPackageExports()
 **Package.json Processing:**
 
 - **@pnpm/exportable-manifest**: Resolve pnpm catalog/workspace references
+- **@pnpm/lockfile.fs**: Read `pnpm-lock.yaml` for config dependency catalogs
+- **@pnpm/workspace.read-manifest**: Read `pnpm-workspace.yaml` for traditional
+  catalog definitions
+- **@pnpm/catalogs.config**: Normalize catalogs from workspace manifest
+- **@pnpm/catalogs.protocol-parser**: Parse `catalog:name` specifiers to
+  extract catalog names
 - **@pnpm/types**: Type definitions for pnpm manifests
 - **sort-package-json**: Consistent package.json field ordering
 - **type-fest**: PackageJson type definitions
 
-**Workspace Detection:**
+**Workspace Detection and Catalog Resolution:**
 
-- **workspace-tools**: Find workspace root across package managers
+- **workspace-tools**: Multi-package-manager workspace support
+  - `getWorkspaceManagerAndRoot()`: Detect package manager (pnpm, yarn, npm,
+    etc.) and workspace root
+  - `getCatalogs()`: Read yarn workspace catalogs
 
 **Utilities:**
 
 - **picocolors**: Terminal coloring
-- **yaml**: Parse pnpm-workspace.yaml
 - **glob**: File pattern matching
 
 ---
@@ -1208,8 +1262,8 @@ src/
 │       ├── tsdoc-lint-plugin.ts
 │       ├── tsdoc-lint-plugin.test.ts       # 15 tests for TSDoc linting
 │       └── utils/
-│           ├── pnpm-catalog.ts
-│           ├── pnpm-catalog.test.ts        # Co-located with source
+│           ├── workspace-catalog.ts
+│           ├── workspace-catalog.test.ts   # Co-located with source
 │           ├── asset-utils.ts
 │           ├── json-asset-utils.test.ts    # Tests asset utilities
 │           └── ...
@@ -1357,7 +1411,9 @@ For comprehensive testing strategy details, see
 ---
 
 **Document Status:** Current - Core architecture documented with all components
-including ImportGraph analysis and TsDocLintPlugin file discovery
+including ImportGraph analysis, TsDocLintPlugin file discovery, and multi-
+package-manager workspace catalog resolution (pnpm, yarn) with factory pattern
+for dependency injection
 
 **Next Steps:** Add sequence diagrams for complex flows, document edge cases in
 transformation pipeline

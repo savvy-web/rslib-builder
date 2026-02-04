@@ -70,7 +70,11 @@
 	"dependencies": {
 		"@microsoft/tsdoc": "^0.16.0",
 		"@microsoft/tsdoc-config": "^0.18.0",
+		"@pnpm/catalogs.config": "^1000.0.5",
+		"@pnpm/catalogs.protocol-parser": "^1001.0.0",
 		"@pnpm/exportable-manifest": "^1000.3.1",
+		"@pnpm/lockfile.fs": "^1001.1.29",
+		"@pnpm/workspace.read-manifest": "^1000.2.10",
 		"@typescript-eslint/parser": "^8.53.1",
 		"deep-equal": "^2.2.3",
 		"eslint": "^9.39.2",
@@ -79,8 +83,7 @@
 		"picocolors": "^1.1.1",
 		"sort-package-json": "^3.6.1",
 		"tmp": "^0.2.5",
-		"workspace-tools": "^0.41.0",
-		"yaml": "^2.8.2"
+		"workspace-tools": "^0.41.0"
 	},
 	"devDependencies": {
 		"@changesets/cli": "^2.29.8",

@@ -1,15 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { PackageJson } from "../../../types/package-json.js";
 
-// Mock the pnpm-catalog module
-vi.mock("./pnpm-catalog.js");
+// Mock the workspace-catalog module
+vi.mock("./workspace-catalog.js");
 
 import { buildPackageJson } from "./package-json-transformer.js";
-import type { PnpmCatalog } from "./pnpm-catalog.js";
-import { getDefaultPnpmCatalog } from "./pnpm-catalog.js";
-
-const mockGetDefaultPnpmCatalog: ReturnType<typeof vi.mocked<typeof getDefaultPnpmCatalog>> =
-	vi.mocked(getDefaultPnpmCatalog);
+import { createWorkspaceCatalog } from "./workspace-catalog.js";
 
 describe("package-json-builder-utils", () => {
 	describe("buildPackageJson", () => {
@@ -19,11 +15,11 @@ describe("package-json-builder-utils", () => {
 			vi.clearAllMocks();
 			// Create a mock for resolvePackageJson
 			mockResolvePackageJson = vi.fn();
-			mockGetDefaultPnpmCatalog.mockReturnValue({
+			vi.mocked(createWorkspaceCatalog).mockReturnValue({
 				resolvePackageJson: mockResolvePackageJson,
-				getCatalog: vi.fn(),
+				getCatalogs: vi.fn(),
 				clearCache: vi.fn(),
-			} as unknown as PnpmCatalog);
+			} as unknown as ReturnType<typeof createWorkspaceCatalog>);
 		});
 
 		afterEach(() => {

@@ -1,6 +1,5 @@
 import type { RsbuildPlugin, RsbuildPluginAPI } from "@rsbuild/core";
 import type { LibraryFormat, PackageJson } from "../../types/package-json.js";
-import type { CacheEntry } from "./utils/asset-utils.js";
 import { JsonAsset, TextAsset } from "./utils/asset-utils.js";
 import { buildPackageJson } from "./utils/package-json-transformer.js";
 
@@ -128,7 +127,6 @@ export interface PackageJsonTransformPluginOptions {
  *
  * - Consumes `entrypoints` map from AutoEntryPlugin
  * - Consumes `exportToOutputMap` for exportsAsIndexes mode
- * - Exposes `files-cache` for asset caching
  * - Consumes `use-rollup-types` flag from DtsPlugin
  *
  * @param options - Plugin configuration options
@@ -169,13 +167,9 @@ export interface PackageJsonTransformPluginOptions {
  * @public
  */
 export const PackageJsonTransformPlugin = (options: PackageJsonTransformPluginOptions = {}): RsbuildPlugin => {
-	const cache = new Map<string, CacheEntry>();
 	return {
 		name: "package-json-processor",
 		setup(api: RsbuildPluginAPI): void {
-			// Emit standard files to distribution
-			api.expose("files-cache", cache);
-
 			// Get or create the shared files array
 			let filesArray = api.useExposed("files-array") as Set<string> | undefined;
 			if (!filesArray) {
