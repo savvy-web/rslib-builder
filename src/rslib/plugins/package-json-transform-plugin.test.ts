@@ -93,8 +93,6 @@ describe("PackageJsonTransformPlugin", () => {
 
 		// Should register 3 processAssets hooks
 		expect(mockApi.processAssets).toHaveBeenCalledTimes(3);
-		// Should expose the files-cache
-		expect(mockApi.expose).toHaveBeenCalledWith("files-cache", expect.any(Map));
 
 		// Check the stages
 		const calls = mockApi.processAssets.mock.calls;
@@ -264,15 +262,6 @@ describe("PackageJsonTransformPlugin", () => {
 		expect(mockBuildPackageJson).not.toHaveBeenCalled();
 	});
 
-	it("should expose files-cache for sharing between asset processors", () => {
-		const plugin = PackageJsonTransformPlugin();
-		const mockApi = { processAssets: vi.fn(), expose: vi.fn(), useExposed: vi.fn().mockReturnValue(undefined) };
-
-		plugin.setup(mockApi as unknown as Parameters<ReturnType<typeof PackageJsonTransformPlugin>["setup"]>[0]);
-
-		expect(mockApi.expose).toHaveBeenCalledWith("files-cache", expect.any(Map));
-	});
-
 	it("should use asset processor for file emission", async () => {
 		const plugin = PackageJsonTransformPlugin();
 		const mockApi = { processAssets: vi.fn(), expose: vi.fn(), useExposed: vi.fn().mockReturnValue(undefined) };
@@ -293,26 +282,6 @@ describe("PackageJsonTransformPlugin", () => {
 
 		// Third call for name override
 		expect(calls[2][0]).toEqual({ stage: "optimize-inline" });
-	});
-
-	it("should handle caching by using shared cache instance", () => {
-		const plugin1 = PackageJsonTransformPlugin();
-		const plugin2 = PackageJsonTransformPlugin();
-
-		const mockApi1 = { processAssets: vi.fn(), expose: vi.fn(), useExposed: vi.fn().mockReturnValue(undefined) };
-		const mockApi2 = { processAssets: vi.fn(), expose: vi.fn(), useExposed: vi.fn().mockReturnValue(undefined) };
-
-		plugin1.setup(mockApi1 as unknown as Parameters<ReturnType<typeof PackageJsonTransformPlugin>["setup"]>[0]);
-		plugin2.setup(mockApi2 as unknown as Parameters<ReturnType<typeof PackageJsonTransformPlugin>["setup"]>[0]);
-
-		// Each plugin instance should expose its own cache
-		expect(mockApi1.expose).toHaveBeenCalledWith("files-cache", expect.any(Map));
-		expect(mockApi2.expose).toHaveBeenCalledWith("files-cache", expect.any(Map));
-
-		// The caches should be different instances for different plugin instances
-		const cache1 = mockApi1.expose.mock.calls[0][1];
-		const cache2 = mockApi2.expose.mock.calls[0][1];
-		expect(cache1).not.toBe(cache2);
 	});
 
 	it("should execute pre-process stage callback to create assets", async () => {

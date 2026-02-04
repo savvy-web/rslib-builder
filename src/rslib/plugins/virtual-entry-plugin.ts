@@ -2,12 +2,22 @@ import type { RsbuildPlugin, RsbuildPluginAPI } from "@rsbuild/core";
 
 /**
  * Options for the VirtualEntryPlugin.
+ *
+ * @remarks
+ * Virtual entries are used for special files that need bundling but should not
+ * generate type declarations or appear in package.json exports. Common use cases
+ * include pnpmfile.cjs or other configuration files.
+ *
  * @public
  */
 export interface VirtualEntryPluginOptions {
 	/**
-	 * Set of virtual entry names (without extensions).
-	 * Used by DtsPlugin to skip type generation for these entries.
+	 * Set of virtual entry names (without file extensions).
+	 *
+	 * @remarks
+	 * These names are exposed to DtsPlugin to skip type generation.
+	 * For example, if `virtualEntryNames` contains `"pnpmfile"`, the
+	 * entry `pnpmfile.cjs` will be bundled but no `pnpmfile.d.ts` will be generated.
 	 */
 	virtualEntryNames: Set<string>;
 }

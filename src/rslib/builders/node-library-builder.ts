@@ -150,6 +150,27 @@ export interface CopyPatternConfig {
 }
 
 /**
+ * Configuration options for the NodeLibraryBuilder.
+ *
+ * @remarks
+ * All options are optional with sensible defaults. The most commonly customized options are:
+ * - `externals`: For dependencies that should remain external
+ * - `dtsBundledPackages`: For inlining type definitions
+ * - `transform`: For custom package.json modifications
+ *
+ * @example
+ * ```typescript
+ * import type { NodeLibraryBuilderOptions } from '@savvy-web/rslib-builder';
+ *
+ * const options: NodeLibraryBuilderOptions = {
+ *   externals: ['@rslib/core'],
+ *   dtsBundledPackages: ['picocolors'],
+ *   apiModel: {
+ *     localPaths: ['../docs/packages/my-package'],
+ *   },
+ * };
+ * ```
+ *
  * @public
  */
 export interface NodeLibraryBuilderOptions {
@@ -233,11 +254,49 @@ export interface NodeLibraryBuilderOptions {
 	 * ```
 	 */
 	exportsAsIndexes?: boolean;
+	/**
+	 * Patterns for files to copy to the output directory.
+	 *
+	 * @remarks
+	 * Supports both string paths and detailed configuration objects.
+	 * A `public/` directory in the project root is automatically added if it exists.
+	 *
+	 * @defaultValue `[]`
+	 */
 	copyPatterns: (string | CopyPatternConfig)[];
-	/** Additional plugins */
+
+	/**
+	 * Additional Rsbuild plugins to include in the build.
+	 *
+	 * @remarks
+	 * These plugins run after the built-in plugins (AutoEntryPlugin, DtsPlugin, etc.).
+	 *
+	 * @defaultValue `[]`
+	 */
 	plugins: RsbuildPlugin[];
+
+	/**
+	 * Compile-time constants for code replacement.
+	 *
+	 * @remarks
+	 * Values are stringified and replaced in the source code during bundling.
+	 * The `process.env.__PACKAGE_VERSION__` constant is automatically defined.
+	 *
+	 * @see {@link https://rsbuild.dev/config/source/define | Rsbuild define documentation}
+	 *
+	 * @defaultValue `{}`
+	 */
 	define: SourceConfig["define"];
-	/** Path to tsconfig for build (default: ./tsconfig.build.json) */
+
+	/**
+	 * Path to the TypeScript configuration file for the build.
+	 *
+	 * @remarks
+	 * If not specified, the plugin searches for `tsconfig.json` in the project root.
+	 * A temporary tsconfig is generated for declaration generation regardless of this setting.
+	 *
+	 * @defaultValue `undefined` (auto-detected)
+	 */
 	tsconfigPath: string | undefined;
 	/** Build targets to include (default: ["dev", "npm"]) */
 	targets?: BuildTarget[];

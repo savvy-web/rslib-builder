@@ -39,7 +39,7 @@
 			"outputs": ["dist/npm/**", ".rslib/declarations/npm/**"]
 		},
 		"types:check": {
-			"cache": true,
+			"cache": false,
 			"dependsOn": ["^build:dev"],
 			"inputs": [
 				"$TURBO_DEFAULT$",
@@ -51,7 +51,7 @@
 				"tsconfig.json",
 				"src/**/*.ts"
 			],
-			"outputLogs": "errors-only",
+			"outputLogs": "full",
 			"outputs": ["dist/.tsbuildinfo.lib"]
 		}
 	}

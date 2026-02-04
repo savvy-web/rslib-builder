@@ -218,54 +218,6 @@ export class TSConfigFile {
  */
 export class LibraryTSConfigFile extends TSConfigFile {
 	/**
-	 * Get bundle-mode configuration with transformed paths.
-	 *
-	 * @remarks
-	 * This method transforms the base configuration for bundle mode by:
-	 * - Replacing `${configDir}` with absolute relative paths (../../../../../../)
-	 * - Filtering include to only src and public directories
-	 * - Only including .ts and .mts files (no .tsx, .cts)
-	 * - Setting rootDir to the project root
-	 * - Setting outDir to just "dist"
-	 * - Changing tsBuildInfoFile to include target: `dist/.tsbuildinfo.{target}.bundle`
-	 *
-	 * @param target - Build target (dev, npm)
-	 */
-	bundle(target: "dev" | "npm"): TSConfigJsonWithSchema {
-		const config = transformStringsDeep(this.config, (str) =>
-			// biome-ignore lint/suspicious/noTemplateCurlyInString: replacing an actual literal
-			str.replace("${configDir}", "../../../../../.."),
-		);
-
-		// Filter include patterns for bundle mode
-		const include = config.include
-			?.filter((pattern) => {
-				// Only include src/**/*.ts, src/**/*.mts, types/*.ts, package.json, and public/**/*.json
-				return (
-					pattern.includes("/src/") ||
-					pattern.includes("/types/") ||
-					pattern.includes("/public/") ||
-					pattern.includes("package.json")
-				);
-			})
-			.filter((pattern) => {
-				// Exclude .tsx and .cts files
-				return !pattern.includes(".tsx") && !pattern.includes(".cts");
-			});
-
-		return {
-			...config,
-			compilerOptions: {
-				...config.compilerOptions,
-				outDir: "dist",
-				tsBuildInfoFile: `${process.cwd()}/dist/.tsbuildinfo.${target}.bundle`,
-			},
-			// Only include the filtered patterns if they exist (avoids undefined with exactOptionalPropertyTypes)
-			...(include !== undefined && include.length > 0 ? { include } : {}),
-		};
-	}
-
-	/**
 	 * Write the bundle-mode configuration to a temporary file.
 	 *
 	 * @remarks

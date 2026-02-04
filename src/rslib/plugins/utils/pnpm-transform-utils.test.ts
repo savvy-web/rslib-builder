@@ -1,32 +1,31 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { PackageJson } from "../../../types/package-json.js";
 
-// Mock the pnpm-catalog module
-vi.mock("./pnpm-catalog.js");
+// Mock the workspace-catalog module
+vi.mock("./workspace-catalog.js");
 
 import { applyPnpmTransformations } from "./package-json-transformer.js";
-import type { PnpmCatalog } from "./pnpm-catalog.js";
-import { getDefaultPnpmCatalog } from "./pnpm-catalog.js";
+import { createWorkspaceCatalog } from "./workspace-catalog.js";
 
 describe("pnpm-transform-utils", () => {
-	let mockPnpmCatalog: {
-		resolvePackageJson: ReturnType<typeof vi.fn>;
-	};
+	let mockResolvePackageJson: ReturnType<typeof vi.fn>;
 
 	beforeEach(() => {
 		vi.clearAllMocks();
 
-		// Create a mock PnpmCatalog instance
-		mockPnpmCatalog = {
-			resolvePackageJson: vi.fn(),
-		};
+		// Create a mock for resolvePackageJson
+		mockResolvePackageJson = vi.fn();
 
-		// Mock getDefaultPnpmCatalog to return our mock instance
-		vi.mocked(getDefaultPnpmCatalog).mockReturnValue(mockPnpmCatalog as unknown as PnpmCatalog);
+		// Mock createWorkspaceCatalog to return our mock instance
+		vi.mocked(createWorkspaceCatalog).mockReturnValue({
+			resolvePackageJson: mockResolvePackageJson,
+			getCatalogs: vi.fn(),
+			clearCache: vi.fn(),
+		} as unknown as ReturnType<typeof createWorkspaceCatalog>);
 	});
 
 	describe("applyPnpmTransformations", () => {
-		it("should delegate to PnpmCatalog.resolvePackageJson", async () => {
+		it("should delegate to WorkspaceCatalog.resolvePackageJson", async () => {
 			const inputPackageJson: PackageJson = {
 				name: "test-package",
 				version: "1.0.0",
@@ -43,30 +42,30 @@ describe("pnpm-transform-utils", () => {
 				},
 			};
 
-			mockPnpmCatalog.resolvePackageJson.mockResolvedValue(expectedOutput);
+			mockResolvePackageJson.mockResolvedValue(expectedOutput);
 
 			const result = await applyPnpmTransformations(inputPackageJson);
 
 			expect(result).toEqual(expectedOutput);
-			expect(getDefaultPnpmCatalog).toHaveBeenCalledOnce();
-			expect(mockPnpmCatalog.resolvePackageJson).toHaveBeenCalledWith(inputPackageJson, process.cwd());
+			expect(createWorkspaceCatalog).toHaveBeenCalledOnce();
+			expect(mockResolvePackageJson).toHaveBeenCalledWith(inputPackageJson, process.cwd());
 		});
 
-		it("should pass custom directory to PnpmCatalog.resolvePackageJson", async () => {
+		it("should pass custom directory to WorkspaceCatalog.resolvePackageJson", async () => {
 			const inputPackageJson: PackageJson = {
 				name: "test-package",
 				version: "1.0.0",
 			};
 
-			mockPnpmCatalog.resolvePackageJson.mockResolvedValue(inputPackageJson);
+			mockResolvePackageJson.mockResolvedValue(inputPackageJson);
 
 			const customDir = "/custom/path";
 			await applyPnpmTransformations(inputPackageJson, customDir);
 
-			expect(mockPnpmCatalog.resolvePackageJson).toHaveBeenCalledWith(inputPackageJson, customDir);
+			expect(mockResolvePackageJson).toHaveBeenCalledWith(inputPackageJson, customDir);
 		});
 
-		it("should propagate errors from PnpmCatalog.resolvePackageJson", async () => {
+		it("should propagate errors from WorkspaceCatalog.resolvePackageJson", async () => {
 			const inputPackageJson: PackageJson = {
 				name: "test-package",
 				version: "1.0.0",
@@ -75,7 +74,7 @@ describe("pnpm-transform-utils", () => {
 				},
 			};
 
-			mockPnpmCatalog.resolvePackageJson.mockRejectedValue(
+			mockResolvePackageJson.mockRejectedValue(
 				new Error("Package contains catalog: dependencies but catalog configuration is missing"),
 			);
 
@@ -90,7 +89,7 @@ describe("pnpm-transform-utils", () => {
 				version: "1.0.0",
 			};
 
-			mockPnpmCatalog.resolvePackageJson.mockRejectedValue(new Error("Catalog resolution failed"));
+			mockResolvePackageJson.mockRejectedValue(new Error("Catalog resolution failed"));
 
 			await expect(applyPnpmTransformations(inputPackageJson)).rejects.toThrow("Catalog resolution failed");
 		});
@@ -101,7 +100,7 @@ describe("pnpm-transform-utils", () => {
 				version: "1.0.0",
 			};
 
-			mockPnpmCatalog.resolvePackageJson.mockRejectedValue(new Error("Workspace resolution failed"));
+			mockResolvePackageJson.mockRejectedValue(new Error("Workspace resolution failed"));
 
 			await expect(applyPnpmTransformations(inputPackageJson)).rejects.toThrow("Workspace resolution failed");
 		});
@@ -112,7 +111,7 @@ describe("pnpm-transform-utils", () => {
 				version: "1.0.0",
 			};
 
-			mockPnpmCatalog.resolvePackageJson.mockRejectedValue(
+			mockResolvePackageJson.mockRejectedValue(
 				new Error("Transformation failed: unresolved catalog: references remain in package.json"),
 			);
 
@@ -127,11 +126,32 @@ describe("pnpm-transform-utils", () => {
 				version: "1.0.0",
 			};
 
-			mockPnpmCatalog.resolvePackageJson.mockResolvedValue(inputPackageJson);
+			mockResolvePackageJson.mockResolvedValue(inputPackageJson);
 
 			await applyPnpmTransformations(inputPackageJson);
 
-			expect(mockPnpmCatalog.resolvePackageJson).toHaveBeenCalledWith(inputPackageJson, process.cwd());
+			expect(mockResolvePackageJson).toHaveBeenCalledWith(inputPackageJson, process.cwd());
+		});
+
+		it("should use provided catalog instance instead of creating new one", async () => {
+			const inputPackageJson: PackageJson = {
+				name: "test-package",
+				version: "1.0.0",
+			};
+
+			const injectedMockResolve = vi.fn().mockResolvedValue(inputPackageJson);
+			const injectedCatalog = {
+				resolvePackageJson: injectedMockResolve,
+				getCatalogs: vi.fn(),
+				clearCache: vi.fn(),
+			} as unknown as ReturnType<typeof createWorkspaceCatalog>;
+
+			await applyPnpmTransformations(inputPackageJson, process.cwd(), injectedCatalog);
+
+			// Should NOT create a new catalog
+			expect(createWorkspaceCatalog).not.toHaveBeenCalled();
+			// Should use the injected catalog
+			expect(injectedMockResolve).toHaveBeenCalledWith(inputPackageJson, process.cwd());
 		});
 	});
 });

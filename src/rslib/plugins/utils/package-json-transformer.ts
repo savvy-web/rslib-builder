@@ -1,6 +1,7 @@
 import sortPkg from "sort-package-json";
 import type { PackageJson } from "../../../types/package-json.js";
-import { getDefaultPnpmCatalog } from "./pnpm-catalog.js";
+import type { WorkspaceCatalog } from "./workspace-catalog.js";
+import { createWorkspaceCatalog } from "./workspace-catalog.js";
 
 /**
  * Flexible type definition for package.json exports field that accommodates various export formats.
@@ -420,18 +421,25 @@ export function applyRslibTransformations(
 }
 
 /**
- * Applies pnpm-specific transformations to package.json for publishing compatibility.
+ * Applies workspace-specific transformations to package.json for publishing compatibility.
+ *
+ * @remarks
+ * Resolves `catalog:` and `workspace:` references in dependencies.
+ * Supports pnpm and yarn workspaces.
  *
  * @param packageJson - The source package.json to transform
  * @param dir - The directory containing the package (defaults to current working directory)
+ * @param catalog - Optional WorkspaceCatalog instance for dependency injection (creates new if not provided)
  * @returns Promise resolving to the transformed package.json
  * @internal
  */
 export async function applyPnpmTransformations(
 	packageJson: PackageJson,
 	dir: string = process.cwd(),
+	catalog?: WorkspaceCatalog,
 ): Promise<PackageJson> {
-	return getDefaultPnpmCatalog().resolvePackageJson(packageJson, dir);
+	const workspaceCatalog = catalog ?? createWorkspaceCatalog();
+	return workspaceCatalog.resolvePackageJson(packageJson, dir);
 }
 
 /**
