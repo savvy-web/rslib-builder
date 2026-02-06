@@ -16,6 +16,7 @@ Complete reference for all `NodeLibraryBuilder` configuration options.
 - [ImportGraph Utility](#importgraph-utility)
 - [TsconfigResolver Utility](#tsconfigresolver-utility)
 - [EntryExtractor Utility](#entryextractor-utility)
+- [Bundle Mode](#bundle-mode)
 - [Define Constants](#define-constants)
 
 ## Basic Options
@@ -38,6 +39,7 @@ interface NodeLibraryBuilderOptions {
   apiModel?: ApiModelOptions | boolean;  // TSDoc lint is controlled via apiModel.tsdoc.lint
   format?: 'esm' | 'cjs';  // Output format, affects package.json type field
   virtualEntries?: Record<string, VirtualEntryConfig>;  // Additional bundled files
+  bundle?: boolean;  // Bundle JS into single files (true) or preserve file structure (false)
 }
 
 interface VirtualEntryConfig {
@@ -861,14 +863,14 @@ console.log(result.entries);
 // }
 ```
 
-### Functional Interface
+### One-Off Usage
 
-For one-off use, the functional interface is more convenient:
+For one-off use, you can create and immediately call the extractor:
 
 ```typescript
-import { extractEntriesFromPackageJson } from '@savvy-web/rslib-builder';
+import { EntryExtractor } from '@savvy-web/rslib-builder';
 
-const result = extractEntriesFromPackageJson(packageJson);
+const result = new EntryExtractor().extract(packageJson);
 ```
 
 ### EntryExtractorOptions
@@ -991,6 +993,64 @@ NodeLibraryBuilder.create({
   },
 });
 ```
+
+## Bundle Mode
+
+### bundle
+
+Control whether JavaScript output is bundled into single files per entry or
+preserves the source file structure.
+
+```typescript
+// Default: bundled output (single file per entry)
+NodeLibraryBuilder.create({
+  bundle: true,  // default
+});
+
+// Bundleless mode: preserve source file structure
+NodeLibraryBuilder.create({
+  bundle: false,
+});
+```
+
+| Value | JS Output | DTS Output | Use Case |
+| :---- | :-------- | :--------- | :------- |
+| `true` (default) | Single file per entry | Bundled per entry | Most libraries |
+| `false` | Preserves file structure | Still bundled per entry | Large libraries, tree-shaking |
+
+**How bundleless mode works:**
+
+When `bundle: false`, rslib-builder runs in a hybrid mode:
+
+- **JavaScript**: RSlib runs in bundleless mode, preserving your `src/` file
+  structure in the output. Each source file becomes a separate output file.
+- **TypeScript Declarations**: Still bundled per entry point via API Extractor.
+  This gives consumers clean, single-file type definitions.
+- **API Model**: When `apiModel` is enabled with multiple entries, per-entry
+  models are merged into a single `.api.json` with multiple `EntryPoint` members.
+
+**Entry resolution in bundleless mode:**
+
+In bundleless mode, rslib-builder uses `ImportGraph` to trace all files
+reachable from your package.json exports. Each traced file becomes an
+individual entry for RSlib, preserving the directory structure.
+
+```text
+src/                          dist/npm/
+├── index.ts          -->     ├── index.js
+├── utils/                    ├── index.d.ts
+│   ├── helpers.ts    -->     ├── utils/
+│   └── format.ts    -->     │   ├── helpers.js
+└── core/                     │   └── format.js
+    └── engine.ts    -->     └── core/
+                                  └── engine.js
+```
+
+**When to use bundleless mode:**
+
+- Libraries where consumers benefit from importing specific subpaths
+- Packages with many internal modules where tree-shaking is important
+- Projects that want to preserve source file organization in the output
 
 ## Define Constants
 

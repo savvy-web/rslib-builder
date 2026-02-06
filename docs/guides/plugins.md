@@ -335,6 +335,8 @@ Plugins execute in a specific order across Rsbuild's processing stages:
 2. processAssets: pre-process
    ├── PackageJsonTransformPlugin → Load files
    └── DtsPlugin                  → Generate .d.ts (skips virtual entries)
+                                    In bundleless mode: traces import graph,
+                                    bundles DTS per entry (hybrid approach)
 
 3. processAssets: optimize
    └── PackageJsonTransformPlugin → Transform package.json

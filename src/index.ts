@@ -75,7 +75,7 @@ export type { TsDocLintPluginOptions } from "./rslib/plugins/tsdoc-lint-plugin.j
 export { TsDocLintPlugin } from "./rslib/plugins/tsdoc-lint-plugin.js";
 // Utilities - Entry Extraction
 export type { EntryExtractorOptions, ExtractedEntries } from "./rslib/plugins/utils/entry-extractor.js";
-export { EntryExtractor, extractEntriesFromPackageJson } from "./rslib/plugins/utils/entry-extractor.js";
+export { EntryExtractor } from "./rslib/plugins/utils/entry-extractor.js";
 // Utilities - Import Graph Analysis
 export type {
 	ImportGraphError,

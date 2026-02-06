@@ -35,7 +35,7 @@ rslib-builder is organized into four conceptual layers:
                            ▼
 ┌─────────────────────────────────────────────────────────┐
 │              Plugin Orchestration Layer                 │
-│   - 4 specialized plugins                               │
+│   - 6 specialized plugins                               │
 │   - Sequential execution across build stages            │
 │   - Shared state via api.expose/api.useExposed          │
 └─────────────────────────────────────────────────────────┘
@@ -385,6 +385,21 @@ dist/npm/
 - **pnpmfile.cjs** - pnpm configuration hooks (must be CommonJS)
 - **CLI scripts** - Bundled executables not in package.json exports
 - **Config files** - Framework configuration files with specific requirements
+
+## Bundle Modes
+
+rslib-builder supports two JavaScript output modes:
+
+| Mode | JS Output | DTS Output | Config |
+| :--- | :-------- | :--------- | :----- |
+| Bundled (default) | Single file per entry | Bundled per entry | `bundle: true` |
+| Bundleless | Preserves file structure | Still bundled per entry | `bundle: false` |
+
+In bundleless mode, rslib-builder uses a hybrid approach: JavaScript files
+preserve the source directory structure while TypeScript declarations remain
+bundled per entry point via API Extractor. The builder uses `ImportGraph`
+to trace all files reachable from package.json exports and creates individual
+RSlib entries for each traced file.
 
 ## Build Targets
 

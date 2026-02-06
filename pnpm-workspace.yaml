@@ -1,14 +1,15 @@
 packages:
   - .
   - test/fixtures/*
+configDependencies:
+  "@savvy-web/pnpm-plugin-silk": 0.3.0+sha512-jOHtsax1haxeFFfpKUaEV2U0qY4cwNmGLNls4h2K4oRMP+9FHyuVd6e0v1Dcx1olKOK8C89rgOYSsWs0PwVhWA==
 loglevel: info
 onlyBuiltDependencies:
   - "@parcel/watcher"
+  - "@savvy-web/lint-staged"
   - core-js
   - esbuild
   - msgpackr-extract
-overrides:
-  lodash: ^=4.17.23
 preferFrozenLockfile: true
 publicHoistPattern:
   - "@commitlint/cli"

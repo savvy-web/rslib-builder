@@ -344,6 +344,36 @@ virtualEntries: {
 Without explicit format, virtual entries inherit the top-level `format` option
 (default: `'esm'`).
 
+## Bundleless Mode Issues
+
+### Unexpected file structure in output
+
+**Symptom:** Output directory structure does not match source.
+
+**Common causes:**
+
+1. **Source files not reachable from exports**
+
+   In bundleless mode, rslib-builder uses `ImportGraph` to trace all files
+   from your package.json exports. Files not reachable through imports from
+   your entry points will not appear in the output.
+
+   **Solution:** Ensure all files you want in the output are imported
+   (directly or transitively) from an exported entry point.
+
+2. **`outBase` misconfiguration**
+
+   Bundleless mode sets `outBase` to `src` to preserve the source directory
+   structure. If your source files are not under `src/`, the output structure
+   may differ from expectations.
+
+### DTS still bundled in bundleless mode
+
+**Expected behavior:** This is by design. In bundleless mode, rslib-builder
+uses a hybrid approach where JavaScript preserves the file structure while
+TypeScript declarations are still bundled per entry point via API Extractor.
+This provides clean public API type definitions for consumers.
+
 ## Plugin Issues
 
 ### Custom plugin not running

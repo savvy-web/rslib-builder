@@ -21,6 +21,13 @@ export interface ExtractedEntries {
 	 * Entry name to TypeScript source path mapping.
 	 */
 	entries: Record<string, string>;
+
+	/**
+	 * Entry name to original export key mapping.
+	 * Maps entry names back to the original package.json export path
+	 * (e.g., `"nested-one"` → `"./nested/one"`).
+	 */
+	exportPaths: Record<string, string>;
 }
 
 /**
@@ -83,22 +90,28 @@ export class EntryExtractor {
 	 */
 	extract(packageJson: PackageJson): ExtractedEntries {
 		const entries: Record<string, string> = {};
+		const exportPaths: Record<string, string> = {};
 
-		this.extractFromExports(packageJson.exports, entries);
+		this.extractFromExports(packageJson.exports, entries, exportPaths);
 		this.extractFromBin(packageJson.bin, entries);
 
-		return { entries };
+		return { entries, exportPaths };
 	}
 
 	/**
 	 * Extracts entries from the exports field.
 	 */
-	private extractFromExports(exports: PackageJson["exports"], entries: Record<string, string>): void {
+	private extractFromExports(
+		exports: PackageJson["exports"],
+		entries: Record<string, string>,
+		exportPaths: Record<string, string>,
+	): void {
 		if (!exports) return;
 
 		if (typeof exports === "string") {
 			if (this.isTypeScriptFile(exports)) {
 				entries.index = exports;
+				exportPaths.index = ".";
 			}
 			return;
 		}
@@ -119,6 +132,7 @@ export class EntryExtractor {
 
 			const entryName = this.createEntryName(key);
 			entries[entryName] = resolvedPath;
+			exportPaths[entryName] = key;
 		}
 	}
 
@@ -198,26 +212,4 @@ export class EntryExtractor {
 
 		return withoutPrefix.replace(/\//g, "-");
 	}
-}
-
-/**
- * Extracts TypeScript entry points from package.json (functional interface).
- *
- * @remarks
- * This is a convenience function that creates an EntryExtractor instance
- * and extracts entries in one call. For repeated use, consider creating
- * an EntryExtractor instance directly.
- *
- * @param packageJson - The package.json object to extract entries from
- * @param options - Configuration options for entry extraction
- * @returns Object containing the extracted entries
- *
- * @public
- */
-export function extractEntriesFromPackageJson(
-	packageJson: PackageJson,
-	options?: EntryExtractorOptions,
-): ExtractedEntries {
-	const extractor = new EntryExtractor(options);
-	return extractor.extract(packageJson);
 }

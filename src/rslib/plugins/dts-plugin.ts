@@ -458,7 +458,7 @@ export class TsDocConfigBuilder {
 		const tsdocConfig: Record<string, unknown> = {
 			$schema: "https://developer.microsoft.com/json-schemas/tsdoc/v0/tsdoc.schema.json",
 			noStandardTags: !useStandardTags,
-			reportUnsupportedHtmlElements: false,
+			reportUnsupportedHtmlElements: true,
 		};
 
 		// Only include tagDefinitions if there are any (custom tags or subset of groups)
@@ -586,10 +586,9 @@ export class TsDocConfigBuilder {
  * API model generation is enabled by default. To disable, set `apiModel: false`.
  * Providing an options object implicitly enables API model generation.
  *
- * API models are only generated for the main "index" entry point (the "." export).
- * Additional entry points like "./hooks" or "./utils" do not generate separate API models.
- * This prevents multiple conflicting API models and ensures a single source of truth
- * for package documentation.
+ * When a package has multiple entry points, API Extractor runs for each entry and the
+ * resulting per-entry models are merged into a single API model with multiple
+ * EntryPoint members. Canonical references are scoped per entry point.
  *
  * @public
  */
@@ -859,12 +858,21 @@ export async function collectDtsFiles(
 interface BundleDtsResult {
 	/** Map of entry names to their bundled file paths in temp */
 	bundledFiles: Map<string, string>;
-	/** Path to the generated API model file (if apiModel was enabled) */
-	apiModelPath?: string;
+	/** Map of entry names to their generated API model file paths (if apiModel was enabled) */
+	apiModelPaths: Map<string, string>;
 	/** Path to the generated tsdoc-metadata.json file (if enabled) */
 	tsdocMetadataPath?: string;
 	/** Path to the persisted tsdoc.json file (if persistConfig was enabled) */
 	tsdocConfigPath?: string;
+}
+
+/**
+ * Resolves the tsdoc-metadata.json filename from API model options.
+ * @internal
+ */
+function resolveTsdocMetadataFilename(apiModel: ApiModelOptions | boolean | undefined): string {
+	const option = typeof apiModel === "object" ? apiModel.tsdocMetadata : undefined;
+	return typeof option === "object" && option.filename ? option.filename : "tsdoc-metadata.json";
 }
 
 /**
@@ -889,13 +897,11 @@ async function bundleDtsFiles(options: {
 		options;
 
 	const bundledFiles = new Map<string, string>();
-	let apiModelPath: string | undefined;
+	const apiModelPaths = new Map<string, string>();
 	let tsdocMetadataPath: string | undefined;
 
 	// apiModel is enabled when it's true or an object (any object implicitly enables)
 	const apiModelEnabled = apiModel === true || typeof apiModel === "object";
-	// Temp filename for internal use - final output filename is determined at emission time
-	const apiModelFilename = typeof apiModel === "object" && apiModel.filename ? apiModel.filename : "api.json";
 
 	// TSDoc options from apiModel
 	const tsdocOptions = typeof apiModel === "object" ? apiModel.tsdoc : undefined;
@@ -913,10 +919,7 @@ async function bundleDtsFiles(options: {
 		(tsdocMetadataOption === undefined ||
 			tsdocMetadataOption === true ||
 			(typeof tsdocMetadataOption === "object" && tsdocMetadataOption.enabled !== false));
-	const tsdocMetadataFilename =
-		typeof tsdocMetadataOption === "object" && tsdocMetadataOption.filename
-			? tsdocMetadataOption.filename
-			: "tsdoc-metadata.json";
+	const tsdocMetadataFilename = resolveTsdocMetadataFilename(apiModel);
 
 	// Validate that API Extractor is installed before attempting import
 	getApiExtractorPath();
@@ -979,12 +982,13 @@ async function bundleDtsFiles(options: {
 		const outputFileName = `${entryName}.d.ts`;
 		const tempBundledPath = join(tempOutputDir, outputFileName);
 
-		// Only generate API model for the main "index" entry
-		const generateApiModel = apiModelEnabled && entryName === "index";
-		const tempApiModelPath = generateApiModel ? join(tempOutputDir, apiModelFilename) : undefined;
+		// Generate API model for ALL entries when apiModel is enabled
+		const isMainEntry = entryName === "index" || entryPoints.size === 1;
+		const generateApiModel = apiModelEnabled;
+		const tempApiModelPath = generateApiModel ? join(tempOutputDir, `${entryName}.api.json`) : undefined;
 
-		// Only generate tsdocMetadata for the main "index" entry (alongside API model)
-		const generateTsdocMetadata = tsdocMetadataEnabled && entryName === "index";
+		// Generate tsdocMetadata only for the main entry
+		const generateTsdocMetadata = tsdocMetadataEnabled && isMainEntry;
 		const tempTsdocMetadataPath = generateTsdocMetadata ? join(tempOutputDir, tsdocMetadataFilename) : undefined;
 
 		// Create API Extractor configuration
@@ -1013,7 +1017,7 @@ async function bundleDtsFiles(options: {
 						...(tempTsdocMetadataPath && { tsdocMetadataFilePath: tempTsdocMetadataPath }),
 					},
 				}),
-				bundledPackages: bundledPackages,
+				bundledPackages,
 			},
 			packageJsonFullPath: join(cwd, "package.json"),
 			configObjectFullPath: undefined,
@@ -1142,7 +1146,7 @@ async function bundleDtsFiles(options: {
 
 		// Store the API model path if generated
 		if (generateApiModel && tempApiModelPath) {
-			apiModelPath = tempApiModelPath;
+			apiModelPaths.set(entryName, tempApiModelPath);
 		}
 
 		// Store the tsdoc-metadata.json path if generated
@@ -1164,7 +1168,7 @@ async function bundleDtsFiles(options: {
 
 	return {
 		bundledFiles,
-		...(apiModelPath && { apiModelPath }),
+		apiModelPaths,
 		...(tsdocMetadataPath && { tsdocMetadataPath }),
 		...(tsdocConfigPath && { tsdocConfigPath }),
 	};
@@ -1183,6 +1187,110 @@ async function bundleDtsFiles(options: {
  */
 export function stripSourceMapComment(content: string): string {
 	return content.replace(/\/\/# sourceMappingURL=\S+\.d\.ts\.map\s*$/gm, "").trim();
+}
+
+/**
+ * Merges per-entry API models into a single Package with multiple EntryPoint members.
+ *
+ * @remarks
+ * Each per-entry API model is a Package (root object with `kind: "Package"`)
+ * whose `members` array contains a single EntryPoint. This function extracts
+ * the EntryPoints, rewrites canonical references for sub-entries, and combines
+ * them into a single Package with all EntryPoints.
+ *
+ * @param options - Merge options
+ * @returns Merged API model with multiple EntryPoint members
+ *
+ * @internal
+ */
+export function mergeApiModels(options: {
+	perEntryModels: Map<string, Record<string, unknown>>;
+	packageName: string;
+	exportPaths: Record<string, string>;
+}): Record<string, unknown> {
+	const { perEntryModels, packageName, exportPaths } = options;
+
+	if (perEntryModels.size === 0) {
+		throw new Error("Cannot merge zero API models");
+	}
+
+	// Use metadata from the first model (all identical — same package, same config)
+	const firstModel = perEntryModels.values().next().value as Record<string, unknown>;
+
+	// Deep clone the first model to use as the base
+	// The root object IS the Package (kind: "Package", members: [EntryPoint])
+	const merged = JSON.parse(JSON.stringify(firstModel)) as Record<string, unknown>;
+
+	// Collect all EntryPoint members from each per-entry model
+	const entryPointMembers: unknown[] = [];
+
+	for (const [entryName, model] of perEntryModels) {
+		// The root is the Package; its members are EntryPoints
+		const entryPoints = model.members as unknown[];
+		if (!entryPoints || entryPoints.length === 0) continue;
+
+		// Each per-entry model has one EntryPoint in Package.members
+		const entryPoint = JSON.parse(JSON.stringify(entryPoints[0])) as Record<string, unknown>;
+
+		// Determine the export path for this entry
+		const exportPath = exportPaths[entryName] ?? (entryName === "index" ? "." : `./${entryName}`);
+		const isMainEntry = exportPath === ".";
+
+		if (isMainEntry) {
+			// Main entry: keep canonical reference as @scope/package!, name ""
+			entryPointMembers.unshift(entryPoint);
+		} else {
+			// Sub-entry: rewrite canonical reference to @scope/package/subpath!
+			const subpath = exportPath.replace(/^\.\//, "");
+			const originalPrefix = `${packageName}!`;
+			const newPrefix = `${packageName}/${subpath}!`;
+
+			entryPoint.canonicalReference = newPrefix;
+			entryPoint.name = subpath;
+
+			// Rewrite all canonical references within the entry point's member tree
+			rewriteCanonicalReferences(entryPoint, originalPrefix, newPrefix);
+
+			entryPointMembers.push(entryPoint);
+		}
+	}
+
+	// Replace the Package's members with all EntryPoints
+	merged.members = entryPointMembers;
+
+	return merged;
+}
+
+/**
+ * Recursively rewrites canonical reference strings within an API model member tree.
+ * @internal
+ */
+function rewriteCanonicalReferences(node: unknown, originalPrefix: string, newPrefix: string): void {
+	if (!node || typeof node !== "object") return;
+
+	if (Array.isArray(node)) {
+		for (const item of node) {
+			rewriteCanonicalReferences(item, originalPrefix, newPrefix);
+		}
+		return;
+	}
+
+	const obj = node as Record<string, unknown>;
+
+	// Rewrite canonicalReference on members (but not on the EntryPoint itself — already handled)
+	if (typeof obj.canonicalReference === "string" && obj.kind !== "EntryPoint") {
+		const ref = obj.canonicalReference as string;
+		if (ref.startsWith(originalPrefix)) {
+			obj.canonicalReference = ref.replace(originalPrefix, newPrefix);
+		}
+	}
+
+	// Recurse into members array
+	if (Array.isArray(obj.members)) {
+		for (const member of obj.members) {
+			rewriteCanonicalReferences(member, originalPrefix, newPrefix);
+		}
+	}
 }
 
 /**
@@ -1523,8 +1631,60 @@ export const DtsPlugin = (options: DtsPluginOptions = {}): RsbuildPlugin => {
 							return;
 						}
 
-						// Check if we should bundle declarations with API Extractor
-						if (options.bundle) {
+						// Emit individual .d.ts files when not bundling
+						if (!options.bundle) {
+							let emittedCount = 0;
+							for (const file of dtsFiles) {
+								// Skip .d.ts.map files - keep them only in temp directory for API Extractor
+								if (file.relativePath.endsWith(".d.ts.map")) {
+									continue;
+								}
+
+								// Determine output path relative to dist
+								// Strip 'src/' prefix if present since tsgo preserves source directory structure
+								let outputPath = file.relativePath;
+								if (outputPath.startsWith("src/")) {
+									outputPath = outputPath.slice(4); // Remove 'src/'
+								}
+
+								// Apply custom extension if specified and different from default
+								if (dtsExtension !== ".d.ts" && outputPath.endsWith(".d.ts")) {
+									outputPath = outputPath.replace(/\.d\.ts$/, dtsExtension);
+								}
+
+								// Only emit .d.ts for files that have a corresponding .js in the compilation
+								// tsgo generates declarations for all files in tsconfig scope, but we only
+								// want declarations for files that are in the JS compilation (import graph)
+								const jsOutputPath = outputPath.replace(/\.d\.(ts|mts|cts)$/, ".js");
+								if (!context.compilation.assets[jsOutputPath]) {
+									continue;
+								}
+
+								let content = await readFile(file.path, "utf-8");
+
+								// Strip sourceMappingURL comment before emitting to dist
+								content = stripSourceMapComment(content);
+
+								// Create source and emit asset
+								const source = new context.sources.OriginalSource(content, outputPath);
+								context.compilation.emitAsset(outputPath, source);
+								emittedCount++;
+
+								// Add .d.ts files to files array
+								if (filesArray && outputPath.endsWith(".d.ts")) {
+									filesArray.add(outputPath);
+								}
+							}
+
+							logger.info(
+								`${color.dim(`[${envId}]`)} Emitted ${emittedCount} declaration file${emittedCount === 1 ? "" : "s"} through asset pipeline`,
+							);
+						}
+
+						// Bundle declarations and/or generate API model
+						// Runs when: bundle mode (rollup per entry) or API model enabled (multi-entry merge)
+						const apiModelEnabled = options.apiModel === true || typeof options.apiModel === "object";
+						if (options.bundle || apiModelEnabled) {
 							try {
 								// Read package.json to discover entry points
 								// First check if api-report-plugin exposed a modified version
@@ -1541,9 +1701,8 @@ export const DtsPlugin = (options: DtsPluginOptions = {}): RsbuildPlugin => {
 									packageJson = exposedPackageJson;
 								}
 
-								// Extract ALL TypeScript exports using EntryExtractor (skip bin entries)
-								const extractor = new EntryExtractor();
-								const { entries } = extractor.extract(packageJson);
+								// Extract ALL TypeScript exports (skip bin entries)
+								const { entries, exportPaths } = new EntryExtractor().extract(packageJson);
 								const entryPoints = new Map<string, string>();
 
 								// Get virtual entry names to skip type generation for them
@@ -1596,7 +1755,7 @@ export const DtsPlugin = (options: DtsPluginOptions = {}): RsbuildPlugin => {
 									await mkdir(tempBundledDir, { recursive: true });
 
 									// Bundle declarations using API Extractor (writes to temp directory)
-									const { bundledFiles, apiModelPath, tsdocMetadataPath, tsdocConfigPath } = await bundleDtsFiles({
+									const { bundledFiles, apiModelPaths, tsdocMetadataPath, tsdocConfigPath } = await bundleDtsFiles({
 										cwd,
 										tempDtsDir,
 										tempOutputDir: tempBundledDir,
@@ -1608,29 +1767,54 @@ export const DtsPlugin = (options: DtsPluginOptions = {}): RsbuildPlugin => {
 										...(options.apiModel !== undefined && { apiModel: options.apiModel }),
 									});
 
-									// Emit bundled .d.ts files from temp directory through asset pipeline
-									let emittedCount = 0;
-									for (const [entryName, tempBundledPath] of bundledFiles) {
-										// Determine final output file name
-										// Always use flat structure: index.d.ts, hooks.d.ts, foo/bar.d.ts
-										const bundledFileName = `${entryName}.d.ts`;
-
-										// Read from temp and strip sourceMappingURL comment before emitting
-										let content = await readFile(tempBundledPath, "utf-8");
-										content = stripSourceMapComment(content);
-										const source = new context.sources.OriginalSource(content, bundledFileName);
-										context.compilation.emitAsset(bundledFileName, source);
-										emittedCount++;
-
-										// Add .d.ts file to files array (but not .d.ts.map files)
-										if (filesArray) {
-											filesArray.add(bundledFileName);
+									// Merge per-entry API models if multiple entries generated models
+									let apiModelPath: string | undefined;
+									if (apiModelPaths.size === 1) {
+										// Single entry — use as-is
+										apiModelPath = apiModelPaths.values().next().value as string;
+									} else if (apiModelPaths.size > 1 && packageJson.name) {
+										// Multiple entries — merge into one Package with multiple EntryPoints
+										logger.info(`${color.dim(`[${envId}]`)} Merging API models from ${apiModelPaths.size} entries...`);
+										const perEntryModels = new Map<string, Record<string, unknown>>();
+										for (const [entryName, modelPath] of apiModelPaths) {
+											const content = await readFile(modelPath, "utf-8");
+											perEntryModels.set(entryName, JSON.parse(content));
 										}
+										const mergedModel = mergeApiModels({
+											perEntryModels,
+											packageName: packageJson.name,
+											exportPaths,
+										});
+										const mergedPath = join(tempBundledDir, "merged.api.json");
+										await writeFile(mergedPath, JSON.stringify(mergedModel, null, 2), "utf-8");
+										apiModelPath = mergedPath;
 									}
 
-									logger.info(
-										`${color.dim(`[${envId}]`)} Emitted ${emittedCount} bundled declaration file${emittedCount === 1 ? "" : "s"} through asset pipeline`,
-									);
+									// Emit bundled .d.ts files only in bundle mode (not in virtual-barrel-only mode)
+									if (options.bundle) {
+										let emittedCount = 0;
+										for (const [entryName, tempBundledPath] of bundledFiles) {
+											// Determine final output file name
+											// Always use flat structure: index.d.ts, hooks.d.ts, foo/bar.d.ts
+											const bundledFileName = `${entryName}.d.ts`;
+
+											// Read from temp and strip sourceMappingURL comment before emitting
+											let content = await readFile(tempBundledPath, "utf-8");
+											content = stripSourceMapComment(content);
+											const source = new context.sources.OriginalSource(content, bundledFileName);
+											context.compilation.emitAsset(bundledFileName, source);
+											emittedCount++;
+
+											// Add .d.ts file to files array (but not .d.ts.map files)
+											if (filesArray) {
+												filesArray.add(bundledFileName);
+											}
+										}
+
+										logger.info(
+											`${color.dim(`[${envId}]`)} Emitted ${emittedCount} bundled declaration file${emittedCount === 1 ? "" : "s"} through asset pipeline`,
+										);
+									}
 
 									// Emit API model file if generated
 									if (apiModelPath) {
@@ -1659,15 +1843,9 @@ export const DtsPlugin = (options: DtsPluginOptions = {}): RsbuildPlugin => {
 										// Expose data needed for localPaths copying in onCloseBuild
 										// (files are read from dist after build completes, ensuring transformed package.json)
 										const localPaths = typeof options.apiModel === "object" ? options.apiModel.localPaths : undefined;
-										const isCI = process.env.GITHUB_ACTIONS === "true" || process.env.CI === "true";
 
-										if (localPaths && localPaths.length > 0 && !isCI) {
-											const tsdocMetadataOption =
-												typeof options.apiModel === "object" ? options.apiModel.tsdocMetadata : undefined;
-											const localTsdocFilename =
-												typeof tsdocMetadataOption === "object" && tsdocMetadataOption.filename
-													? tsdocMetadataOption.filename
-													: "tsdoc-metadata.json";
+										if (localPaths && localPaths.length > 0 && !TsDocConfigBuilder.isCI()) {
+											const localTsdocFilename = resolveTsdocMetadataFilename(options.apiModel);
 
 											api.expose("dts-local-paths-data", {
 												localPaths,
@@ -1683,12 +1861,7 @@ export const DtsPlugin = (options: DtsPluginOptions = {}): RsbuildPlugin => {
 
 									// Emit tsdoc-metadata.json file if generated
 									if (tsdocMetadataPath) {
-										const tsdocMetadataOption =
-											typeof options.apiModel === "object" ? options.apiModel.tsdocMetadata : undefined;
-										const tsdocMetadataFilename =
-											typeof tsdocMetadataOption === "object" && tsdocMetadataOption.filename
-												? tsdocMetadataOption.filename
-												: "tsdoc-metadata.json";
+										const tsdocMetadataFilename = resolveTsdocMetadataFilename(options.apiModel);
 										const tsdocMetadataContent = (await readFile(tsdocMetadataPath, "utf-8")).replaceAll("\r\n", "\n");
 										const tsdocMetadataSource = new context.sources.OriginalSource(
 											tsdocMetadataContent,
@@ -1740,31 +1913,31 @@ export const DtsPlugin = (options: DtsPluginOptions = {}): RsbuildPlugin => {
 
 									// Remove .d.ts.map files that Rspack auto-generates for our emitted .d.ts assets
 									// We keep .d.ts.map files in the declarations directory for API Extractor, but dont want them in dist
-									for (const [entryName] of bundledFiles) {
-										const bundledFileName = `${entryName}.d.ts`;
-										const mapFileName = `${bundledFileName}.map`;
+									if (options.bundle) {
+										for (const [entryName] of bundledFiles) {
+											const bundledFileName = `${entryName}.d.ts`;
+											const mapFileName = `${bundledFileName}.map`;
 
-										// Remove .d.ts.map files that Rspack auto-generates for our emitted .d.ts assets
-										// We keep .d.ts.map files in the declarations directory for API Extractor, but dont want them in dist
-										for (const file of dtsFiles) {
-											if (file.relativePath.endsWith(".d.ts.map")) {
-												continue;
+											for (const file of dtsFiles) {
+												if (file.relativePath.endsWith(".d.ts.map")) {
+													continue;
+												}
+												let outputPath = file.relativePath;
+												if (outputPath.startsWith("src/")) {
+													outputPath = outputPath.slice(4);
+												}
+												if (dtsExtension !== ".d.ts" && outputPath.endsWith(".d.ts")) {
+													outputPath = outputPath.replace(/\.d\.ts$/, dtsExtension);
+												}
+												const mapFileName = `${outputPath}.map`;
+												if (context.compilation.assets[mapFileName]) {
+													delete context.compilation.assets[mapFileName];
+												}
 											}
-											let outputPath = file.relativePath;
-											if (outputPath.startsWith("src/")) {
-												outputPath = outputPath.slice(4);
-											}
-											if (dtsExtension !== ".d.ts" && outputPath.endsWith(".d.ts")) {
-												outputPath = outputPath.replace(/\.d\.ts$/, dtsExtension);
-											}
-											const mapFileName = `${outputPath}.map`;
+
 											if (context.compilation.assets[mapFileName]) {
 												delete context.compilation.assets[mapFileName];
 											}
-										}
-
-										if (context.compilation.assets[mapFileName]) {
-											delete context.compilation.assets[mapFileName];
 										}
 									}
 								}
@@ -1774,46 +1947,6 @@ export const DtsPlugin = (options: DtsPluginOptions = {}): RsbuildPlugin => {
 									throw error;
 								}
 							}
-						} else {
-							// Emit each file individually through the asset pipeline
-							let emittedCount = 0;
-							for (const file of dtsFiles) {
-								// Skip .d.ts.map files - keep them only in temp directory for API Extractor
-								if (file.relativePath.endsWith(".d.ts.map")) {
-									continue;
-								}
-
-								let content = await readFile(file.path, "utf-8");
-
-								// Determine output path relative to dist
-								// Strip 'src/' prefix if present since tsgo preserves source directory structure
-								let outputPath = file.relativePath;
-								if (outputPath.startsWith("src/")) {
-									outputPath = outputPath.slice(4); // Remove 'src/'
-								}
-
-								// Apply custom extension if specified and different from default
-								if (dtsExtension !== ".d.ts" && outputPath.endsWith(".d.ts")) {
-									outputPath = outputPath.replace(/\.d\.ts$/, dtsExtension);
-								}
-
-								// Strip sourceMappingURL comment before emitting to dist
-								content = stripSourceMapComment(content);
-
-								// Create source and emit asset
-								const source = new context.sources.OriginalSource(content, outputPath);
-								context.compilation.emitAsset(outputPath, source);
-								emittedCount++;
-
-								// Add .d.ts files to files array
-								if (filesArray && outputPath.endsWith(".d.ts")) {
-									filesArray.add(outputPath);
-								}
-							}
-
-							logger.info(
-								`${color.dim(`[${envId}]`)} Emitted ${emittedCount} declaration file${emittedCount === 1 ? "" : "s"} through asset pipeline`,
-							);
 						}
 					} catch (error) {
 						log.global.error("Failed to generate declaration files:", error);

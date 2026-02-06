@@ -173,7 +173,7 @@ Key transformations:
 Now that you have a basic build working:
 
 - [Configuration Guide](./configuration.md) - Explore all options including
-  format selection and virtual entries
+  format selection, virtual entries, and bundleless mode
 - [Plugin System](./plugins.md) - Understand built-in plugins
 - [Architecture Overview](../architecture/overview.md) - Learn how it works
 - [Troubleshooting](../troubleshooting.md) - Solve common issues
