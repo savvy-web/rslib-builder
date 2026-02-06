@@ -11,6 +11,7 @@ import {
 	generateTsgoArgs,
 	getTsgoBinPath,
 	getUnscopedPackageName,
+	mergeApiModels,
 	stripSourceMapComment,
 } from "./dts-plugin.js";
 
@@ -761,7 +762,7 @@ export declare const bar: number;`);
 			const config = TsDocConfigBuilder.buildConfigObject();
 			expect(config.$schema).toBe("https://developer.microsoft.com/json-schemas/tsdoc/v0/tsdoc.schema.json");
 			expect(config.noStandardTags).toBe(false);
-			expect(config.reportUnsupportedHtmlElements).toBe(false);
+			expect(config.reportUnsupportedHtmlElements).toBe(true);
 		});
 
 		it("should include tagDefinitions for custom tags", () => {
@@ -824,6 +825,193 @@ export declare const bar: number;`);
 			const expectedConfig = TsDocConfigBuilder.buildConfigObject({});
 			await writeFile(configPath, JSON.stringify(expectedConfig));
 			await expect(TsDocConfigBuilder.validateConfigFile({}, configPath)).resolves.toBeUndefined();
+		});
+	});
+
+	describe("mergeApiModels", () => {
+		/**
+		 * Creates a mock API model matching API Extractor's actual output structure.
+		 * The root object is the Package (kind: "Package"), whose `members` array
+		 * contains a single EntryPoint (kind: "EntryPoint").
+		 */
+		function makeApiModel(options: {
+			packageName: string;
+			entryName: string;
+			members?: unknown[];
+		}): Record<string, unknown> {
+			return {
+				metadata: { toolPackage: "@microsoft/api-extractor", toolVersion: "7.50.0" },
+				kind: "Package",
+				canonicalReference: `${options.packageName}!`,
+				name: options.packageName,
+				preserveMemberOrder: false,
+				members: [
+					{
+						kind: "EntryPoint",
+						canonicalReference: `${options.packageName}!`,
+						name: "",
+						members: options.members ?? [
+							{
+								kind: "Function",
+								canonicalReference: `${options.packageName}!myFunc:function(1)`,
+								docComment: "/** A function */\n",
+								excerptTokens: [],
+								name: "myFunc",
+							},
+						],
+					},
+				],
+			};
+		}
+
+		it("should pass through single entry model unchanged", () => {
+			const model = makeApiModel({ packageName: "@scope/pkg", entryName: "index" });
+			const perEntryModels = new Map([["index", model]]);
+
+			const result = mergeApiModels({
+				perEntryModels,
+				packageName: "@scope/pkg",
+				exportPaths: { index: "." },
+			});
+
+			// Root is the Package; members are EntryPoints
+			expect(result.kind).toBe("Package");
+			const entryPoints = result.members as Record<string, unknown>[];
+			expect(entryPoints).toHaveLength(1);
+
+			expect(entryPoints[0].kind).toBe("EntryPoint");
+			expect(entryPoints[0].canonicalReference).toBe("@scope/pkg!");
+			expect(entryPoints[0].name).toBe("");
+		});
+
+		it("should merge multiple entries with correct canonical references", () => {
+			const mainModel = makeApiModel({ packageName: "@scope/pkg", entryName: "index" });
+			const utilsModel = makeApiModel({ packageName: "@scope/pkg", entryName: "utils" });
+
+			const perEntryModels = new Map([
+				["index", mainModel],
+				["utils", utilsModel],
+			]);
+
+			const result = mergeApiModels({
+				perEntryModels,
+				packageName: "@scope/pkg",
+				exportPaths: { index: ".", utils: "./utils" },
+			});
+
+			expect(result.kind).toBe("Package");
+			const entryPoints = result.members as Record<string, unknown>[];
+			expect(entryPoints).toHaveLength(2);
+
+			// Main entry first
+			expect(entryPoints[0].kind).toBe("EntryPoint");
+			expect(entryPoints[0].canonicalReference).toBe("@scope/pkg!");
+			expect(entryPoints[0].name).toBe("");
+
+			// Sub-entry second
+			expect(entryPoints[1].kind).toBe("EntryPoint");
+			expect(entryPoints[1].canonicalReference).toBe("@scope/pkg/utils!");
+			expect(entryPoints[1].name).toBe("utils");
+		});
+
+		it("should rewrite deep member canonical references for sub-entries", () => {
+			const utilsModel = makeApiModel({
+				packageName: "@scope/pkg",
+				entryName: "utils",
+				members: [
+					{
+						kind: "Function",
+						canonicalReference: "@scope/pkg!helperFn:function(1)",
+						name: "helperFn",
+					},
+					{
+						kind: "Interface",
+						canonicalReference: "@scope/pkg!MyInterface:interface",
+						name: "MyInterface",
+						members: [
+							{
+								kind: "PropertySignature",
+								canonicalReference: "@scope/pkg!MyInterface#prop:member",
+								name: "prop",
+							},
+						],
+					},
+				],
+			});
+
+			const perEntryModels = new Map([["utils", utilsModel]]);
+
+			const result = mergeApiModels({
+				perEntryModels,
+				packageName: "@scope/pkg",
+				exportPaths: { utils: "./utils" },
+			});
+
+			const entryPoints = result.members as Record<string, unknown>[];
+			expect(entryPoints).toHaveLength(1);
+
+			const ep = entryPoints[0];
+			expect(ep.canonicalReference).toBe("@scope/pkg/utils!");
+			expect(ep.name).toBe("utils");
+
+			// Check deep member canonical references are rewritten
+			const epMembers = ep.members as Record<string, unknown>[];
+			expect(epMembers[0].canonicalReference).toBe("@scope/pkg/utils!helperFn:function(1)");
+			expect(epMembers[1].canonicalReference).toBe("@scope/pkg/utils!MyInterface:interface");
+
+			// Check nested members
+			const interfaceMembers = (epMembers[1] as Record<string, unknown>).members as Record<string, unknown>[];
+			expect(interfaceMembers[0].canonicalReference).toBe("@scope/pkg/utils!MyInterface#prop:member");
+		});
+
+		it("should handle nested export paths", () => {
+			const nestedModel = makeApiModel({ packageName: "@scope/pkg", entryName: "nested-one" });
+
+			const perEntryModels = new Map([["nested-one", nestedModel]]);
+
+			const result = mergeApiModels({
+				perEntryModels,
+				packageName: "@scope/pkg",
+				exportPaths: { "nested-one": "./nested/one" },
+			});
+
+			const entryPoints = result.members as Record<string, unknown>[];
+			expect(entryPoints[0].canonicalReference).toBe("@scope/pkg/nested/one!");
+			expect(entryPoints[0].name).toBe("nested/one");
+		});
+
+		it("should throw when given zero models", () => {
+			expect(() =>
+				mergeApiModels({
+					perEntryModels: new Map(),
+					packageName: "@scope/pkg",
+					exportPaths: {},
+				}),
+			).toThrow("Cannot merge zero API models");
+		});
+
+		it("should keep main entry first when entries are in different order", () => {
+			const utilsModel = makeApiModel({ packageName: "@scope/pkg", entryName: "utils" });
+			const mainModel = makeApiModel({ packageName: "@scope/pkg", entryName: "index" });
+
+			// utils before index in iteration order
+			const perEntryModels = new Map([
+				["utils", utilsModel],
+				["index", mainModel],
+			]);
+
+			const result = mergeApiModels({
+				perEntryModels,
+				packageName: "@scope/pkg",
+				exportPaths: { index: ".", utils: "./utils" },
+			});
+
+			const entryPoints = result.members as Record<string, unknown>[];
+
+			// Main entry should be first regardless of Map insertion order
+			expect(entryPoints[0].canonicalReference).toBe("@scope/pkg!");
+			expect(entryPoints[0].name).toBe("");
+			expect(entryPoints[1].canonicalReference).toBe("@scope/pkg/utils!");
 		});
 	});
 });

@@ -1,17 +1,15 @@
-# @savvy-web/rslib-builder - AI Agent Documentation
-
-This document provides guidance for AI agents working on the
-`@savvy-web/rslib-builder` package.
-
-## Package Overview
+# @savvy-web/rslib-builder
 
 RSlib-based build system for modern ESM Node.js libraries. Provides `NodeLibraryBuilder`
 API and plugin system for TypeScript packages.
+
+## Package Overview
 
 - Bundled ESM builds with rolled-up types
 - Multiple targets (dev and npm) with different optimizations
 - Automatic package.json transformation and pnpm catalog resolution
 - TypeScript declarations via tsgo + API Extractor
+- Multi-entry API model generation with per-entry canonical references
 - Self-building (uses NodeLibraryBuilder for its own build)
 
 ## Design Documentation
@@ -38,6 +36,36 @@ For API model generation and TSDoc configuration:
 - Debugging API Extractor output issues
 - Working with tsdoc.json or forgottenExports configuration
 
+For API model options and multi-entry configuration:
+
+--> `@./.claude/design/rslib-builder/api-model-options.md`
+
+**Load when:**
+
+- Configuring apiModel, tsdocMetadata, or localPaths options
+- Working with multi-entry API model merge behavior
+- Debugging API model output filenames or paths
+
+For virtual entry system:
+
+--> `@./.claude/design/rslib-builder/virtual-entries.md`
+
+**Load when:**
+
+- Working with the VirtualEntryPlugin or bundleless mode
+- Adding virtual entries to a build configuration
+- Debugging entry point resolution for non-TypeScript exports
+
+For testing strategy details:
+
+--> `@./.claude/design/rslib-builder/testing-strategy.md`
+
+**Load when:**
+
+- Writing new tests for plugins or utilities
+- Creating mock types for Rsbuild/Rspack APIs
+- Debugging coverage gaps or test failures
+
 ## Architecture
 
 ### Directory Structure
@@ -52,28 +80,24 @@ rslib-builder/
 │   │   │   └── node-library-builder.test.ts
 │   │   └── plugins/             # RSlib/Rsbuild plugins
 │   │       ├── auto-entry-plugin.ts
-│   │       ├── auto-entry-plugin.test.ts
 │   │       ├── dts-plugin.ts
-│   │       ├── dts-plugin.test.ts
 │   │       ├── files-array-plugin.ts
-│   │       ├── files-array-plugin.test.ts
 │   │       ├── package-json-transform-plugin.ts
-│   │       ├── package-json-transform-plugin.test.ts
 │   │       ├── tsdoc-lint-plugin.ts
-│   │       ├── tsdoc-lint-plugin.test.ts
+│   │       ├── virtual-entry-plugin.ts
 │   │       └── utils/           # Plugin utilities (with co-located tests)
 │   ├── tsconfig/                # TypeScript config templates
 │   ├── public/                  # Static files (tsconfig JSONs)
-│   ├── __test__/                # Shared test utilities
-│   │   └── rslib/
-│   │       ├── types/           # Test type definitions
-│   │       └── utils/           # Test helper functions
+│   ├── __test__/rslib/types/    # Shared test type definitions
 │   └── types/                   # TypeScript type definitions
+├── test/e2e/                    # E2E tests
 ├── rslib.config.ts              # Self-builds using NodeLibraryBuilder
 ├── package.json
 ├── tsconfig.json
 └── vitest.config.ts
 ```
+
+All plugins and utilities have co-located `.test.ts` files.
 
 ### Key Components
 
@@ -104,8 +128,10 @@ Custom RSlib plugins handle complex build scenarios:
 2. **AutoEntryPlugin** - Automatically extracts entry points from package.json exports
 3. **PackageJsonTransformPlugin** - Transforms package.json for different targets
 4. **DtsPlugin** - Generates TypeScript declarations using tsgo and API Extractor
+   - Runs API Extractor per entry, merges into single `.api.json` with multiple EntryPoints
    - When `apiModel` is enabled, also emits resolved `tsconfig.json` for virtual TS environments
 5. **FilesArrayPlugin** - Generates files array, excludes source maps
+6. **VirtualEntryPlugin** - Injects non-TypeScript virtual entries (JSON, static files)
 
 ### Build Targets
 
@@ -135,14 +161,6 @@ This module produces bundled ESM output with rolled-up types:
 - `tsdoc-metadata.json` - TSDoc metadata for downstream tools (published)
 - `tsconfig.json` - Resolved/flattened tsconfig for virtual TS environments (excluded from npm)
 
-The resolved tsconfig.json is configured for virtual environments:
-
-- Sets `composite: false` and `noEmit: true`
-- Excludes path-dependent options (outDir, rootDir, paths, typeRoots)
-- Excludes file selection (include, exclude, files)
-- Removes `types` array to use default @types auto-discovery
-- Includes `$schema` for IDE support
-
 ## Testing
 
 Tests are co-located with source files. Use type-safe mocks:
@@ -160,20 +178,14 @@ const mockAssets: MockAssetRegistry = {
 ### E2E Tests
 
 E2E tests verify builder options by building isolated fixture copies with
-dynamically generated configs. Located in `test/e2e/builder-options/`:
+dynamically generated configs:
 
-- `api-model.test.ts` - API model generation options
-- `build-options.test.ts` - General build options (externals, transform)
-- `tsdoc-lint.test.ts` - TSDoc lint configuration
-
-For testing strategy details:
---> `@./.claude/design/rslib-builder/testing-strategy.md`
-
-**Load when:**
-
-- Writing new tests for plugins or utilities
-- Creating mock types for Rsbuild/Rspack APIs
-- Debugging coverage gaps or test failures
+- `test/e2e/dts-bundling.test.ts` - DTS bundling for single/multi-entry fixtures
+- `test/e2e/builder-options/api-model.test.ts` - API model generation options
+- `test/e2e/builder-options/build-options.test.ts` - General build options (externals, transform)
+- `test/e2e/builder-options/format-option.test.ts` - Output format configuration
+- `test/e2e/builder-options/tsdoc-lint.test.ts` - TSDoc lint configuration
+- `test/e2e/builder-options/virtual-entries.test.ts` - Virtual entry injection
 
 ## Plugin Execution Order
 
@@ -186,15 +198,26 @@ Plugins execute in this order during the build:
 **Build Hooks:**
 
 1. AutoEntryPlugin (entry detection - `modifyRsbuildConfig`)
-2. DtsPlugin (type declarations - `pre-process` stage)
-3. PackageJsonTransformPlugin (package.json processing)
-4. FilesArrayPlugin (files array - `additional` stage)
+2. PackageJsonTransformPlugin (package.json processing)
+3. FilesArrayPlugin (files array - `additional` stage)
+4. DtsPlugin (type declarations - `pre-process` stage)
 5. User plugins (if provided)
+
+VirtualEntryPlugin runs in a separate Rslib environment for non-TypeScript entries.
 
 ## Development
 
-See [CONTRIBUTING.md](./CONTRIBUTING.md) for development workflow, commands,
-and troubleshooting.
+Key commands:
+
+```bash
+pnpm build              # Build all targets
+pnpm test               # Run tests (verbose)
+pnpm lint:fix           # Auto-fix lint issues
+pnpm typecheck          # Type-check all workspaces
+```
+
+See [CONTRIBUTING.md](./CONTRIBUTING.md) for full development workflow and
+troubleshooting.
 
 ## External Documentation
 

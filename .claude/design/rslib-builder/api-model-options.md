@@ -3,8 +3,8 @@ status: current
 module: rslib-builder
 category: reference
 created: 2026-01-20
-updated: 2026-02-03
-last-synced: 2026-02-03
+updated: 2026-02-05
+last-synced: 2026-02-05
 completeness: 95
 related:
   - rslib-builder/architecture.md
@@ -486,12 +486,24 @@ export default NodeLibraryBuilder.create({
 
 ## Behavior Notes
 
-### API Model Generation Scope
+### Multi-Entry API Model Generation
 
-API models are only generated for the main "index" entry point (the "."
-export). Additional entry points like "./hooks" or "./utils" do not generate
-separate API models. This prevents multiple conflicting models and ensures a
-single source of truth.
+When a package has multiple entry points, API Extractor runs for each entry
+and generates a per-entry `.api.json` file in a temp directory. These are
+then merged into a single Package with multiple `EntryPoint` members via
+`mergeApiModels()`.
+
+**Single entry:** The per-entry API model is used as-is (no merge step).
+
+**Multiple entries:** Each per-entry model's `EntryPoint` is extracted,
+canonical references for sub-entries are rewritten to include the export
+subpath (e.g., `@scope/pkg/utils!` instead of `@scope/pkg!`), and all
+`EntryPoint` members are combined into one Package. The main entry (".")
+is always first in the members array.
+
+The `exportPaths` mapping from `EntryExtractor` provides the lossless
+reverse mapping from entry names back to original export keys for correct
+canonical reference scoping.
 
 ### File Distribution
 
@@ -500,6 +512,7 @@ single source of truth.
 | `<package>.api.json` | Yes | No (negated pattern) |
 | `tsdoc-metadata.json` | Yes | Yes (TSDoc spec requirement) |
 | `tsdoc.json` | Yes (if persist) | No (negated pattern) |
+| `tsconfig.json` | Yes (if apiModel) | No (negated pattern) |
 
 ### localPaths Behavior
 
@@ -549,4 +562,4 @@ explicitly defined.
 ---
 
 **Document Status:** Current - Comprehensive reference for ApiModelOptions
-configuration.
+configuration with multi-entry API model generation support.

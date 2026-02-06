@@ -22,6 +22,14 @@ vi.mock("../../src/tsconfig/plugins/utils/logger-utils.js", () => ({
 	}),
 }));
 
+// Mock ImportGraph for bundleless tests
+const mockTraceFromEntries = vi.fn();
+vi.mock("./utils/import-graph.js", () => ({
+	ImportGraph: class MockImportGraph {
+		traceFromEntries = mockTraceFromEntries;
+	},
+}));
+
 const mockReadFile: ReturnType<typeof vi.mocked<typeof readFile>> = vi.mocked(readFile);
 const mockAccess: ReturnType<typeof vi.mocked<typeof access>> = vi.mocked(access);
 const mockStat: ReturnType<typeof vi.mocked<typeof stat>> = vi.mocked(stat);
@@ -419,5 +427,165 @@ describe("AutoEntryPlugin", () => {
 		>;
 		// Map should be empty since exports is an array
 		expect(exportToOutputMap.size).toBe(0);
+	});
+
+	describe("bundleless mode", () => {
+		it("should trace import graph and set entry to traced file list", async () => {
+			const packageJson: PackageJson = {
+				name: "test-package",
+				version: "1.0.0",
+				exports: {
+					".": "./src/index.ts",
+					"./utils": "./src/utils/index.ts",
+				},
+			};
+
+			// Mock package.json to exist
+			mockStat.mockResolvedValue(createMockStats(new Date()));
+			mockAccess.mockResolvedValue(undefined);
+			mockReadFile.mockResolvedValue(JSON.stringify(packageJson));
+
+			// Mock import graph tracing results
+			mockTraceFromEntries.mockReturnValue({
+				files: [
+					"/test/project/src/helpers.ts",
+					"/test/project/src/index.ts",
+					"/test/project/src/utils/index.ts",
+					"/test/project/src/utils/shared.ts",
+				],
+				entries: ["/test/project/src/index.ts", "/test/project/src/utils/index.ts"],
+				errors: [],
+			});
+
+			const plugin = AutoEntryPlugin({ bundleless: true });
+			const mockApi = {
+				modifyRsbuildConfig: vi.fn(),
+				expose: vi.fn(),
+				useExposed: vi.fn().mockReturnValue(undefined),
+				onBeforeBuild: vi.fn(),
+				logger: {
+					debug: vi.fn(),
+				},
+			};
+
+			plugin.setup(mockApi as unknown as Parameters<ReturnType<typeof AutoEntryPlugin>["setup"]>[0]);
+
+			const configModifier = mockApi.modifyRsbuildConfig.mock.calls[0][0];
+			const config = {
+				environments: {
+					development: { source: {} },
+				},
+			};
+
+			await configModifier(config);
+
+			// Verify import graph was called with entry source paths
+			expect(mockTraceFromEntries).toHaveBeenCalledWith(["./src/index.ts", "./src/utils/index.ts"]);
+
+			// Verify source.entry is set to individual named entries (one per traced file)
+			const devEntry = (config.environments.development.source as { entry?: Record<string, string> }).entry;
+			expect(devEntry).toEqual({
+				"src/helpers.ts": "./src/helpers.ts",
+				"src/index.ts": "./src/index.ts",
+				"src/utils/index.ts": "./src/utils/index.ts",
+				"src/utils/shared.ts": "./src/utils/shared.ts",
+			});
+		});
+
+		it("should still expose named entries via entrypoints map in bundleless mode", async () => {
+			const packageJson: PackageJson = {
+				name: "test-package",
+				version: "1.0.0",
+				exports: {
+					".": "./src/index.ts",
+					"./utils": "./src/utils/index.ts",
+				},
+			};
+
+			mockStat.mockResolvedValue(createMockStats(new Date()));
+			mockAccess.mockResolvedValue(undefined);
+			mockReadFile.mockResolvedValue(JSON.stringify(packageJson));
+
+			mockTraceFromEntries.mockReturnValue({
+				files: ["/test/project/src/index.ts", "/test/project/src/utils/index.ts"],
+				entries: ["/test/project/src/index.ts", "/test/project/src/utils/index.ts"],
+				errors: [],
+			});
+
+			const plugin = AutoEntryPlugin({ bundleless: true });
+			const mockApi = {
+				modifyRsbuildConfig: vi.fn(),
+				expose: vi.fn(),
+				useExposed: vi.fn().mockReturnValue(undefined),
+				onBeforeBuild: vi.fn(),
+				logger: {
+					debug: vi.fn(),
+				},
+			};
+
+			plugin.setup(mockApi as unknown as Parameters<ReturnType<typeof AutoEntryPlugin>["setup"]>[0]);
+
+			// Get the entrypoints map that was exposed
+			const entrypointsMap = mockApi.expose.mock.calls.find((call) => call[0] === "entrypoints")?.[1] as Map<
+				string,
+				string
+			>;
+
+			const configModifier = mockApi.modifyRsbuildConfig.mock.calls[0][0];
+			const config = {
+				environments: {
+					development: { source: {} },
+				},
+			};
+
+			await configModifier(config);
+
+			// Named entries should still be in entrypoints map (for DtsPlugin, PackageJsonTransformPlugin)
+			expect(entrypointsMap.has("index.ts")).toBe(true);
+			expect(entrypointsMap.get("index.ts")).toBe("./src/index.ts");
+			expect(entrypointsMap.has("utils.ts")).toBe(true);
+			expect(entrypointsMap.get("utils.ts")).toBe("./src/utils/index.ts");
+		});
+
+		it("should not trace import graph when bundleless is not set", async () => {
+			const packageJson: PackageJson = {
+				name: "test-package",
+				version: "1.0.0",
+				exports: "./src/index.ts",
+			};
+
+			mockStat.mockResolvedValue(createMockStats(new Date()));
+			mockAccess.mockResolvedValue(undefined);
+			mockReadFile.mockResolvedValue(JSON.stringify(packageJson));
+
+			const plugin = AutoEntryPlugin();
+			const mockApi = {
+				modifyRsbuildConfig: vi.fn(),
+				expose: vi.fn(),
+				useExposed: vi.fn().mockReturnValue(undefined),
+				onBeforeBuild: vi.fn(),
+				logger: {
+					debug: vi.fn(),
+				},
+			};
+
+			plugin.setup(mockApi as unknown as Parameters<ReturnType<typeof AutoEntryPlugin>["setup"]>[0]);
+
+			const configModifier = mockApi.modifyRsbuildConfig.mock.calls[0][0];
+			const config = {
+				environments: {
+					development: { source: {} },
+				},
+			};
+
+			await configModifier(config);
+
+			// Import graph should NOT be used in non-bundleless mode
+			expect(mockTraceFromEntries).not.toHaveBeenCalled();
+
+			// Entries should be named entries (not traced file list)
+			const devEntry = (config.environments.development.source as { entry?: Record<string, string> }).entry;
+			expect(devEntry).toEqual({ index: "./src/index.ts" });
+		});
 	});
 });

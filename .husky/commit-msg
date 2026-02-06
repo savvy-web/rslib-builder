@@ -1,6 +1,6 @@
 #!/usr/bin/env sh
 # Skip in CI environment
-[ -n "$GITHUB_ACTIONS" ] && exit 0
+[ -n "$CI" ] || [ -n "$GITHUB_ACTIONS" ] && exit 0
 
 # Get repo root directory
 ROOT=$(git rev-parse --show-toplevel)

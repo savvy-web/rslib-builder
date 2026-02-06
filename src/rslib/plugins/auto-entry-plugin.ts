@@ -1,9 +1,11 @@
 import { readFile } from "node:fs/promises";
+import { relative } from "node:path";
 import type { RsbuildPlugin, RsbuildPluginAPI } from "@rsbuild/core";
 import type { PackageJson } from "../../types/package-json.js";
 import { createEnvLogger } from "./utils/build-logger.js";
-import { extractEntriesFromPackageJson } from "./utils/entry-extractor.js";
+import { EntryExtractor } from "./utils/entry-extractor.js";
 import { fileExistAsync } from "./utils/file-utils.js";
+import { ImportGraph } from "./utils/import-graph.js";
 
 /**
  * Options for the AutoEntryPlugin.
@@ -40,6 +42,19 @@ export interface AutoEntryPluginOptions {
 	 * @defaultValue false
 	 */
 	exportsAsIndexes?: boolean;
+
+	/**
+	 * When enabled, uses import graph analysis to discover all reachable files
+	 * from entry points, and sets RSlib's source.entry to the traced file list
+	 * instead of named entries.
+	 *
+	 * @remarks
+	 * Named entries are still exposed via the `entrypoints` map for DtsPlugin
+	 * and PackageJsonTransformPlugin to use.
+	 *
+	 * @defaultValue false
+	 */
+	bundleless?: boolean;
 }
 
 /**
@@ -124,10 +139,9 @@ export const AutoEntryPlugin = (options?: AutoEntryPluginOptions): RsbuildPlugin
 					const packageJson = JSON.parse(packageJsonContent) as PackageJson;
 
 					// Extract entries from package.json exports and bin fields
-					const { entries } = extractEntriesFromPackageJson(
-						packageJson,
-						options?.exportsAsIndexes != null ? { exportsAsIndexes: options.exportsAsIndexes } : undefined,
-					);
+					const extractorOptions =
+						options?.exportsAsIndexes != null ? { exportsAsIndexes: options.exportsAsIndexes } : undefined;
+					const { entries } = new EntryExtractor(extractorOptions).extract(packageJson);
 
 					// When exportsAsIndexes is enabled, build a mapping from export keys to output paths
 					if (options?.exportsAsIndexes && packageJson.exports) {
@@ -142,7 +156,7 @@ export const AutoEntryPlugin = (options?: AutoEntryPluginOptions): RsbuildPlugin
 								const normalizedExportKey = pkgExportKey.replace(/^\.\//, "");
 
 								// Find the matching entry
-								for (const [entryName] of Object.entries(entries)) {
+								for (const entryName of Object.keys(entries)) {
 									// The entry name might be "vscode/settings/index" and export key is "./vscode/settings"
 									const normalizedEntryName = entryName.replace(/\/index$/, "");
 
@@ -170,16 +184,43 @@ export const AutoEntryPlugin = (options?: AutoEntryPluginOptions): RsbuildPlugin
 					if (Object.keys(entries).length > 0) {
 						const environments = Object.entries(config?.environments ?? {});
 
-						// Apply entries to each environment
-						environments.forEach(([_env, lib]) => {
-							lib.source = {
-								...lib.source,
-								entry: {
-									...lib.source?.entry,
-									...entries,
-								},
-							};
-						});
+						// In bundleless mode, trace import graph and use all reachable files
+						// Named entries are still exposed via entrypoints map above
+						if (options?.bundleless) {
+							const cwd = process.cwd();
+							const graph = new ImportGraph({ rootDir: cwd });
+							const entrySourcePaths = Object.values(entries);
+							const result = graph.traceFromEntries(entrySourcePaths);
+							const tracedEntries: Record<string, string> = {};
+							for (const file of result.files) {
+								const relPath = relative(cwd, file);
+								tracedEntries[relPath] = `./${relPath}`;
+							}
+
+							log.global.info(
+								`bundleless: traced ${Object.keys(tracedEntries).length} files from ${entrySourcePaths.length} entries`,
+							);
+
+							// Replace entry entirely with traced files — don't spread existing
+							// entry which may contain RSlib's default "src/**" glob
+							environments.forEach(([_env, lib]) => {
+								lib.source = {
+									...lib.source,
+									entry: tracedEntries,
+								};
+							});
+						} else {
+							// Apply named entries to each environment
+							environments.forEach(([_env, lib]) => {
+								lib.source = {
+									...lib.source,
+									entry: {
+										...lib.source?.entry,
+										...entries,
+									},
+								};
+							});
+						}
 
 						// Log entries only once per build process
 						const state = buildStateMap.get(api);

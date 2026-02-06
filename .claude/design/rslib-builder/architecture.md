@@ -3,8 +3,8 @@ status: current
 module: rslib-builder
 category: architecture
 created: 2026-01-18
-updated: 2026-02-04
-last-synced: 2026-02-04
+updated: 2026-02-05
+last-synced: 2026-02-05
 completeness: 95
 related:
   - rslib-builder/api-extraction.md
@@ -147,6 +147,8 @@ processing stages.
   - Stages: modifyRsbuildConfig, pre-process, summarize, onCloseBuild
   - When apiModel enabled: emits tsconfig.json, api model, tsdoc-metadata.json
   - API model is enabled by default for npm target
+  - Multi-entry: runs API Extractor per entry, merges into single `.api.json`
+    with multiple `EntryPoint` members via `mergeApiModels()`
 - **PackageJsonTransformPlugin** - Transform package.json for dist
   - Stages: pre-process, optimize, optimize-inline
 - **FilesArrayPlugin** - Build package.json files array, exclude source maps
@@ -208,9 +210,14 @@ transformations. Consolidated from 14 files to 6 focused modules.
    - Logging: Shows which catalog each dependency was resolved from
      (e.g., `@microsoft/api-extractor: ^7.56.0 (catalog:silk)`)
 
-6. **`entry-extractor.ts`** - Entry point extraction (unchanged)
-   - Exports: `EntryExtractor` class
+6. **`entry-extractor.ts`** - Entry point extraction
+   - Exports: `EntryExtractor` class, `ExtractedEntries` interface
    - Class-based entry extraction from package.json exports/bin fields
+   - `ExtractedEntries` contains `entries` (name-to-source mapping) and
+     `exportPaths` (name-to-original-export-key mapping, e.g.,
+     `"nested-one"` -> `"./nested/one"`)
+   - `exportPaths` enables lossless reverse mapping for multi-entry API
+     model canonical references
 
 7. **`import-graph.ts`** - TypeScript import graph analysis
    - Exports: `ImportGraph` class, `ImportGraphOptions`, `ImportGraphResult`,
@@ -280,8 +287,6 @@ transformations. Consolidated from 14 files to 6 focused modules.
 
 - **No incremental type generation**: tsgo runs full compilation each build
 - **Sequential plugin stages**: Cannot parallelize cross-plugin operations
-- **Single entry bundled declarations**: API Extractor only bundles the main
-  entry point (".") declarations
 
 ---
 
@@ -955,22 +960,33 @@ Source .ts files
     .rslib/declarations/{target}/
          |
          v
-+--------------------------------+
-| API Extractor                  |
-|   - Bundle main entry .d.ts    |
-|   - Optional: Generate         |
-|     api.model.json             |
-+--------------------------------+
++----------------------------------------+
+| API Extractor (per entry point)        |
+|   - Bundle each entry's .d.ts          |
+|   - Generate per-entry .api.json       |
+|   - Generate tsdoc-metadata.json       |
+|     (main entry only)                  |
++----------------------------------------+
          |
          v
-+--------------------------------+
-| TsconfigResolver (if apiModel) |
-|   - Convert ParsedCommandLine  |
-|     to JSON-serializable       |
-|   - Set composite: false,      |
-|     noEmit: true               |
-|   - Emit tsconfig.json to dist |
-+--------------------------------+
++----------------------------------------+
+| mergeApiModels() (if multiple entries) |
+|   - Extract EntryPoint from each model |
+|   - Rewrite canonical references for   |
+|     sub-entries (e.g., @scope/pkg/sub!)|
+|   - Combine into single Package with   |
+|     multiple EntryPoint members        |
++----------------------------------------+
+         |
+         v
++----------------------------------------+
+| TsconfigResolver (if apiModel)         |
+|   - Convert ParsedCommandLine          |
+|     to JSON-serializable               |
+|   - Set composite: false,              |
+|     noEmit: true                       |
+|   - Emit tsconfig.json to dist         |
++----------------------------------------+
          |
          v
     Strip sourceMappingURL comments
@@ -994,10 +1010,15 @@ package.json
 |   - Parse bin field                    |
 |   - Map export keys to entry names     |
 |   - Resolve TS source paths            |
+|   - Build exportPaths mapping          |
+|     (entry name -> original export key)|
 +----------------------------------------+
          |
          v
-    entries: { "index": "./src/index.ts", ... }
+    ExtractedEntries: {
+      entries: { "index": "./src/index.ts", ... },
+      exportPaths: { "index": ".", "utils": "./utils", ... }
+    }
          |
          v
     Populate entrypoints Map
@@ -1369,8 +1390,6 @@ For comprehensive testing strategy details, see
 
 - **Incremental declaration caching**: Skip unchanged files in tsgo
 - **Parallel plugin stages**: Where dependencies allow
-- **Multi-entry declaration bundling**: Extend API Extractor to bundle all
-  entries
 
 ### Phase 2: Medium-term
 
@@ -1411,7 +1430,8 @@ For comprehensive testing strategy details, see
 ---
 
 **Document Status:** Current - Core architecture documented with all components
-including ImportGraph analysis, TsDocLintPlugin file discovery, and multi-
+including ImportGraph analysis, TsDocLintPlugin file discovery, multi-entry
+API model generation with per-entry API Extractor runs and merge, and multi-
 package-manager workspace catalog resolution (pnpm, yarn) with factory pattern
 for dependency injection
 

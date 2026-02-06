@@ -1,21 +1,82 @@
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
+import type { RslibConfig } from "@rslib/core";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { NodeLibraryBuilder } from "./node-library-builder.js";
 
 // Mock node:fs
 vi.mock("node:fs", () => ({
 	existsSync: vi.fn(),
+	readFileSync: vi.fn(),
 }));
 
 // Mock node:path
-vi.mock("node:path", () => ({
-	join: vi.fn((...args: string[]) => args.join("/")),
+vi.mock("node:path", async (importOriginal) => {
+	const actual = await importOriginal<typeof import("node:path")>();
+	return {
+		...actual,
+		join: vi.fn((...args: string[]) => args.join("/")),
+	};
+});
+
+// Capture defineConfig args
+let capturedConfig: RslibConfig | undefined;
+vi.mock("@rslib/core", () => ({
+	defineConfig: vi.fn((config: RslibConfig) => {
+		capturedConfig = config;
+		return config;
+	}),
 }));
+
+// Mock plugins to return identifiable objects
+vi.mock("../plugins/auto-entry-plugin.js", () => ({
+	AutoEntryPlugin: vi.fn((opts: unknown) => ({ name: "auto-entry-plugin", _opts: opts })),
+}));
+vi.mock("../plugins/dts-plugin.js", () => ({
+	DtsPlugin: vi.fn(() => ({ name: "dts-plugin" })),
+}));
+vi.mock("../plugins/files-array-plugin.js", () => ({
+	FilesArrayPlugin: vi.fn(() => ({ name: "files-array-plugin" })),
+}));
+vi.mock("../plugins/package-json-transform-plugin.js", () => ({
+	PackageJsonTransformPlugin: vi.fn(() => ({ name: "package-json-transform-plugin" })),
+}));
+vi.mock("../plugins/tsdoc-lint-plugin.js", () => ({
+	TsDocLintPlugin: vi.fn(() => ({ name: "tsdoc-lint-plugin" })),
+}));
+vi.mock("../plugins/virtual-entry-plugin.js", () => ({
+	VirtualEntryPlugin: vi.fn(() => ({ name: "virtual-entry-plugin" })),
+}));
+vi.mock("../plugins/utils/file-utils.js", () => ({
+	packageJsonVersion: vi.fn().mockResolvedValue("1.0.0"),
+}));
+
+// Mock import graph for bundleless entry computation
+const mockTraceFromEntries = vi.fn().mockReturnValue({
+	files: ["/test/cwd/src/index.ts"],
+	entries: ["/test/cwd/src/index.ts"],
+	errors: [],
+});
+vi.mock("../plugins/utils/import-graph.js", () => ({
+	ImportGraph: class MockImportGraph {
+		traceFromEntries = mockTraceFromEntries;
+	},
+}));
+vi.mock("../plugins/utils/entry-extractor.js", () => ({
+	EntryExtractor: class MockEntryExtractor {
+		extract = vi.fn().mockReturnValue({
+			entries: { index: "./src/index.ts" },
+		});
+	},
+}));
+
+// Import mocked AutoEntryPlugin to inspect calls
+import { AutoEntryPlugin } from "../plugins/auto-entry-plugin.js";
 
 describe("NodeLibraryBuilder", () => {
 	beforeEach(() => {
-		vi.resetAllMocks();
+		vi.clearAllMocks();
+		capturedConfig = undefined;
 	});
 
 	describe("DEFAULT_OPTIONS", () => {
@@ -28,6 +89,7 @@ describe("NodeLibraryBuilder", () => {
 				targets: ["dev", "npm"],
 				externals: [],
 				apiModel: true,
+				bundle: true,
 			});
 		});
 	});
@@ -130,6 +192,115 @@ describe("NodeLibraryBuilder", () => {
 			});
 
 			expect(result.targets).toEqual(["npm"]);
+		});
+
+		it("should default bundle to true", () => {
+			vi.mocked(existsSync).mockReturnValue(false);
+
+			const result = NodeLibraryBuilder.mergeOptions();
+
+			expect(result.bundle).toBe(true);
+		});
+
+		it("should preserve bundle: false when explicitly set", () => {
+			vi.mocked(existsSync).mockReturnValue(false);
+
+			const result = NodeLibraryBuilder.mergeOptions({
+				bundle: false,
+			});
+
+			expect(result.bundle).toBe(false);
+		});
+
+		it("should preserve bundle: true when explicitly set", () => {
+			vi.mocked(existsSync).mockReturnValue(false);
+
+			const result = NodeLibraryBuilder.mergeOptions({
+				bundle: true,
+			});
+
+			expect(result.bundle).toBe(true);
+		});
+	});
+
+	describe("createSingleTarget", () => {
+		const mockPackageJson = JSON.stringify({
+			name: "test-pkg",
+			version: "1.0.0",
+			exports: { ".": "./src/index.ts" },
+		});
+
+		beforeEach(() => {
+			vi.mocked(existsSync).mockReturnValue(false);
+			vi.mocked(readFileSync).mockReturnValue(mockPackageJson);
+		});
+
+		it("should set outBase to outputDir when bundle is true", async () => {
+			const options = NodeLibraryBuilder.mergeOptions({ bundle: true });
+			await NodeLibraryBuilder.createSingleTarget("npm", options);
+
+			const lib = capturedConfig?.lib?.[0];
+			expect(lib).toBeDefined();
+			expect(lib?.outBase).toBe("dist/npm");
+		});
+
+		it("should set outBase to 'src' when bundle is false", async () => {
+			const options = NodeLibraryBuilder.mergeOptions({ bundle: false });
+			await NodeLibraryBuilder.createSingleTarget("npm", options);
+
+			const lib = capturedConfig?.lib?.[0];
+			expect(lib).toBeDefined();
+			expect(lib?.outBase).toBe("src");
+		});
+
+		it("should pass bundleless: true to AutoEntryPlugin when bundle is false", async () => {
+			const options = NodeLibraryBuilder.mergeOptions({ bundle: false });
+			await NodeLibraryBuilder.createSingleTarget("npm", options);
+
+			expect(AutoEntryPlugin).toHaveBeenCalledWith(expect.objectContaining({ bundleless: true }));
+		});
+
+		it("should not pass bundleless to AutoEntryPlugin when bundle is true", async () => {
+			const options = NodeLibraryBuilder.mergeOptions({ bundle: true });
+			await NodeLibraryBuilder.createSingleTarget("npm", options);
+
+			// Should be called with empty object (no bundleless key)
+			const callArgs = vi.mocked(AutoEntryPlugin).mock.calls[0][0];
+			expect(callArgs).toBeDefined();
+			expect(callArgs).not.toHaveProperty("bundleless");
+		});
+
+		it("should pass both bundleless and exportsAsIndexes when both are set", async () => {
+			const options = NodeLibraryBuilder.mergeOptions({ bundle: false, exportsAsIndexes: true });
+			await NodeLibraryBuilder.createSingleTarget("npm", options);
+
+			expect(AutoEntryPlugin).toHaveBeenCalledWith(
+				expect.objectContaining({ bundleless: true, exportsAsIndexes: true }),
+			);
+		});
+
+		it("should set bundle: false on lib config when bundle option is false", async () => {
+			const options = NodeLibraryBuilder.mergeOptions({ bundle: false });
+			await NodeLibraryBuilder.createSingleTarget("npm", options);
+
+			const lib = capturedConfig?.lib?.[0];
+			expect(lib?.bundle).toBe(false);
+		});
+
+		it("should set legalComments to 'inline' when bundle is false", async () => {
+			const options = NodeLibraryBuilder.mergeOptions({ bundle: false });
+			await NodeLibraryBuilder.createSingleTarget("npm", options);
+
+			const lib = capturedConfig?.lib?.[0];
+			expect(lib?.output?.legalComments).toBe("inline");
+		});
+
+		it("should not set legalComments when bundle is true", async () => {
+			const options = NodeLibraryBuilder.mergeOptions({ bundle: true });
+			await NodeLibraryBuilder.createSingleTarget("npm", options);
+
+			const lib = capturedConfig?.lib?.[0];
+			expect(lib?.output?.legalComments).toBeUndefined();
 		});
 	});
 });

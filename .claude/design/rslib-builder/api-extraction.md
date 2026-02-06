@@ -3,8 +3,8 @@ status: current
 module: rslib-builder
 category: integration
 created: 2026-01-19
-updated: 2026-02-03
-last-synced: 2026-02-03
+updated: 2026-02-05
+last-synced: 2026-02-05
 completeness: 95
 related:
   - rslib-builder/architecture.md
@@ -66,7 +66,8 @@ bundled declarations and an API model file.
 1. **DtsPlugin** (`src/rslib/plugins/dts-plugin.ts`)
    - Purpose: Generates TypeScript declarations and optional API models
    - Status: Implemented
-   - Key functions: `bundleDtsFiles()`, `DtsPlugin()`
+   - Key functions: `bundleDtsFiles()`, `mergeApiModels()`,
+     `rewriteCanonicalReferences()`, `DtsPlugin()`
 
 2. **ApiModelOptions Interface** (`src/rslib/plugins/dts-plugin.ts`)
    - Purpose: Configuration for API model generation
@@ -74,7 +75,12 @@ bundled declarations and an API model file.
 
 ### Current Capabilities
 
-- Generate API model for main entry point ("." export only)
+- Generate API model for all entry points (multi-entry support)
+  - Per-entry API Extractor runs generate individual `.api.json` files
+  - `mergeApiModels()` combines per-entry models into a single Package
+    with multiple `EntryPoint` members
+  - Sub-entry canonical references scoped (e.g., `@scope/pkg/subpath!`)
+  - Single-entry packages use the API model as-is (no merge needed)
 - **API model enabled by default** (apiModel: true in DEFAULT_OPTIONS)
 - Exclude API model from npm publish via negated files array pattern
 - Copy API model to local paths for documentation development
@@ -209,19 +215,28 @@ no purpose. CI detection uses `CI` or `GITHUB_ACTIONS` environment variables.
 │                                                                 │
 │  ┌───────────────────────────┐    ┌─────────────────┐           │
 │  │   TsDocConfigBuilder      │    │ bundleDtsFiles  │           │
-│  │   .writeConfigFile()      │───▶│ ()              │           │
+│  │   .writeConfigFile()      │───▶│ (per entry)     │           │
 │  └───────────────────────────┘    └────────┬────────┘           │
 │                                            │                    │
+│                                   ┌────────┴────────┐           │
+│                                   │ mergeApiModels  │           │
+│                                   │ (multi-entry)   │           │
+│                                   └────────┬────────┘           │
 └────────────────────────────────────────────┼────────────────────┘
                                              │
                                              ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│                    API Extractor                                │
+│               API Extractor (per entry point)                   │
 │                                                                 │
-│  Inputs:                        Outputs:                        │
+│  Inputs:                        Outputs (per entry):            │
 │  - mainEntryPointFilePath       - bundled .d.ts                 │
-│  - tsdocConfigFile              - <package>.api.json            │
-│  - tsdocMetadata config         - tsdoc-metadata.json           │
+│  - tsdocConfigFile              - <entry>.api.json (temp)       │
+│  - tsdocMetadata config         - tsdoc-metadata.json (main)    │
+│                                                                 │
+│  After merge (multi-entry):     Final output:                   │
+│  - mergeApiModels() combines    - <package>.api.json            │
+│    per-entry models into one      (multiple EntryPoint members) │
+│    Package with N EntryPoints                                   │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
@@ -450,7 +465,7 @@ support declarations for each tag (defining tags isn't sufficient).
   "$schema": "https://developer.microsoft.com/...",
   "noStandardTags": false,
   "supportForTags": { "@param": true, "@returns": true, "..." },
-  "reportUnsupportedHtmlElements": false
+  "reportUnsupportedHtmlElements": true
 }
 ```
 
@@ -462,7 +477,7 @@ support declarations for each tag (defining tags isn't sufficient).
   "noStandardTags": false,
   "tagDefinitions": [{ "tagName": "@error", "syntaxKind": "inline" }],
   "supportForTags": { "@param": true, "...": true, "@error": true },
-  "reportUnsupportedHtmlElements": false
+  "reportUnsupportedHtmlElements": true
 }
 ```
 
@@ -474,7 +489,7 @@ support declarations for each tag (defining tags isn't sufficient).
   "noStandardTags": true,
   "tagDefinitions": [/* tags from enabled groups + custom */],
   "supportForTags": {/* tags from enabled groups, user overrides applied */},
-  "reportUnsupportedHtmlElements": false
+  "reportUnsupportedHtmlElements": true
 }
 ```
 
@@ -592,9 +607,11 @@ Integration with API Extractor is difficult to unit test. Rely on:
 
 ---
 
-**Document Status:** Current - All features implemented.
+**Document Status:** Current - All features implemented including multi-entry
+API model generation with per-entry API Extractor runs and model merging.
 
 **Implementation:**
 
 - TSDoc tag groups: Complete - See `tsdoc-configuration-support.md` plan
 - Config persistence: Complete - See `tsdoc-persist-config.md` plan
+- Multi-entry API model: Complete - Per-entry runs with `mergeApiModels()`

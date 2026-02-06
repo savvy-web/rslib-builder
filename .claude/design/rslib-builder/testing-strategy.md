@@ -3,8 +3,8 @@ status: current
 module: rslib-builder
 category: testing
 created: 2026-01-18
-updated: 2026-02-03
-last-synced: 2026-02-03
+updated: 2026-02-05
+last-synced: 2026-02-05
 completeness: 95
 related:
   - rslib-builder/architecture.md
@@ -76,8 +76,8 @@ src/
 │       ├── package-json-transform-plugin.ts
 │       ├── package-json-transform-plugin.test.ts
 │       └── utils/
-│           ├── pnpm-catalog.ts
-│           ├── pnpm-catalog.test.ts
+│           ├── workspace-catalog.ts
+│           ├── workspace-catalog.test.ts
 │           ├── asset-utils.ts
 │           ├── json-asset-utils.test.ts
 │           ├── asset-processor-utils.test.ts
@@ -117,7 +117,7 @@ Current test file inventory:
 | Plugins | `files-array-plugin.test.ts` | Package.json files array building |
 | Plugins | `package-json-transform-plugin.test.ts` | Package transformation |
 | Builders | `node-library-builder.test.ts` | Builder API and configuration |
-| Utils | `pnpm-catalog.test.ts` | PNPM catalog resolution |
+| Utils | `workspace-catalog.test.ts` | Workspace catalog resolution |
 | Utils | `json-asset-utils.test.ts` | JSON asset handling |
 | Utils | `asset-processor-utils.test.ts` | Asset processing pipeline |
 | Utils | `entry-extractor.test.ts` | Entry point extraction |
@@ -211,8 +211,8 @@ Co-located tests import the source file directly:
 // src/rslib/plugins/auto-entry-plugin.test.ts
 import { AutoEntryPlugin } from './auto-entry-plugin.js';
 
-// src/rslib/plugins/utils/pnpm-catalog.test.ts
-import { PnpmCatalog } from '#utils/pnpm-catalog.js';
+// src/rslib/plugins/utils/workspace-catalog.test.ts
+import { WorkspaceCatalog } from '#utils/workspace-catalog.js';
 ```
 
 ### Shared Utilities Import
@@ -423,7 +423,7 @@ vi.mock("@pnpm/exportable-manifest", () => ({
 }));
 
 // NOW import the module under test
-import { PnpmCatalog } from "#utils/pnpm-catalog.js";
+import { WorkspaceCatalog } from "#utils/workspace-catalog.js";
 ```
 
 ### Type-Safe Mock Access

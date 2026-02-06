@@ -1,16 +1,16 @@
 import type { PathLike } from "node:fs";
-import { dirname, join, relative } from "node:path";
+import { readFileSync } from "node:fs";
+import { dirname, join, relative, resolve } from "node:path";
 import type { RsbuildPlugin, RsbuildPluginAPI } from "@rsbuild/core";
 import { logger } from "@rsbuild/core";
 import type { ESLint as ESLintNamespace, Linter } from "eslint";
 import color from "picocolors";
+import type { PackageJson } from "../../types/package-json.js";
 import type { TsDocLintErrorBehavior, TsDocOptions } from "./dts-plugin.js";
 import { TsDocConfigBuilder } from "./dts-plugin.js";
+import { EntryExtractor } from "./utils/entry-extractor.js";
 import type { ImportGraphError } from "./utils/import-graph.js";
 import { ImportGraph } from "./utils/import-graph.js";
-
-// Re-export for backwards compatibility
-export type { TsDocLintErrorBehavior } from "./dts-plugin.js";
 
 /**
  * Helper interface for handling ESM/CJS module format differences.
@@ -124,6 +124,17 @@ export interface TsDocLintPluginOptions {
 	 * @defaultValue `true`
 	 */
 	persistConfig?: boolean | PathLike;
+
+	/**
+	 * Whether to run lint per entry point individually with per-entry logging.
+	 *
+	 * @remarks
+	 * When enabled, each entry point is linted separately and results are
+	 * logged per entry for better visibility in bundleless mode.
+	 *
+	 * @defaultValue false
+	 */
+	perEntry?: boolean;
 }
 
 /**
@@ -256,6 +267,54 @@ export function discoverFilesToLint(options: TsDocLintPluginOptions, cwd: string
 		isGlobPattern: false,
 	};
 }
+
+/**
+ * Discovers files to lint per entry point using import graph analysis.
+ *
+ * @param cwd - The project root directory
+ * @returns Map of entry name to discovery result, plus aggregated errors
+ *
+ * @internal
+ */
+/* v8 ignore start -- Integration function using ImportGraph and fs */
+export function discoverFilesToLintPerEntry(cwd: string): {
+	perEntry: Map<string, FileDiscoveryResult>;
+	errors: ImportGraphError[];
+} {
+	const packageJsonPath = join(cwd, "package.json");
+	let packageJson: PackageJson;
+	try {
+		packageJson = JSON.parse(readFileSync(packageJsonPath, "utf-8")) as PackageJson;
+	} catch {
+		return { perEntry: new Map(), errors: [] };
+	}
+
+	const { entries } = new EntryExtractor().extract(packageJson);
+
+	const graph = new ImportGraph({ rootDir: cwd });
+	const perEntry = new Map<string, FileDiscoveryResult>();
+	const allErrors: ImportGraphError[] = [];
+
+	for (const [entryName, sourcePath] of Object.entries(entries)) {
+		// Skip bin entries
+		if (entryName.startsWith("bin/")) continue;
+
+		const resolvedPath = sourcePath.startsWith(".") ? resolve(cwd, sourcePath) : sourcePath;
+
+		const result = graph.traceFromEntries([resolvedPath]);
+
+		perEntry.set(entryName, {
+			files: result.files,
+			errors: result.errors,
+			isGlobPattern: false,
+		});
+
+		allErrors.push(...result.errors);
+	}
+
+	return { perEntry, errors: allErrors };
+}
+/* v8 ignore stop */
 
 /**
  * Result of running TSDoc lint via ESLint.
@@ -411,6 +470,136 @@ export async function runTsDocLint(options: TsDocLintPluginOptions, cwd: string)
 }
 
 /**
+ * Runs TSDoc lint per entry point, providing per-entry logging visibility.
+ *
+ * @param options - Plugin options for configuring TSDoc linting
+ * @param cwd - The project root directory
+ * @returns Promise resolving to aggregated lint results and configuration paths
+ *
+ * @internal
+ */
+/* v8 ignore start -- Integration function using ESLint programmatically */
+export async function runTsDocLintPerEntry(options: TsDocLintPluginOptions, cwd: string): Promise<TsDocLintRunResult> {
+	// Generate tsdoc.json config file
+	const tsdocOptions = options.tsdoc ?? {};
+	const persistConfig = options.persistConfig;
+	const shouldPersist = TsDocConfigBuilder.shouldPersist(persistConfig);
+	const tsdocConfigOutputPath = TsDocConfigBuilder.getConfigPath(persistConfig, cwd);
+
+	const skipCIValidation = persistConfig === false;
+	const tsdocConfigPath = await TsDocConfigBuilder.writeConfigFile(
+		tsdocOptions,
+		dirname(tsdocConfigOutputPath),
+		skipCIValidation,
+	);
+
+	// Dynamic import ESLint and plugins
+	const eslintModule = await import("eslint");
+	const tsParserModule = await import("@typescript-eslint/parser");
+	const tsdocPluginModule = await import("eslint-plugin-tsdoc");
+
+	const { ESLint } = eslintModule;
+
+	const tsParser = (tsParserModule as ESModuleExport<Linter.Parser>).default ?? (tsParserModule as Linter.Parser);
+	const tsdocPlugin =
+		(tsdocPluginModule as ESModuleExport<ESLintNamespace.Plugin>).default ??
+		(tsdocPluginModule as ESLintNamespace.Plugin);
+
+	// Discover files per entry
+	const { perEntry, errors: allErrors } = discoverFilesToLintPerEntry(cwd);
+
+	if (perEntry.size === 0) {
+		return {
+			results: { errorCount: 0, warningCount: 0, messages: [] },
+			...(shouldPersist && { tsdocConfigPath }),
+			...(allErrors.length > 0 && { discoveryErrors: allErrors }),
+		};
+	}
+
+	// Create ESLint instance (shared across entries)
+	const eslint = new ESLint({
+		cwd,
+		overrideConfigFile: true,
+		overrideConfig: [
+			{
+				ignores: ["**/node_modules/**", "**/dist/**", "**/coverage/**"],
+			},
+			{
+				files: ["**/*.ts", "**/*.tsx"],
+				languageOptions: {
+					parser: tsParser as Linter.Parser,
+				},
+				plugins: { tsdoc: tsdocPlugin as ESLintNamespace.Plugin },
+				rules: {
+					"tsdoc/syntax": "error",
+				},
+			},
+		],
+	});
+
+	// Aggregated results
+	const allMessages: LintMessage[] = [];
+	let totalErrors = 0;
+	let totalWarnings = 0;
+
+	// Lint per entry
+	for (const [entryName, discovery] of perEntry) {
+		if (discovery.files.length === 0) {
+			continue;
+		}
+
+		const exportKey = entryName === "index" ? "." : `./${entryName}`;
+		logger.info(
+			`${color.dim("[tsdoc-lint]")} Validating "${exportKey}" (${discovery.files.length} file${discovery.files.length === 1 ? "" : "s"})...`,
+		);
+
+		const eslintResults = await eslint.lintFiles(discovery.files);
+
+		let entryErrors = 0;
+		let entryWarnings = 0;
+
+		for (const result of eslintResults) {
+			for (const msg of result.messages) {
+				allMessages.push({
+					filePath: result.filePath,
+					line: msg.line,
+					column: msg.column,
+					message: msg.message,
+					ruleId: msg.ruleId,
+					severity: msg.severity as 1 | 2,
+				});
+
+				if (msg.severity === 2) {
+					entryErrors++;
+					totalErrors++;
+				} else {
+					entryWarnings++;
+					totalWarnings++;
+				}
+			}
+		}
+
+		if (entryErrors === 0 && entryWarnings === 0) {
+			logger.info(`${color.dim("[tsdoc-lint]")} ${color.green(`\u2713 "${exportKey}" - All TSDoc comments valid`)}`);
+		} else {
+			const errorText = entryErrors === 1 ? "error" : "errors";
+			const warningText = entryWarnings === 1 ? "warning" : "warnings";
+			const parts: string[] = [];
+			if (entryErrors > 0) parts.push(`${entryErrors} ${errorText}`);
+			if (entryWarnings > 0) parts.push(`${entryWarnings} ${warningText}`);
+			logger.warn(`${color.dim("[tsdoc-lint]")} ${color.red(`\u2717 "${exportKey}" - ${parts.join(", ")} found`)}`);
+		}
+	}
+
+	return {
+		results: { errorCount: totalErrors, warningCount: totalWarnings, messages: allMessages },
+		...(shouldPersist && { tsdocConfigPath }),
+		...(allErrors.length > 0 && { discoveryErrors: allErrors }),
+	};
+}
+/* v8 ignore stop */
+
+/**
  * Cleans up the tsdoc.json config file.
  *
  * @param configPath - Path to the config file to delete
@@ -503,7 +692,9 @@ export const TsDocLintPlugin = (options: TsDocLintPluginOptions = {}): RsbuildPl
 				logger.info(`${color.dim("[tsdoc-lint]")} Validating TSDoc comments...`);
 
 				try {
-					const { results, tsdocConfigPath, discoveryErrors } = await runTsDocLint(options, cwd);
+					const { results, tsdocConfigPath, discoveryErrors } = options.perEntry
+						? await runTsDocLintPerEntry(options, cwd)
+						: await runTsDocLint(options, cwd);
 
 					// Log any discovery warnings
 					if (discoveryErrors && discoveryErrors.length > 0) {

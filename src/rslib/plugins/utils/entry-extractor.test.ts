@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import type { PackageJson } from "../../../types/package-json.js";
-import { EntryExtractor, extractEntriesFromPackageJson } from "./entry-extractor.js";
+import { EntryExtractor } from "./entry-extractor.js";
 
-describe("extractEntriesFromPackageJson", () => {
+describe("EntryExtractor.extract", () => {
 	it("should extract entries from exports field with string export", () => {
 		const packageJson: PackageJson = {
 			name: "test-package",
@@ -10,10 +10,13 @@ describe("extractEntriesFromPackageJson", () => {
 			exports: "./src/index.ts",
 		};
 
-		const { entries } = extractEntriesFromPackageJson(packageJson);
+		const { entries, exportPaths } = new EntryExtractor().extract(packageJson);
 
 		expect(entries).toEqual({
 			index: "./src/index.ts",
+		});
+		expect(exportPaths).toEqual({
+			index: ".",
 		});
 	});
 
@@ -28,11 +31,15 @@ describe("extractEntriesFromPackageJson", () => {
 			},
 		};
 
-		const { entries } = extractEntriesFromPackageJson(packageJson);
+		const { entries, exportPaths } = new EntryExtractor().extract(packageJson);
 
 		expect(entries).toEqual({
 			index: "./src/index.ts",
 			utils: "./src/utils.ts",
+		});
+		expect(exportPaths).toEqual({
+			index: ".",
+			utils: "./utils",
 		});
 	});
 
@@ -53,11 +60,15 @@ describe("extractEntriesFromPackageJson", () => {
 			},
 		};
 
-		const { entries } = extractEntriesFromPackageJson(packageJson);
+		const { entries, exportPaths } = new EntryExtractor().extract(packageJson);
 
 		expect(entries).toEqual({
 			index: "./src/index.ts", // from import field
 			utils: "./src/utils.ts", // from import field
+		});
+		expect(exportPaths).toEqual({
+			index: ".",
+			utils: "./utils",
 		});
 	});
 
@@ -68,11 +79,13 @@ describe("extractEntriesFromPackageJson", () => {
 			bin: "./src/cli.ts",
 		};
 
-		const { entries } = extractEntriesFromPackageJson(packageJson);
+		const { entries, exportPaths } = new EntryExtractor().extract(packageJson);
 
 		expect(entries).toEqual({
 			"bin/cli": "./src/cli.ts",
 		});
+		// Bin entries don't have export paths
+		expect(exportPaths).toEqual({});
 	});
 
 	it("should extract entries from bin field with object bin", () => {
@@ -85,7 +98,7 @@ describe("extractEntriesFromPackageJson", () => {
 			},
 		};
 
-		const { entries } = extractEntriesFromPackageJson(packageJson);
+		const { entries } = new EntryExtractor().extract(packageJson);
 
 		expect(entries).toEqual({
 			"bin/cli": "./src/cli.ts",
@@ -105,7 +118,7 @@ describe("extractEntriesFromPackageJson", () => {
 			bin: "./bin/cli.js", // Should be skipped (JS file not in dist)
 		};
 
-		const { entries } = extractEntriesFromPackageJson(packageJson);
+		const { entries } = new EntryExtractor().extract(packageJson);
 
 		expect(entries).toEqual({});
 	});
@@ -118,7 +131,7 @@ describe("extractEntriesFromPackageJson", () => {
 			bin: "./bin/cli.tsx",
 		};
 
-		const { entries } = extractEntriesFromPackageJson(packageJson);
+		const { entries } = new EntryExtractor().extract(packageJson);
 
 		expect(entries).toEqual({
 			index: "./src/component.tsx",
@@ -139,7 +152,7 @@ describe("extractEntriesFromPackageJson", () => {
 			},
 		};
 
-		const { entries } = extractEntriesFromPackageJson(packageJson);
+		const { entries } = new EntryExtractor().extract(packageJson);
 
 		expect(entries).toEqual({
 			utils: "./src/utils.ts",
@@ -160,7 +173,7 @@ describe("extractEntriesFromPackageJson", () => {
 			},
 		};
 
-		const { entries } = extractEntriesFromPackageJson(packageJson);
+		const { entries } = new EntryExtractor().extract(packageJson);
 
 		expect(entries).toEqual({
 			index: "./src/index.ts",
@@ -178,7 +191,7 @@ describe("extractEntriesFromPackageJson", () => {
 			},
 		};
 
-		const { entries } = extractEntriesFromPackageJson(packageJson);
+		const { entries } = new EntryExtractor().extract(packageJson);
 
 		expect(entries).toEqual({
 			index: "./src/index.ts",
@@ -195,7 +208,7 @@ describe("extractEntriesFromPackageJson", () => {
 			},
 		};
 
-		const { entries } = extractEntriesFromPackageJson(packageJson);
+		const { entries } = new EntryExtractor().extract(packageJson);
 
 		expect(entries).toEqual({
 			index: "./src/index.ts",
@@ -217,7 +230,7 @@ describe("extractEntriesFromPackageJson", () => {
 			},
 		};
 
-		const { entries } = extractEntriesFromPackageJson(packageJson);
+		const { entries } = new EntryExtractor().extract(packageJson);
 
 		expect(entries).toEqual({
 			index: "./src/index.ts",
@@ -238,7 +251,7 @@ describe("extractEntriesFromPackageJson", () => {
 			},
 		};
 
-		const result = extractEntriesFromPackageJson(packageJson);
+		const result = new EntryExtractor().extract(packageJson);
 
 		expect(result.entries).toEqual({});
 	});
@@ -252,7 +265,7 @@ describe("extractEntriesFromPackageJson", () => {
 			},
 		};
 
-		const result = extractEntriesFromPackageJson(packageJson);
+		const result = new EntryExtractor().extract(packageJson);
 
 		expect(result.entries).toEqual({});
 	});
@@ -266,7 +279,7 @@ describe("extractEntriesFromPackageJson", () => {
 			},
 		};
 
-		const result = extractEntriesFromPackageJson(packageJson);
+		const result = new EntryExtractor().extract(packageJson);
 
 		expect(result.entries).toEqual({
 			utils: "./src/utils.ts",
@@ -286,7 +299,7 @@ describe("extractEntriesFromPackageJson", () => {
 			},
 		};
 
-		const result = extractEntriesFromPackageJson(packageJson);
+		const result = new EntryExtractor().extract(packageJson);
 
 		expect(result.entries).toEqual({
 			index: "./src/index.d.ts", // Should use types as fallback
@@ -305,7 +318,7 @@ describe("extractEntriesFromPackageJson", () => {
 			},
 		};
 
-		const result = extractEntriesFromPackageJson(packageJson);
+		const result = new EntryExtractor().extract(packageJson);
 
 		expect(result.entries).toEqual({
 			"bin/my-cli": "./src/cli.ts",
@@ -331,6 +344,10 @@ describe("EntryExtractor class", () => {
 			// Default behavior: path separators become hyphens
 			expect(result.entries).toEqual({
 				"utils-helpers": "./src/utils/helpers.ts",
+			});
+			// exportPaths maps entry name to original export key
+			expect(result.exportPaths).toEqual({
+				"utils-helpers": "./utils/helpers",
 			});
 		});
 
@@ -365,7 +382,9 @@ describe("EntryExtractor class", () => {
 			const result = extractor.extract(packageJson);
 
 			expect(result).toHaveProperty("entries");
+			expect(result).toHaveProperty("exportPaths");
 			expect(typeof result.entries).toBe("object");
+			expect(typeof result.exportPaths).toBe("object");
 		});
 
 		it("should handle empty package.json", () => {
@@ -378,6 +397,7 @@ describe("EntryExtractor class", () => {
 			const result = extractor.extract(packageJson);
 
 			expect(result.entries).toEqual({});
+			expect(result.exportPaths).toEqual({});
 		});
 
 		it("should extract from both exports and bin", () => {
@@ -442,45 +462,6 @@ describe("EntryExtractor class", () => {
 			expect(result.entries).toEqual({
 				"api-v1": "./src/api/v1.ts",
 				"utils-string-format": "./src/utils/string/format.ts",
-			});
-		});
-	});
-
-	describe("functional interface compatibility", () => {
-		it("should produce same results as class-based API", () => {
-			const packageJson: PackageJson = {
-				name: "test-package",
-				version: "1.0.0",
-				exports: {
-					".": "./src/index.ts",
-					"./utils": "./src/utils.ts",
-				},
-				bin: "./src/cli.ts",
-			};
-
-			const extractor = new EntryExtractor();
-			const classResult = extractor.extract(packageJson);
-			const funcResult = extractEntriesFromPackageJson(packageJson);
-
-			expect(classResult).toEqual(funcResult);
-		});
-
-		it("should pass options through functional interface", () => {
-			const packageJson: PackageJson = {
-				name: "test-package",
-				version: "1.0.0",
-				exports: {
-					"./deep/nested/path": "./src/deep/nested/path.ts",
-				},
-			};
-
-			const extractor = new EntryExtractor({ exportsAsIndexes: true });
-			const classResult = extractor.extract(packageJson);
-			const funcResult = extractEntriesFromPackageJson(packageJson, { exportsAsIndexes: true });
-
-			expect(classResult).toEqual(funcResult);
-			expect(classResult.entries).toEqual({
-				"deep/nested/path/index": "./src/deep/nested/path.ts",
 			});
 		});
 	});

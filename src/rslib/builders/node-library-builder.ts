@@ -1,5 +1,5 @@
 import { existsSync, readFileSync } from "node:fs";
-import { join } from "node:path";
+import { join, relative } from "node:path";
 import type { RsbuildPlugin, SourceConfig } from "@rsbuild/core";
 import type { ConfigParams, LibConfig, RslibConfig } from "@rslib/core";
 import { defineConfig } from "@rslib/core";
@@ -11,7 +11,9 @@ import { FilesArrayPlugin } from "../plugins/files-array-plugin.js";
 import { PackageJsonTransformPlugin } from "../plugins/package-json-transform-plugin.js";
 import type { TsDocLintPluginOptions } from "../plugins/tsdoc-lint-plugin.js";
 import { TsDocLintPlugin } from "../plugins/tsdoc-lint-plugin.js";
+import { EntryExtractor } from "../plugins/utils/entry-extractor.js";
 import { packageJsonVersion } from "../plugins/utils/file-utils.js";
+import { ImportGraph } from "../plugins/utils/import-graph.js";
 import { VirtualEntryPlugin } from "../plugins/virtual-entry-plugin.js";
 
 /**
@@ -429,6 +431,20 @@ export interface NodeLibraryBuilderOptions {
 	 * ```
 	 */
 	apiModel?: ApiModelOptions | boolean;
+
+	/**
+	 * Whether to bundle JavaScript output into single files per entry point.
+	 *
+	 * @remarks
+	 * - `true` (default): RSlib bundles JS into single files per entry (current behavior)
+	 * - `false`: RSlib runs in bundleless mode, preserving file structure for JS output.
+	 *   DTS is still bundled per entry via API Extractor (hybrid mode).
+	 *   When `apiModel` is enabled with multiple entries, per-entry API models are
+	 *   merged into a single `api.model.json` with multiple EntryPoint members.
+	 *
+	 * @defaultValue true
+	 */
+	bundle?: boolean;
 }
 
 /**
@@ -504,6 +520,7 @@ export class NodeLibraryBuilder {
 		targets: ["dev", "npm"],
 		externals: [],
 		apiModel: true,
+		bundle: true,
 	} satisfies Partial<NodeLibraryBuilderOptions>;
 
 	/**
@@ -536,6 +553,7 @@ export class NodeLibraryBuilder {
 			targets: options.targets ?? NodeLibraryBuilder.DEFAULT_OPTIONS.targets,
 			externals: options.externals ?? NodeLibraryBuilder.DEFAULT_OPTIONS.externals,
 			apiModel: options.apiModel ?? NodeLibraryBuilder.DEFAULT_OPTIONS.apiModel,
+			bundle: options.bundle ?? NodeLibraryBuilder.DEFAULT_OPTIONS.bundle,
 			// Optional properties - only include if explicitly defined
 			...(options.entry !== undefined && { entry: options.entry }),
 			...(options.exportsAsIndexes !== undefined && { exportsAsIndexes: options.exportsAsIndexes }),
@@ -615,13 +633,21 @@ export class NodeLibraryBuilder {
 				// Add lint-specific options if provided
 				...(typeof lintConfig === "object" ? lintConfig : {}),
 			};
-			plugins.push(TsDocLintPlugin(lintOptions));
+			plugins.push(
+				TsDocLintPlugin({
+					...lintOptions,
+					...(options.bundle === false && { perEntry: true }),
+				}),
+			);
 		}
 
 		// Add auto-entry plugin if no explicit entries provided
 		if (!options.entry) {
 			plugins.push(
-				AutoEntryPlugin(options.exportsAsIndexes != null ? { exportsAsIndexes: options.exportsAsIndexes } : undefined),
+				AutoEntryPlugin({
+					...(options.exportsAsIndexes != null && { exportsAsIndexes: options.exportsAsIndexes }),
+					...(options.bundle === false && { bundleless: true }),
+				}),
 			);
 		}
 
@@ -633,10 +659,15 @@ export class NodeLibraryBuilder {
 		// Get format (defaults to "esm")
 		const libraryFormat = options.format ?? "esm";
 
+		// collapseIndex: bundle || !exportsAsIndexes
+		// In bundleless mode with exportsAsIndexes, keep ./foo/index.js paths
+		// In bundleless mode without exportsAsIndexes, collapse ./foo/index.ts → ./foo.js
+		const collapseIndex = (options.bundle ?? true) || !(options.exportsAsIndexes ?? false);
+
 		plugins.push(
 			PackageJsonTransformPlugin({
 				forcePrivate: target === "dev",
-				bundle: true,
+				bundle: collapseIndex,
 				target,
 				format: libraryFormat,
 				...(transformFn && { transform: transformFn }),
@@ -652,14 +683,29 @@ export class NodeLibraryBuilder {
 		);
 
 		// Add user-provided plugins
-		if (options.plugins) {
-			plugins.push(...options.plugins);
-		}
+		plugins.push(...options.plugins);
 
 		// Build output configuration
 		const outputDir = `dist/${target}`;
 
-		const entry = options.entry;
+		// In bundleless mode, compute traced entries from import graph so RSlib
+		// receives them on the lib config (modifyRsbuildConfig is too late —
+		// RSlib resolves entries before plugin hooks run)
+		let entry = options.entry;
+		if (options.bundle === false && !entry) {
+			const cwd = process.cwd();
+			const packageJsonPath = join(cwd, "package.json");
+			const packageJson = JSON.parse(readFileSync(packageJsonPath, "utf-8")) as PackageJson;
+			const { entries } = new EntryExtractor().extract(packageJson);
+			const graph = new ImportGraph({ rootDir: cwd });
+			const result = graph.traceFromEntries(Object.values(entries));
+			const tracedEntries: Record<string, string> = {};
+			for (const file of result.files) {
+				const relPath = relative(cwd, file);
+				tracedEntries[relPath] = `./${relPath}`;
+			}
+			entry = tracedEntries;
+		}
 
 		// Add our custom DTS plugin that uses tsgo and emits through asset pipeline
 		// The plugin will generate the temp tsconfig itself since it needs access to api.context.rootPath
@@ -670,7 +716,7 @@ export class NodeLibraryBuilder {
 			DtsPlugin({
 				...(options.tsconfigPath && { tsconfigPath: options.tsconfigPath }),
 				abortOnError: true,
-				bundle: true,
+				bundle: options.bundle ?? true,
 				...(options.dtsBundledPackages && { bundledPackages: options.dtsBundledPackages }),
 				buildTarget: target,
 				format: libraryFormat,
@@ -680,12 +726,14 @@ export class NodeLibraryBuilder {
 
 		const lib: LibConfig = {
 			id: target,
-			outBase: outputDir,
+			outBase: options.bundle === false ? "src" : outputDir,
 			output: {
 				target: "node",
 				module: true,
 				cleanDistPath: true,
 				sourceMap: target === "dev", // Only enable source maps for dev target
+				// Prevent @preserve comments from generating .LICENSE.txt files
+				...(options.bundle === false && { legalComments: "inline" as const }),
 				distPath: {
 					root: outputDir,
 				},
@@ -698,7 +746,7 @@ export class NodeLibraryBuilder {
 			experiments: {
 				advancedEsm: libraryFormat === "esm",
 			},
-			bundle: true,
+			bundle: options.bundle ?? true,
 			plugins,
 			source: {
 				// Don't set tsconfigPath here - DtsPlugin will generate and use its own temp config
@@ -744,15 +792,14 @@ export class NodeLibraryBuilder {
 
 			for (const [outputName, config] of Object.entries(virtualEntries)) {
 				const entryFormat = config.format ?? libraryFormat;
-				if (!virtualByFormat.has(entryFormat)) {
-					virtualByFormat.set(entryFormat, new Map());
+				let formatMap = virtualByFormat.get(entryFormat);
+				if (!formatMap) {
+					formatMap = new Map();
+					virtualByFormat.set(entryFormat, formatMap);
 				}
 				// Strip extension from output name to get entry name
 				const entryName = outputName.replace(/\.(c|m)?js$/, "");
-				const formatMap = virtualByFormat.get(entryFormat);
-				if (formatMap) {
-					formatMap.set(entryName, config.source);
-				}
+				formatMap.set(entryName, config.source);
 			}
 
 			// Create lib configs for each format group
@@ -830,9 +877,7 @@ export class NodeLibraryBuilder {
 			const packageJsonPath = join(process.cwd(), "package.json");
 			const packageJson = JSON.parse(readFileSync(packageJsonPath, "utf-8")) as PackageJson;
 			const { exports } = packageJson;
-			return (
-				exports !== undefined && exports !== null && typeof exports === "object" && Object.keys(exports).length > 0
-			);
+			return exports != null && typeof exports === "object" && Object.keys(exports).length > 0;
 		} catch {
 			return false;
 		}

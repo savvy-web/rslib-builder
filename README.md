@@ -16,6 +16,8 @@ resolution automatically.
   Extractor for bundled, clean public API declarations
 - **Production-Ready Transforms** - Converts `.ts` exports to `.js`, resolves
   PNPM `catalog:` and `workspace:` references, generates files array
+- **Bundled or Bundleless** - Choose single-file bundles per entry or
+  bundleless mode that preserves your source file structure
 - **Multi-Target Builds** - Separate dev (with source maps) and npm (optimized)
   outputs from a single configuration
 - **TSDoc Validation** - Pre-build documentation validation with automatic

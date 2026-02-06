@@ -59,7 +59,16 @@ export default defineConfig({
 			provider: "v8",
 			reporter: ["text", "text-summary", "html", "lcov"],
 			include: ["src/**/*.ts"],
-			exclude: ["**/*.test.ts", "**/__test__/**", "**/types/**", "**/*.d.ts", "**/tsconfig/**", "**/cli/**"],
+			exclude: [
+				"**/*.test.ts",
+				"**/__test__/**",
+				"**/types/**",
+				"**/*.d.ts",
+				"**/tsconfig/**",
+				"**/cli/**",
+				"**/fake/**",
+				"**/shared/**",
+			],
 			thresholds: {
 				perFile: true,
 				statements: 85,
