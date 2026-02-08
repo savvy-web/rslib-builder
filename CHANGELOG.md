@@ -1,5 +1,11 @@
 # @savvy-web/rslib-builder
 
+## 0.12.1
+
+### Patch Changes
+
+- de459ba: Standardize dependencies with @savvy-web/pnpm-plugin-silk
+
 ## 0.12.0
 
 ### Minor Changes
