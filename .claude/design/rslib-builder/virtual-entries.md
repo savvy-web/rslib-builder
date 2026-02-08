@@ -133,26 +133,26 @@ special files (like pnpmfile.cjs) without exposing a programmatic API.
 
 ### Behavior Matrix
 
-| Aspect               | Regular Entries                          | Virtual Entries                          |
-| -------------------- | ---------------------------------------- | ---------------------------------------- |
-| Source discovery     | Auto from package.json exports           | Explicit `source` path                   |
-| Output naming        | Entry name + .js/.cjs                    | Exact key name                           |
-| Format               | Top-level `format` option (default: esm) | Per-entry or inherited from top-level    |
-| Type generation      | Yes (.d.ts via DtsPlugin)                | **No**                                   |
-| package.json exports | Yes (auto-added)                         | **No**                                   |
-| package.json files   | Yes                                      | **Yes**                                  |
-| Bundling             | Full bundling                            | Full bundling                            |
-| Externals            | Uses configured externals                | Uses configured externals                |
+| Aspect | Regular Entries | Virtual Entries |
+| --- | --- | --- |
+| Source discovery | Auto from package.json exports | Explicit `source` path |
+| Output naming | Entry name + .js/.cjs | Exact key name |
+| Format | Top-level `format` option (default: esm) | Per-entry or inherited from top-level |
+| Type generation | Yes (.d.ts via DtsPlugin) | **No** |
+| package.json exports | Yes (auto-added) | **No** |
+| package.json files | Yes | **Yes** |
+| Bundling | Full bundling | Full bundling |
+| Externals | Uses configured externals | Uses configured externals |
 
 ### Package.json Type Field
 
 The top-level `format` option determines the `type` field in the transformed
 package.json:
 
-| Format              | package.json type    |
-| ------------------- | -------------------- |
-| `"esm"` (default)   | `"type": "module"`   |
-| `"cjs"`             | `"type": "commonjs"` |
+| Format | package.json type |
+| --- | --- |
+| `"esm"` (default) | `"type": "module"` |
+| `"cjs"` | `"type": "commonjs"` |
 
 This ensures Node.js correctly interprets the module format of the published
 package.

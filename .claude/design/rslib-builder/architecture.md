@@ -819,11 +819,11 @@ When `include` is specified:
 
 Controls how TSDoc lint errors are handled:
 
-| Value     | Behavior                                   |
-| --------- | ------------------------------------------ |
-| `"warn"`  | Log warnings, continue build               |
+| Value | Behavior |
+| --- | --- |
+| `"warn"` | Log warnings, continue build |
 | `"error"` | Log errors, continue build (default local) |
-| `"throw"` | Fail build immediately (default CI)        |
+| `"throw"` | Fail build immediately (default CI) |
 
 Environment detection uses `CI` or `GITHUB_ACTIONS` environment variables
 to determine if running in CI.
@@ -834,19 +834,19 @@ Controls whether the generated `tsdoc.json` configuration file is kept after
 linting. In CI environments, this validates the existing file matches expected
 configuration instead of writing.
 
-| Value      | Local Behavior                       | CI Behavior                      |
-| ---------- | ------------------------------------ | -------------------------------- |
-| `true`     | Persist to project root              | Validate existing file           |
-| `false`    | Clean up after linting               | Skip validation, clean up        |
-| `PathLike` | Persist to custom path               | Validate at custom path          |
-| undefined  | Persist to project root (default)    | Validate existing file           |
+| Value | Local Behavior | CI Behavior |
+| --- | --- | --- |
+| `true` | Persist to project root | Validate existing file |
+| `false` | Clean up after linting | Skip validation, clean up |
+| `PathLike` | Persist to custom path | Validate at custom path |
+| undefined | Persist to project root (default) | Validate existing file |
 
 **Error handling matrix:**
 
-| Environment | Default onError | Lint Errors | Build Result         |
-| ----------- | --------------- | ----------- | -------------------- |
-| Local       | `"error"`       | Yes         | Continue, log errors |
-| CI          | `"throw"`       | Yes         | Fail build           |
+| Environment | Default onError | Lint Errors | Build Result |
+| --- | --- | --- | --- |
+| Local | `"error"` | Yes | Continue, log errors |
+| CI | `"throw"` | Yes | Fail build |
 
 ---
 

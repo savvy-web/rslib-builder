@@ -595,10 +595,10 @@ NodeLibraryBuilder.create({
 
 ### Error Handling
 
-| Environment | Default `onError` | Lint Errors | Build Result         |
-| :---------- | :---------------- | :---------- | :------------------- |
-| Local       | `'error'`         | Yes         | Continue, log errors |
-| CI          | `'throw'`         | Yes         | Fail build           |
+| Environment | Default `onError` | Lint Errors | Build Result |
+| :--- | :--- | :--- | :--- |
+| Local | `'error'` | Yes | Continue, log errors |
+| CI | `'throw'` | Yes | Fail build |
 
 ### persistConfig Behavior
 
