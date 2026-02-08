@@ -95,9 +95,9 @@ NodeLibraryBuilder.create({
 **Environment-Aware Defaults:**
 
 | Environment | Default `onError` | Default `persistConfig` |
-| :---------- | :---------------- | :---------------------- |
-| Local       | `'error'`         | `true`                  |
-| CI          | `'throw'`         | validates existing      |
+| :--- | :--- | :--- |
+| Local | `'error'` | `true` |
+| CI | `'throw'` | validates existing |
 
 ### VirtualEntryPlugin
 
