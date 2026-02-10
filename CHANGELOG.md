@@ -1,5 +1,15 @@
 # @savvy-web/rslib-builder
 
+## 0.12.2
+
+### Patch Changes
+
+- 99a487e: Update dependencies:
+
+  **Dependencies:**
+  - tmp: >=0.2.4 → ^0.2.4
+  - @savvy-web/lint-staged: ^0.3.1 → ^0.4.0
+
 ## 0.12.1
 
 ### Patch Changes
@@ -16,7 +26,6 @@
   single `.api.json` with multiple `EntryPoint` members.
 
   ### New behavior
-
   - API Extractor now runs for **every** entry point (not just the main `"."` export)
   - Per-entry models are merged into a single Package with multiple EntryPoint members
   - Sub-entry canonical references are scoped (e.g., `@scope/pkg/subpath!` instead
@@ -24,7 +33,6 @@
   - Single-entry packages produce the same output as before (no merge needed)
 
   ### API changes
-
   - Added `exportPaths: Record<string, string>` to `ExtractedEntries` interface,
     mapping entry names back to original export keys (e.g., `"nested-one"` to
     `"./nested/one"`) for lossless canonical reference scoping
@@ -33,7 +41,6 @@
   - Added `mergeApiModels()` internal function for combining per-entry API models
 
   ### Bundleless mode
-
   - DtsPlugin now emits individual `.d.ts` files (preserving source structure)
     when `bundle: false`, while still generating a merged API model across all
     entry points
@@ -41,13 +48,11 @@
     rolled up per entry (bundle) or emitted individually (bundleless)
 
   ### Removed
-
   - Removed virtual barrel generator (`VirtualBarrelGenerator`, `BarrelEntry`,
     `generateApiModelFromBarrel`, `BarrelApiModelResult`)
   - Removed `generateVirtualBarrel` option from `DtsPluginOptions`
 
   ### Other changes
-
   - `reportUnsupportedHtmlElements` changed from `false` to `true` in TSDoc config
   - Extracted `resolveTsdocMetadataFilename` utility to deduplicate filename resolution
   - Replaced duplicated CI detection with `TsDocConfigBuilder.isCI()`
@@ -57,7 +62,6 @@
 ### Minor Changes
 
 - 9d0b80e: Refactor catalog resolution to support multiple package managers
-
   - Rename `PnpmCatalog` to `WorkspaceCatalog` with multi-package-manager support
   - Add yarn 4 workspace catalog support via `workspace-tools` package
   - Replace singleton pattern with factory function `createWorkspaceCatalog()`
@@ -84,7 +88,6 @@
   ```
 
   **Effects:**
-
   - Sets `package.json` `type` field: `"module"` for ESM, `"commonjs"` for CJS
   - Configures resolved `tsconfig.json` module settings appropriately
   - Controls output file extensions (`.js` for ESM, `.cjs` for CJS)
@@ -92,7 +95,6 @@
   ### `virtualEntries` Option
 
   Virtual entries are special entry points that are bundled like regular entries but:
-
   - Do NOT generate TypeScript declarations (`.d.ts` files)
   - Are NOT added to `package.json` exports
   - ARE included in the `package.json` files array for publishing
@@ -112,14 +114,12 @@
   ```
 
   **Features:**
-
   - Each virtual entry can specify its own format or inherit from top-level
   - Multiple virtual entries with different formats are supported
   - Virtual-only configurations (no regular exports) are valid
   - Uses separate RSlib lib configs for format isolation
 
   ## Implementation Details
-
   - New `VirtualEntryPlugin` exposes virtual entry names and manages files array inclusion
   - `DtsPlugin` skips type generation for entries in the virtual entry set
   - `PackageJsonTransformPlugin` sets the `type` field based on format
@@ -127,7 +127,6 @@
   - `LibraryFormat` type centralized in `src/types/package-json.ts`
 
   ## New Exports
-
   - `LibraryFormat` - Type alias for `"esm" | "cjs"`
   - `VirtualEntryConfig` - Interface for virtual entry configuration
   - `VirtualEntryPlugin` - Plugin for handling virtual entries
@@ -138,7 +137,6 @@
 ### Minor Changes
 
 - 7be6565: Add CI-aware forgotten exports handling and fix declaration generation
-
   - Forgotten exports now fail the build in CI environments by default (`forgottenExports` defaults to `"error"` when `CI` or `GITHUB_ACTIONS` env vars are set)
   - Local builds warn but succeed by default (`forgottenExports` defaults to `"include"`)
   - Users can override with explicit `apiModel.forgottenExports` option: `"error"`, `"include"`, or `"ignore"`
@@ -156,7 +154,6 @@
 ### Minor Changes
 
 - c9ece9f: feat: Generate bundled TypeScript declarations for all entry points
-
   - DtsPlugin now uses EntryExtractor to discover ALL TypeScript exports from package.json, not just the main export
   - Packages with multiple exports (e.g., `.`, `./utils`, `./types`) now get individual bundled `.d.ts` files for each entry
   - Bin entries are correctly skipped (CLI tools don't need bundled type declarations)
@@ -173,7 +170,6 @@
   The DtsPlugin now generates a flattened tsconfig.json file alongside the API model
   output. This resolved configuration is designed for virtual TypeScript environments
   and documentation tooling:
-
   - Converts TypeScript enum values to strings (target, module, moduleResolution, jsx)
   - Sets `composite: false` and `noEmit: true` for virtual environment compatibility
   - Excludes path-dependent options (outDir, rootDir, declarationDir, typeRoots)
@@ -201,7 +197,6 @@
 ### Minor Changes
 
 - 264ddee: Add local type definitions to remove external type dependencies from public API
-
   - Add `CopyPatternConfig` interface for copy pattern configuration, replacing dependency on `@rspack/binding` types
   - Add `PackageJson` and related JSON types (`JsonObject`, `JsonValue`, etc.) with TSDoc-compliant documentation, replacing `type-fest` in public API
   - Simplify TsDocLintPlugin by removing peer dependency checks for ESLint modules (now bundled dependencies)
@@ -218,7 +213,6 @@
   begins. This helps catch documentation issues early in the development cycle.
 
   **New Features:**
-
   - `TsDocLintPlugin` - Standalone Rsbuild plugin for TSDoc validation
   - `tsdocLint` option in `NodeLibraryBuilder` for easy integration
   - Environment-aware defaults: throws errors in CI, logs errors locally
@@ -247,7 +241,6 @@
   **Dependencies:**
 
   The plugin requires optional peer dependencies when enabled:
-
   - `eslint`
   - `@typescript-eslint/parser`
   - `eslint-plugin-tsdoc`
@@ -256,7 +249,6 @@
   explaining how to install them.
 
   **Improvements:**
-
   - `TsDocConfigBuilder.writeConfigFile()` now compares existing config files using
     deep equality to avoid unnecessary writes and uses tabs for formatting
   - Added `deep-equal` package for robust object comparison
@@ -268,17 +260,14 @@
 - a5354b3: Refactor public API surface and add TSDoc validation tooling.
 
   **Breaking Changes:**
-
   - Remove `EntryExtractor`, `PackageJsonTransformer`, and `PnpmCatalog` classes from public exports (now internal implementation details)
 
   **New Features:**
-
   - Add `TsDocConfigBuilder` to public API for custom TSDoc configurations
   - Add ESLint with `eslint-plugin-tsdoc` for TSDoc syntax validation
   - Add `lint:tsdoc` npm script and lint-staged integration
 
   **Improvements:**
-
   - Convert `PackageJsonTransformer` methods to standalone functions for better testability
   - Add granular type exports (`BuildTarget`, `TransformPackageJsonFn`, option types)
   - Improve TSDoc documentation with `@public` and `@internal` tags throughout
@@ -316,7 +305,6 @@
 ### Minor Changes
 
 - 9d4a183: Add TSDoc configuration support for API Extractor integration.
-
   - New `TsDocConfigBuilder` class for managing TSDoc configuration
   - Tag group support: core, extended, and discretionary tag categories
   - Custom tag definitions and `supportForTags` auto-derivation
@@ -345,7 +333,6 @@
   ECMAScript libraries.
 
   Build TypeScript packages effortlessly with:
-
   - **Zero-config bundling** - Automatic entry point detection from package.json
   - **Rolled-up type declarations** - API Extractor integration bundles your
     .d.ts files for clean public APIs
