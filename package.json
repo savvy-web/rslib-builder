@@ -89,7 +89,7 @@
 		"@changesets/cli": "catalog:silk",
 		"@pnpm/types": "^1001.3.0",
 		"@rsbuild/core": "^1.7.3",
-		"@savvy-web/commitlint": "^0.3.1",
+		"@savvy-web/commitlint": "^0.3.2",
 		"@savvy-web/lint-staged": "^0.4.0",
 		"@types/deep-equal": "^1.0.4",
 		"@types/tmp": "^0.2.6",
