@@ -14,9 +14,7 @@ dependencies: []
 
 # Virtual Entries Feature
 
-A feature to support bundling additional entry points with custom output names that
-bypass type generation and package.json exports while still being included in the
-published package.
+A feature to support bundling additional entry points with custom output names that bypass type generation and package.json exports while still being included in the published package.
 
 ## Table of Contents
 
@@ -33,13 +31,9 @@ published package.
 
 ## Overview
 
-The `virtualEntries` feature allows bundling additional entry points with custom output
-names without generating TypeScript declarations or adding them to package.json exports.
-These are "virtual" in the sense that they exist outside the standard entry point
-workflow while using the same bundling machinery.
+The `virtualEntries` feature allows bundling additional entry points with custom output names without generating TypeScript declarations or adding them to package.json exports. These are "virtual" in the sense that they exist outside the standard entry point workflow while using the same bundling machinery.
 
-**Primary Use Case:** pnpm config dependencies require a `pnpmfile.cjs` file that must
-be CommonJS, self-contained (no external requires), and doesn't need type declarations.
+**Primary Use Case:** pnpm config dependencies require a `pnpmfile.cjs` file that must be CommonJS, self-contained (no external requires), and doesn't need type declarations.
 
 **Key Characteristics:**
 
@@ -64,8 +58,7 @@ be CommonJS, self-contained (no external requires), and doesn't need type declar
 
 ### Implemented API
 
-The `virtualEntries` option and top-level `format` option are implemented in
-`NodeLibraryBuilderOptions`:
+The `virtualEntries` option and top-level `format` option are implemented in `NodeLibraryBuilderOptions`:
 
 ```typescript
 interface VirtualEntryConfig {
@@ -128,8 +121,7 @@ interface NodeLibraryBuilderOptions {
 2. **Mixed**: Regular entries + virtual entries
 3. **Virtual-only**: No regular entries, only virtual entries
 
-Virtual-only configurations are valid for packages that exist solely to provide
-special files (like pnpmfile.cjs) without exposing a programmatic API.
+Virtual-only configurations are valid for packages that exist solely to provide special files (like pnpmfile.cjs) without exposing a programmatic API.
 
 ### Behavior Matrix
 
@@ -146,16 +138,14 @@ special files (like pnpmfile.cjs) without exposing a programmatic API.
 
 ### Package.json Type Field
 
-The top-level `format` option determines the `type` field in the transformed
-package.json:
+The top-level `format` option determines the `type` field in the transformed package.json:
 
 | Format | package.json type |
 | --- | --- |
 | `"esm"` (default) | `"type": "module"` |
 | `"cjs"` | `"type": "commonjs"` |
 
-This ensures Node.js correctly interprets the module format of the published
-package.
+This ensures Node.js correctly interprets the module format of the published package.
 
 ### Implementation Approach
 
@@ -163,8 +153,7 @@ There are two viable approaches for implementing virtual entries:
 
 #### Approach A: Separate RSlib `lib` Configs (Recommended)
 
-Create additional RSlib `lib` configurations for virtual entries that need different
-formats. This leverages RSlib's existing multi-lib support.
+Create additional RSlib `lib` configurations for virtual entries that need different formats. This leverages RSlib's existing multi-lib support.
 
 **Pros:**
 
@@ -180,8 +169,7 @@ formats. This leverages RSlib's existing multi-lib support.
 
 #### Approach B: Single Config with Custom Plugin
 
-Process virtual entries within a custom Rsbuild plugin that handles the different
-format requirements.
+Process virtual entries within a custom Rsbuild plugin that handles the different format requirements.
 
 **Pros:**
 
@@ -194,8 +182,7 @@ format requirements.
 - May conflict with RSlib's format assumptions
 - Harder to maintain
 
-**Decision:** Approach A (separate lib configs) is recommended for its cleaner
-architecture and native format support.
+**Decision:** Approach A (separate lib configs) is recommended for its cleaner architecture and native format support.
 
 ---
 
@@ -205,8 +192,7 @@ architecture and native format support.
 
 #### Decision 1: Separate lib Configs for Format Isolation
 
-**Context:** Virtual entries may require different formats (CJS vs ESM) than the
-main library build.
+**Context:** Virtual entries may require different formats (CJS vs ESM) than the main library build.
 
 **Options considered:**
 
@@ -259,8 +245,7 @@ main library build.
 
 #### Decision 4: Virtual Entries Not Added to package.json Exports
 
-**Context:** Virtual entries are special files that shouldn't be importable as
-package exports.
+**Context:** Virtual entries are special files that shouldn't be importable as package exports.
 
 **Rationale:**
 
@@ -272,8 +257,7 @@ package exports.
 
 #### Pattern: Configuration Aggregation
 
-Virtual entries are aggregated into the RSlib configuration alongside regular
-entries, but routed to separate lib configs when formats differ.
+Virtual entries are aggregated into the RSlib configuration alongside regular entries, but routed to separate lib configs when formats differ.
 
 ```typescript
 // Pseudo-code for config generation
@@ -566,9 +550,7 @@ for (const [entryName, sourcePath] of Object.entries(entries)) {
 
 **Resolved tsconfig.json format alignment:**
 
-When outputting the resolved `tsconfig.json` for virtual TS environments, it must
-reflect the actual compilation format. Since the source is always ESM, but the
-output may be CJS, the tsconfig needs adjustment:
+When outputting the resolved `tsconfig.json` for virtual TS environments, it must reflect the actual compilation format. Since the source is always ESM, but the output may be CJS, the tsconfig needs adjustment:
 
 ```typescript
 // In DtsPlugin, when emitting resolved tsconfig.json
@@ -589,14 +571,11 @@ const resolvedTsConfig = {
 };
 ```
 
-This ensures tools consuming the resolved tsconfig.json (like virtual TS
-environments, documentation generators, or IDE integrations) correctly understand
-the module format of the compiled output.
+This ensures tools consuming the resolved tsconfig.json (like virtual TS environments, documentation generators, or IDE integrations) correctly understand the module format of the compiled output.
 
 ### AutoEntryPlugin Changes
 
-No changes needed - AutoEntryPlugin processes package.json exports, and virtual
-entries are not in exports. The plugin naturally ignores them.
+No changes needed - AutoEntryPlugin processes package.json exports, and virtual entries are not in exports. The plugin naturally ignores them.
 
 ### FilesArrayPlugin Changes
 
@@ -626,9 +605,7 @@ const format = api.useExposed<"esm" | "cjs">("library-format") ?? "esm";
 packageJson.type = format === "esm" ? "module" : "commonjs";
 ```
 
-**No changes for exports** - virtual entries don't affect package.json exports
-transformation. The plugin only processes entries from the `entrypoints` map
-exposed by AutoEntryPlugin, which excludes virtual entries.
+**No changes for exports** - virtual entries don't affect package.json exports transformation. The plugin only processes entries from the `entrypoints` map exposed by AutoEntryPlugin, which excludes virtual entries.
 
 ---
 

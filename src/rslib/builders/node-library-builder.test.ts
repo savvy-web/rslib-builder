@@ -70,8 +70,10 @@ vi.mock("../plugins/utils/entry-extractor.js", () => ({
 	},
 }));
 
-// Import mocked AutoEntryPlugin to inspect calls
+// Import mocked plugins to inspect calls
 import { AutoEntryPlugin } from "../plugins/auto-entry-plugin.js";
+import { DtsPlugin } from "../plugins/dts-plugin.js";
+import { FilesArrayPlugin } from "../plugins/files-array-plugin.js";
 
 describe("NodeLibraryBuilder", () => {
 	beforeEach(() => {
@@ -301,6 +303,87 @@ describe("NodeLibraryBuilder", () => {
 
 			const lib = capturedConfig?.lib?.[0];
 			expect(lib?.output?.legalComments).toBeUndefined();
+		});
+
+		describe("dual format", () => {
+			it("should set distPath.root to baseOutputDir and distPath.js to primary format", async () => {
+				const options = NodeLibraryBuilder.mergeOptions({ format: ["esm", "cjs"] });
+				await NodeLibraryBuilder.createSingleTarget("npm", options);
+
+				const primaryLib = capturedConfig?.lib?.[0];
+				expect(primaryLib?.output?.distPath).toEqual({ root: "dist/npm", js: "esm" });
+			});
+
+			it("should set distPath.js to secondary format on secondary lib config", async () => {
+				const options = NodeLibraryBuilder.mergeOptions({ format: ["esm", "cjs"] });
+				await NodeLibraryBuilder.createSingleTarget("npm", options);
+
+				const secondaryLib = capturedConfig?.lib?.[1];
+				expect(secondaryLib?.output?.distPath).toEqual({ root: "dist/npm", js: "cjs" });
+			});
+
+			it("should set outBase to baseOutputDir for both primary and secondary in bundle mode", async () => {
+				const options = NodeLibraryBuilder.mergeOptions({ format: ["esm", "cjs"], bundle: true });
+				await NodeLibraryBuilder.createSingleTarget("npm", options);
+
+				const primaryLib = capturedConfig?.lib?.[0];
+				const secondaryLib = capturedConfig?.lib?.[1];
+				expect(primaryLib?.outBase).toBe("dist/npm");
+				expect(secondaryLib?.outBase).toBe("dist/npm");
+			});
+
+			it("should pass dtsPathPrefix to primary DtsPlugin", async () => {
+				const options = NodeLibraryBuilder.mergeOptions({ format: ["esm", "cjs"] });
+				await NodeLibraryBuilder.createSingleTarget("npm", options);
+
+				// Primary DtsPlugin is the last call (called after secondary)
+				const dtsCalls = vi.mocked(DtsPlugin).mock.calls;
+				const primaryCall = dtsCalls[0][0];
+				expect(primaryCall).toMatchObject({ dtsPathPrefix: "esm" });
+			});
+
+			it("should pass dtsPathPrefix to secondary DtsPlugin", async () => {
+				const options = NodeLibraryBuilder.mergeOptions({ format: ["esm", "cjs"] });
+				await NodeLibraryBuilder.createSingleTarget("npm", options);
+
+				const dtsCalls = vi.mocked(DtsPlugin).mock.calls;
+				const secondaryCall = dtsCalls[1][0];
+				expect(secondaryCall).toMatchObject({ dtsPathPrefix: "cjs" });
+			});
+
+			it("should not set distPath.js for single format builds", async () => {
+				const options = NodeLibraryBuilder.mergeOptions({ format: "esm" });
+				await NodeLibraryBuilder.createSingleTarget("npm", options);
+
+				const lib = capturedConfig?.lib?.[0];
+				expect(lib?.output?.distPath).toEqual({ root: "dist/npm" });
+			});
+
+			it("should not pass dtsPathPrefix to DtsPlugin for single format", async () => {
+				const options = NodeLibraryBuilder.mergeOptions({ format: "esm" });
+				await NodeLibraryBuilder.createSingleTarget("npm", options);
+
+				const dtsCalls = vi.mocked(DtsPlugin).mock.calls;
+				expect(dtsCalls[0][0]).not.toHaveProperty("dtsPathPrefix");
+			});
+
+			it("should pass formatDirs with all formats to primary FilesArrayPlugin", async () => {
+				const options = NodeLibraryBuilder.mergeOptions({ format: ["esm", "cjs"] });
+				await NodeLibraryBuilder.createSingleTarget("npm", options);
+
+				// Primary FilesArrayPlugin is the first call
+				const filesCalls = vi.mocked(FilesArrayPlugin).mock.calls;
+				const primaryCall = filesCalls[0][0];
+				expect(primaryCall).toMatchObject({ formatDirs: ["esm", "cjs"] });
+			});
+
+			it("should not pass formatDirs for single format", async () => {
+				const options = NodeLibraryBuilder.mergeOptions({ format: "esm" });
+				await NodeLibraryBuilder.createSingleTarget("npm", options);
+
+				const filesCalls = vi.mocked(FilesArrayPlugin).mock.calls;
+				expect(filesCalls[0][0]).not.toHaveProperty("formatDirs");
+			});
 		});
 	});
 });

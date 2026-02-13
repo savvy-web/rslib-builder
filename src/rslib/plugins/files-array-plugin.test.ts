@@ -475,6 +475,82 @@ describe("FilesArrayPlugin", () => {
 		expect(Array.from(exposedSet).sort()).toEqual(["README.md", "package.json"]);
 	});
 
+	it("should add formatDirs to files array in additional stage", async () => {
+		const plugin = FilesArrayPlugin({ target: "npm", formatDirs: ["esm", "cjs"] });
+
+		const mockApi = {
+			processAssets: vi.fn(),
+			useExposed: vi.fn().mockReturnValue(undefined),
+			expose: vi.fn(),
+		};
+
+		// biome-ignore lint/suspicious/noExplicitAny: Test mocks
+		const mockPackageJsonAsset = { fileName: "package.json" } as any;
+		mockJsonAssetCreate.mockResolvedValue(mockPackageJsonAsset);
+		mockTextAssetCreate.mockResolvedValue(null);
+
+		plugin.setup(mockApi as unknown as Parameters<ReturnType<typeof FilesArrayPlugin>["setup"]>[0]);
+
+		const callback = mockApi.processAssets.mock.calls[0][1];
+
+		const mockContext = {
+			compilation: {
+				name: "test-env",
+				assets: {
+					"package.json": { source: () => '{"name": "test"}' },
+					"esm/index.js": { source: () => "" },
+					"cjs/index.cjs": { source: () => "" },
+				},
+			},
+		};
+
+		await callback(mockContext);
+
+		const exposedSet = mockApi.expose.mock.calls[0][1] as Set<string>;
+		expect(exposedSet.has("esm")).toBe(true);
+		expect(exposedSet.has("cjs")).toBe(true);
+	});
+
+	it("should filter individual files under formatDirs in optimize-inline stage", async () => {
+		const plugin = FilesArrayPlugin({ target: "npm", formatDirs: ["esm", "cjs"] });
+
+		const mockFilesArray = new Set([
+			"package.json",
+			"tsdoc-metadata.json",
+			"esm",
+			"cjs",
+			"esm/index.js",
+			"esm/index.d.ts",
+			"cjs/index.cjs",
+			"cjs/index.d.cts",
+		]);
+
+		const mockApi = {
+			processAssets: vi.fn(),
+			useExposed: vi.fn().mockReturnValue(mockFilesArray),
+			expose: vi.fn(),
+		};
+
+		const mockPackageJsonAsset = {
+			fileName: "package.json",
+			data: { name: "test", version: "1.0.0", files: [] as string[] },
+			update: vi.fn(),
+			// biome-ignore lint/suspicious/noExplicitAny: Test mocks
+		} as any;
+
+		mockJsonAssetCreate.mockResolvedValue(mockPackageJsonAsset);
+
+		plugin.setup(mockApi as unknown as Parameters<ReturnType<typeof FilesArrayPlugin>["setup"]>[0]);
+
+		const callback = mockApi.processAssets.mock.calls[1][1];
+
+		await callback({
+			compilation: { name: "test-env", assets: {} },
+		});
+
+		expect(mockPackageJsonAsset.data.files).toEqual(["cjs", "esm", "package.json", "tsdoc-metadata.json"]);
+	});
+
 	it("should create files array if not exposed in second processAssets call", async () => {
 		const plugin = FilesArrayPlugin();
 

@@ -1,7 +1,6 @@
 # @savvy-web/rslib-builder
 
-RSlib-based build system for modern ESM Node.js libraries. Provides `NodeLibraryBuilder`
-API and plugin system for TypeScript packages.
+RSlib-based build system for modern ESM Node.js libraries. Provides `NodeLibraryBuilder` API and plugin system for TypeScript packages.
 
 ## Package Overview
 
@@ -103,8 +102,7 @@ All plugins and utilities have co-located `.test.ts` files.
 
 #### NodeLibraryBuilder
 
-The main API for building Node.js libraries. Provides a fluent interface for
-RSlib builds.
+The main API for building Node.js libraries. Provides a fluent interface for RSlib builds.
 
 **Location**: `src/rslib/builders/node-library-builder.ts`
 
@@ -177,8 +175,7 @@ const mockAssets: MockAssetRegistry = {
 
 ### E2E Tests
 
-E2E tests verify builder options by building isolated fixture copies with
-dynamically generated configs:
+E2E tests verify builder options by building isolated fixture copies with dynamically generated configs:
 
 - `test/e2e/dts-bundling.test.ts` - DTS bundling for single/multi-entry fixtures
 - `test/e2e/builder-options/api-model.test.ts` - API model generation options
@@ -216,8 +213,7 @@ pnpm lint:fix           # Auto-fix lint issues
 pnpm typecheck          # Type-check all workspaces
 ```
 
-See [CONTRIBUTING.md](./CONTRIBUTING.md) for full development workflow and
-troubleshooting.
+See [CONTRIBUTING.md](./CONTRIBUTING.md) for full development workflow and troubleshooting.
 
 ## External Documentation
 

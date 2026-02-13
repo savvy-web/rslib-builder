@@ -29,8 +29,7 @@ Quick reference for configuring API model generation in the DtsPlugin.
 
 ## Overview
 
-The `ApiModelOptions` interface configures API model generation for TypeScript
-packages using Microsoft's API Extractor. When enabled, it generates:
+The `ApiModelOptions` interface configures API model generation for TypeScript packages using Microsoft's API Extractor. When enabled, it generates:
 
 - `<package>.api.json` - Machine-readable API documentation for tooling
 - `tsdoc-metadata.json` - TSDoc tag metadata for downstream consumers
@@ -88,9 +87,7 @@ interface TsDocTagDefinition {
 }
 ```
 
-**Note:** API model generation is **enabled by default** (`apiModel: true` in
-`NodeLibraryBuilder.DEFAULT_OPTIONS`). TSDoc linting is controlled via
-`apiModel.tsdoc.lint` and is also enabled by default when `apiModel` is enabled.
+**Note:** API model generation is **enabled by default** (`apiModel: true` in `NodeLibraryBuilder.DEFAULT_OPTIONS`). TSDoc linting is controlled via `apiModel.tsdoc.lint` and is also enabled by default when `apiModel` is enabled.
 
 ---
 
@@ -98,9 +95,7 @@ interface TsDocTagDefinition {
 
 ### ApiModelOptions
 
-**Note:** API model generation is **enabled by default**. The `apiModel` option
-defaults to `true` in `NodeLibraryBuilder.DEFAULT_OPTIONS`. To disable API
-model generation, explicitly set `apiModel: false`.
+**Note:** API model generation is **enabled by default**. The `apiModel` option defaults to `true` in `NodeLibraryBuilder.DEFAULT_OPTIONS`. To disable API model generation, explicitly set `apiModel: false`.
 
 ```typescript
 // API model enabled by default (implicit)
@@ -127,8 +122,7 @@ NodeLibraryBuilder.create({
 | Default | `<unscopedPackageName>.api.json` |
 | Required | No |
 
-Custom filename for the generated API model file. The default follows API
-Extractor conventions using the unscoped package name.
+Custom filename for the generated API model file. The default follows API Extractor conventions using the unscoped package name.
 
 ```typescript
 // Package "@savvy-web/rslib-builder" generates "rslib-builder.api.json"
@@ -146,8 +140,7 @@ apiModel: { enabled: true, filename: "api.json" }
 | Default | `undefined` |
 | Required | No |
 
-Local directory paths to copy API model and related files after build
-completes. Used for local development with documentation systems.
+Local directory paths to copy API model and related files after build completes. Used for local development with documentation systems.
 
 **Files copied:**
 
@@ -176,8 +169,7 @@ apiModel: {
 | Default | All standard tag groups enabled |
 | Required | No |
 
-TSDoc configuration for custom tag definitions. See [TsDocOptions](#tsdocoptions)
-section for detailed configuration.
+TSDoc configuration for custom tag definitions. See [TsDocOptions](#tsdocoptions) section for detailed configuration.
 
 #### `tsdocMetadata`
 
@@ -187,8 +179,7 @@ section for detailed configuration.
 | Default | `true` (enabled when apiModel is enabled) |
 | Required | No |
 
-Options for `tsdoc-metadata.json` generation. This file is required by the
-TSDoc specification to be included in published packages.
+Options for `tsdoc-metadata.json` generation. This file is required by the TSDoc specification to be included in published packages.
 
 ```typescript
 // Enable with defaults
@@ -212,9 +203,7 @@ apiModel: { enabled: true, tsdocMetadata: false }
 | Default | `"include"` |
 | Required | No |
 
-Controls handling of API Extractor's "forgotten export" (`ae-forgotten-export`)
-messages. A forgotten export occurs when a public API references a declaration
-that isn't exported from the entry point.
+Controls handling of API Extractor's "forgotten export" (`ae-forgotten-export`) messages. A forgotten export occurs when a public API references a declaration that isn't exported from the entry point.
 
 | Value | Behavior |
 | ----- | -------- |
@@ -222,11 +211,7 @@ that isn't exported from the entry point.
 | `"error"` | Fail the build with details about forgotten exports |
 | `"ignore"` | Suppress all forgotten export messages silently |
 
-**Implementation:** In the `messageCallback` passed to `Extractor.invoke()`,
-messages with `messageId === "ae-forgotten-export"` are intercepted. For
-`"include"` and `"error"`, messages are collected into a
-`collectedForgottenExports` array and formatted using the same `formatWarning`
-helper shared with TSDoc warning handling.
+**Implementation:** In the `messageCallback` passed to `Extractor.invoke()`, messages with `messageId === "ae-forgotten-export"` are intercepted. For `"include"` and `"error"`, messages are collected into a `collectedForgottenExports` array and formatted using the same `formatWarning` helper shared with TSDoc warning handling.
 
 ```typescript
 // Fail build on forgotten exports
@@ -241,10 +226,7 @@ apiModel: { enabled: true }
 
 ### TsDocOptions
 
-**Integrated Lint Configuration:** TSDoc linting is now controlled via the
-`apiModel.tsdoc.lint` option. When `apiModel` is enabled (the default), lint
-is also enabled by default. The lint plugin uses the TSDoc tag configuration
-from the parent `tsdoc` object (tagDefinitions, groups, etc.).
+**Integrated Lint Configuration:** TSDoc linting is now controlled via the `apiModel.tsdoc.lint` option. When `apiModel` is enabled (the default), lint is also enabled by default. The lint plugin uses the TSDoc tag configuration from the parent `tsdoc` object (tagDefinitions, groups, etc.).
 
 #### `groups`
 
@@ -258,11 +240,8 @@ TSDoc tag groups to enable. Standard tags are imported from `@microsoft/tsdoc`.
 
 **Groups:**
 
-- **core:** `@param`, `@returns`, `@remarks`, `@deprecated`, `@typeParam`,
-  `@link`, `@label`, `@packageDocumentation`, `@privateRemarks`
-- **extended:** `@example`, `@defaultValue`, `@throws`, `@see`, `@inheritDoc`,
-  `@virtual`, `@override`, `@sealed`, `@readonly`, `@eventProperty`,
-  `@decorator`, `@jsx`, `@jsxFrag`, `@jsxImportSource`, `@jsxRuntime`
+- **core:** `@param`, `@returns`, `@remarks`, `@deprecated`, `@typeParam`, `@link`, `@label`, `@packageDocumentation`, `@privateRemarks`
+- **extended:** `@example`, `@defaultValue`, `@throws`, `@see`, `@inheritDoc`, `@virtual`, `@override`, `@sealed`, `@readonly`, `@eventProperty`, `@decorator`, `@jsx`, `@jsxFrag`, `@jsxImportSource`, `@jsxRuntime`
 - **discretionary:** `@alpha`, `@beta`, `@experimental`, `@public`, `@internal`
 
 ```typescript
@@ -284,8 +263,7 @@ tsdoc: { groups: ["core", "discretionary"] }
 | Default | `[]` |
 | Required | No |
 
-Custom TSDoc tag definitions beyond standard groups. Tags are automatically
-added to `supportForTags` (no need to declare twice).
+Custom TSDoc tag definitions beyond standard groups. Tags are automatically added to `supportForTags` (no need to declare twice).
 
 ```typescript
 tsdoc: {
@@ -304,8 +282,7 @@ tsdoc: {
 | Default | Auto-derived from groups + tagDefinitions |
 | Required | No |
 
-Override support for specific tags. **Only needed to disable tags.** Tags from
-enabled groups and custom definitions are auto-supported.
+Override support for specific tags. **Only needed to disable tags.** Tags from enabled groups and custom definitions are auto-supported.
 
 ```typescript
 // Disable @beta even though "discretionary" group is enabled
@@ -322,8 +299,7 @@ tsdoc: {
 | Default | `true` (enabled when apiModel is enabled) |
 | Required | No |
 
-Controls TSDoc linting before the build. Lint is enabled by default when
-`apiModel` is enabled.
+Controls TSDoc linting before the build. Lint is enabled by default when `apiModel` is enabled.
 
 ```typescript
 // Lint enabled by default (apiModel: true is the default)
@@ -357,10 +333,7 @@ apiModel: {
 | `onError` | `TsDocLintErrorBehavior` | `"throw"` in CI, `"error"` locally | Error handling behavior |
 | `persistConfig` | `boolean \| PathLike` | `true` locally | Persist tsdoc.json (validates in CI) |
 
-**Lint persistence behavior in CI:** When `persistConfig` is `true` or undefined
-in CI environments, the existing `tsdoc.json` is validated against the expected
-configuration. If it doesn't match, the build fails with instructions to
-regenerate locally. Set `persistConfig: false` to skip validation.
+**Lint persistence behavior in CI:** When `persistConfig` is `true` or undefined in CI environments, the existing `tsdoc.json` is validated against the expected configuration. If it doesn't match, the build fails with instructions to regenerate locally. Set `persistConfig: false` to skip validation.
 
 #### `warnings`
 
@@ -488,22 +461,13 @@ export default NodeLibraryBuilder.create({
 
 ### Multi-Entry API Model Generation
 
-When a package has multiple entry points, API Extractor runs for each entry
-and generates a per-entry `.api.json` file in a temp directory. These are
-then merged into a single Package with multiple `EntryPoint` members via
-`mergeApiModels()`.
+When a package has multiple entry points, API Extractor runs for each entry and generates a per-entry `.api.json` file in a temp directory. These are then merged into a single Package with multiple `EntryPoint` members via `mergeApiModels()`.
 
 **Single entry:** The per-entry API model is used as-is (no merge step).
 
-**Multiple entries:** Each per-entry model's `EntryPoint` is extracted,
-canonical references for sub-entries are rewritten to include the export
-subpath (e.g., `@scope/pkg/utils!` instead of `@scope/pkg!`), and all
-`EntryPoint` members are combined into one Package. The main entry (".")
-is always first in the members array.
+**Multiple entries:** Each per-entry model's `EntryPoint` is extracted, canonical references for sub-entries are rewritten to include the export subpath (e.g., `@scope/pkg/utils!` instead of `@scope/pkg!`), and all `EntryPoint` members are combined into one Package. The main entry (".") is always first in the members array.
 
-The `exportPaths` mapping from `EntryExtractor` provides the lossless
-reverse mapping from entry names back to original export keys for correct
-canonical reference scoping.
+The `exportPaths` mapping from `EntryExtractor` provides the lossless reverse mapping from entry names back to original export keys for correct canonical reference scoping.
 
 ### File Distribution
 
@@ -516,24 +480,15 @@ canonical reference scoping.
 
 ### localPaths Behavior
 
-- **Skipped in CI:** When `CI=true` or `GITHUB_ACTIONS=true`, localPaths
-  copying is skipped to avoid polluting CI environments.
+- **Skipped in CI:** When `CI=true` or `GITHUB_ACTIONS=true`, localPaths copying is skipped to avoid polluting CI environments.
 
-- **Atomic copy after build:** Files are copied in `onCloseBuild` hook after
-  all assets are written to dist. This ensures the transformed `package.json`
-  (with resolved pnpm references and updated paths) is copied, not the source.
+- **Atomic copy after build:** Files are copied in `onCloseBuild` hook after all assets are written to dist. This ensures the transformed `package.json` (with resolved pnpm references and updated paths) is copied, not the source.
 
-- **Directory creation:** Final directory is created if it doesn't exist, but
-  parent directories must exist. This prevents accidental creation of deep
-  directory trees from typos.
+- **Directory creation:** Final directory is created if it doesn't exist, but parent directories must exist. This prevents accidental creation of deep directory trees from typos.
 
 ### TSDoc Config Optimization
 
-When all tag groups are enabled (the default), the generated `tsdoc.json`
-uses `noStandardTags: false` to let TSDoc automatically load all standard
-tags, producing a minimal config file. When a subset of groups is specified,
-`noStandardTags: true` is used and only the enabled groups' tags are
-explicitly defined.
+When all tag groups are enabled (the default), the generated `tsdoc.json` uses `noStandardTags: false` to let TSDoc automatically load all standard tags, producing a minimal config file. When a subset of groups is specified, `noStandardTags: true` is used and only the enabled groups' tags are explicitly defined.
 
 ---
 
@@ -541,10 +496,8 @@ explicitly defined.
 
 **Internal Design Docs:**
 
-- [Architecture](./architecture.md) - Overall system architecture and plugin
-  execution model
-- [API Extraction](./api-extraction.md) - Detailed API extraction process and
-  TSDoc configuration rationale
+- [Architecture](./architecture.md) - Overall system architecture and plugin execution model
+- [API Extraction](./api-extraction.md) - Detailed API extraction process and TSDoc configuration rationale
 
 **Source Code:**
 
@@ -553,13 +506,10 @@ explicitly defined.
 
 **External Resources:**
 
-- [API Extractor](https://api-extractor.com/) - Microsoft's API documentation
-  tool
+- [API Extractor](https://api-extractor.com/) - Microsoft's API documentation tool
 - [TSDoc](https://tsdoc.org/) - Documentation comment standard
-- [tsdoc.json Configuration](https://api-extractor.com/pages/configs/tsdoc_json/)
-  - TSDoc config file reference
+- [tsdoc.json Configuration](https://api-extractor.com/pages/configs/tsdoc_json/) - TSDoc config file reference
 
 ---
 
-**Document Status:** Current - Comprehensive reference for ApiModelOptions
-configuration with multi-entry API model generation support.
+**Document Status:** Current - Comprehensive reference for ApiModelOptions configuration with multi-entry API model generation support.

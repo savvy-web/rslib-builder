@@ -14,8 +14,7 @@ dependencies: []
 
 # API Extraction
 
-API model generation and TypeScript declaration bundling using Microsoft's
-API Extractor, with TSDoc configuration support for custom documentation tags.
+API model generation and TypeScript declaration bundling using Microsoft's API Extractor, with TSDoc configuration support for custom documentation tags.
 
 ## Table of Contents
 
@@ -31,10 +30,7 @@ API Extractor, with TSDoc configuration support for custom documentation tags.
 
 ## Overview
 
-The API extraction system generates machine-readable API documentation and
-bundled TypeScript declarations using Microsoft's API Extractor. This enables
-documentation tools (like RSPress plugins) to consume structured API data for
-generating documentation sites.
+The API extraction system generates machine-readable API documentation and bundled TypeScript declarations using Microsoft's API Extractor. This enables documentation tools (like RSPress plugins) to consume structured API data for generating documentation sites.
 
 **Key Features:**
 
@@ -57,17 +53,14 @@ generating documentation sites.
 
 ### What Exists Now
 
-API extraction is handled by the `DtsPlugin` as part of the declaration
-bundling process. When `apiModel` is enabled, API Extractor generates both
-bundled declarations and an API model file.
+API extraction is handled by the `DtsPlugin` as part of the declaration bundling process. When `apiModel` is enabled, API Extractor generates both bundled declarations and an API model file.
 
 **Key Components:**
 
 1. **DtsPlugin** (`src/rslib/plugins/dts-plugin.ts`)
    - Purpose: Generates TypeScript declarations and optional API models
    - Status: Implemented
-   - Key functions: `bundleDtsFiles()`, `mergeApiModels()`,
-     `rewriteCanonicalReferences()`, `DtsPlugin()`
+   - Key functions: `bundleDtsFiles()`, `mergeApiModels()`, `rewriteCanonicalReferences()`, `DtsPlugin()`
 
 2. **ApiModelOptions Interface** (`src/rslib/plugins/dts-plugin.ts`)
    - Purpose: Configuration for API model generation
@@ -77,8 +70,7 @@ bundled declarations and an API model file.
 
 - Generate API model for all entry points (multi-entry support)
   - Per-entry API Extractor runs generate individual `.api.json` files
-  - `mergeApiModels()` combines per-entry models into a single Package
-    with multiple `EntryPoint` members
+  - `mergeApiModels()` combines per-entry models into a single Package with multiple `EntryPoint` members
   - Sub-entry canonical references scoped (e.g., `@scope/pkg/subpath!`)
   - Single-entry packages use the API model as-is (no merge needed)
 - **API model enabled by default** (apiModel: true in DEFAULT_OPTIONS)
@@ -108,8 +100,7 @@ None currently - all planned features have been implemented.
 
 ### Why API Extractor
 
-**Context:** Need to generate machine-readable API documentation for
-documentation sites.
+**Context:** Need to generate machine-readable API documentation for documentation sites.
 
 **Options considered:**
 
@@ -123,13 +114,11 @@ documentation sites.
    - Pros: Full control
    - Cons: Massive effort, reinventing the wheel
 
-**Decision:** API Extractor chosen for its standard `.api.json` format and
-integration with TSDoc for custom tags.
+**Decision:** API Extractor chosen for its standard `.api.json` format and integration with TSDoc for custom tags.
 
 ### Why Tag Groups
 
-**Context:** Users need to define custom TSDoc tags but don't want to
-manually re-enable all standard tags.
+**Context:** Users need to define custom TSDoc tags but don't want to manually re-enable all standard tags.
 
 **Options considered:**
 
@@ -140,14 +129,11 @@ manually re-enable all standard tags.
    - Pros: Ergonomic defaults, explicit control, no external file dependencies
    - Cons: None - tags imported from official `@microsoft/tsdoc` package
 
-**Decision:** Tag groups using `StandardTags` from `@microsoft/tsdoc` package.
-Standard tags are organized into three standardization groups (core, extended,
-discretionary) as defined by the official TSDoc specification.
+**Decision:** Tag groups using `StandardTags` from `@microsoft/tsdoc` package. Standard tags are organized into three standardization groups (core, extended, discretionary) as defined by the official TSDoc specification.
 
 ### Why Smart noStandardTags
 
-**Context:** The `noStandardTags` setting in `tsdoc.json` controls whether
-TSDoc automatically loads standard tags or requires explicit definitions.
+**Context:** The `noStandardTags` setting in `tsdoc.json` controls whether TSDoc automatically loads standard tags or requires explicit definitions.
 
 **Options considered:**
 
@@ -161,17 +147,13 @@ TSDoc automatically loads standard tags or requires explicit definitions.
    - Pros: Minimal config by default, explicit when needed
    - Cons: Slightly more complex logic
 
-**Decision:** When all groups are enabled (default), use `noStandardTags: false`
-to produce minimal config files. When a subset of groups is specified, use
-`noStandardTags: true` and explicitly define only the enabled groups' tags.
+**Decision:** When all groups are enabled (default), use `noStandardTags: false` to produce minimal config files. When a subset of groups is specified, use `noStandardTags: true` and explicitly define only the enabled groups' tags.
 
 ### Why Auto-Derive supportForTags
 
-**Context:** Users had to list custom tags twice (in `tagDefinitions` and
-`supportForTags`).
+**Context:** Users had to list custom tags twice (in `tagDefinitions` and `supportForTags`).
 
-**Decision:** Auto-derive `supportForTags` from all tag definitions. Users
-only need `supportForTags` to explicitly disable specific tags.
+**Decision:** Auto-derive `supportForTags` from all tag definitions. Users only need `supportForTags` to explicitly disable specific tags.
 
 ### Why Persist tsdoc.json by Default (Non-CI)
 
@@ -193,9 +175,7 @@ only need `supportForTags` to explicitly disable specific tags.
    - Pros: Best of both worlds
    - Cons: Slightly more complex logic
 
-**Decision:** Default to persisting `tsdoc.json` in local development
-(tools can read it), but clean up in CI environments where the file serves
-no purpose. CI detection uses `CI` or `GITHUB_ACTIONS` environment variables.
+**Decision:** Default to persisting `tsdoc.json` in local development (tools can read it), but clean up in CI environments where the file serves no purpose. CI detection uses `CI` or `GITHUB_ACTIONS` environment variables.
 
 ---
 
@@ -254,8 +234,7 @@ interface ApiModelOptions {
 }
 ```
 
-**Note:** API model generation is **enabled by default** (`apiModel: true` in
-`NodeLibraryBuilder.DEFAULT_OPTIONS`).
+**Note:** API model generation is **enabled by default** (`apiModel: true` in `NodeLibraryBuilder.DEFAULT_OPTIONS`).
 
 **TsDocOptions** - TSDoc configuration with integrated lint:
 
@@ -318,9 +297,7 @@ ExtractorConfig.prepare({
 
 ### Resolved tsconfig.json
 
-When `apiModel` is enabled, DtsPlugin emits a resolved (flattened) `tsconfig.json`
-to the dist directory. This file is designed for virtual TypeScript environments
-like API Extractor, language services, and documentation tools.
+When `apiModel` is enabled, DtsPlugin emits a resolved (flattened) `tsconfig.json` to the dist directory. This file is designed for virtual TypeScript environments like API Extractor, language services, and documentation tools.
 
 **Purpose:**
 
@@ -332,19 +309,15 @@ like API Extractor, language services, and documentation tools.
 
 - Converts TypeScript enum values to JSON strings (target, module, jsx, etc.)
 - Sets `composite: false` and `noEmit: true` for virtual environment compatibility
-- Excludes path-dependent options: `outDir`, `rootDir`, `baseUrl`, `paths`,
-  `typeRoots`, `declarationDir`
+- Excludes path-dependent options: `outDir`, `rootDir`, `baseUrl`, `paths`, `typeRoots`, `declarationDir`
 - Excludes file selection: `include`, `exclude`, `files`, `references`
 - Removes `types` array to use default @types auto-discovery
-- Converts lib references from full paths (e.g., "lib.esnext.d.ts") to short
-  names (e.g., "esnext")
+- Converts lib references from full paths (e.g., "lib.esnext.d.ts") to short names (e.g., "esnext")
 - Adds `$schema` for IDE support
 
 **Copied to localPaths:**
 
-The resolved tsconfig.json is copied alongside the API model and tsdoc-metadata.json
-when `localPaths` is configured, enabling documentation systems to use accurate
-TypeScript settings for type analysis.
+The resolved tsconfig.json is copied alongside the API model and tsdoc-metadata.json when `localPaths` is configured, enabling documentation systems to use accurate TypeScript settings for type analysis.
 
 ---
 
@@ -352,8 +325,7 @@ TypeScript settings for type analysis.
 
 ### Tag Groups
 
-Standard tags are imported from the official `@microsoft/tsdoc` package and
-organized into three standardization groups:
+Standard tags are imported from the official `@microsoft/tsdoc` package and organized into three standardization groups:
 
 **Core** - Essential TSDoc tags (always needed):
 
@@ -422,9 +394,7 @@ apiModel: {
 
 **Forgotten exports handling:**
 
-A forgotten export occurs when a public API references a declaration that isn't
-exported from the entry point. API Extractor reports these as
-`ae-forgotten-export` messages.
+A forgotten export occurs when a public API references a declaration that isn't exported from the entry point. API Extractor reports these as `ae-forgotten-export` messages.
 
 ```typescript
 // Fail build on forgotten exports
@@ -446,17 +416,11 @@ apiModel: {
 }
 ```
 
-The `forgottenExports` option uses the same `messageCallback` mechanism as
-TSDoc warnings. Messages with `messageId === "ae-forgotten-export"` are
-intercepted and handled according to the setting. For `"include"` and
-`"error"`, messages are collected and formatted using the shared
-`formatWarning` helper after `Extractor.invoke()` completes.
+The `forgottenExports` option uses the same `messageCallback` mechanism as TSDoc warnings. Messages with `messageId === "ae-forgotten-export"` are intercepted and handled according to the setting. For `"include"` and `"error"`, messages are collected and formatted using the shared `formatWarning` helper after `Extractor.invoke()` completes.
 
 ### Generated tsdoc.json
 
-The plugin generates a `tsdoc.json` file with smart `noStandardTags` handling.
-Note: `supportForTags` is always populated because API Extractor requires explicit
-support declarations for each tag (defining tags isn't sufficient).
+The plugin generates a `tsdoc.json` file with smart `noStandardTags` handling. Note: `supportForTags` is always populated because API Extractor requires explicit support declarations for each tag (defining tags isn't sufficient).
 
 **Default (all groups enabled):**
 
@@ -495,9 +459,7 @@ support declarations for each tag (defining tags isn't sufficient).
 
 ### Config Persistence Behavior
 
-The `persistConfig` option (nested under `apiModel.tsdoc.lint`) controls whether
-`tsdoc.json` remains on disk. In CI environments, persistence validates the
-existing file instead of writing:
+The `persistConfig` option (nested under `apiModel.tsdoc.lint`) controls whether `tsdoc.json` remains on disk. In CI environments, persistence validates the existing file instead of writing:
 
 | Environment | `persistConfig` | Behavior |
 | ----------- | --------------- | -------- |
@@ -511,10 +473,7 @@ existing file instead of writing:
 
 **CI Detection:** Environment variables `CI=true` or `GITHUB_ACTIONS=true`.
 
-**Validation in CI:** When `persistConfig` is true or undefined in CI, the
-existing `tsdoc.json` is validated against the expected configuration. If it
-doesn't match, the build fails with an error instructing the developer to
-regenerate the file locally and commit the changes.
+**Validation in CI:** When `persistConfig` is true or undefined in CI, the existing `tsdoc.json` is validated against the expected configuration. If it doesn't match, the build fails with an error instructing the developer to regenerate the file locally and commit the changes.
 
 **Usage examples:**
 
@@ -607,8 +566,7 @@ Integration with API Extractor is difficult to unit test. Rely on:
 
 ---
 
-**Document Status:** Current - All features implemented including multi-entry
-API model generation with per-entry API Extractor runs and model merging.
+**Document Status:** Current - All features implemented including multi-entry API model generation with per-entry API Extractor runs and model merging.
 
 **Implementation:**
 

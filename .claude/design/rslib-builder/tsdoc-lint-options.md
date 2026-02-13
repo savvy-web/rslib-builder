@@ -16,16 +16,11 @@ dependencies: []
 
 # TsDocLintPlugin Configuration (Archived)
 
-**This document is archived.** TSDoc linting configuration has been integrated
-into the `apiModel.tsdoc.lint` option. See
-[api-model-options.md](./api-model-options.md) for the current configuration
-reference.
+**This document is archived.** TSDoc linting configuration has been integrated into the `apiModel.tsdoc.lint` option. See [api-model-options.md](./api-model-options.md) for the current configuration reference.
 
 ## Migration Guide
 
-The `tsdocLint` option no longer exists as a separate top-level option in
-`NodeLibraryBuilderOptions`. TSDoc linting is now controlled via
-`apiModel.tsdoc.lint`.
+The `tsdocLint` option no longer exists as a separate top-level option in `NodeLibraryBuilderOptions`. TSDoc linting is now controlled via `apiModel.tsdoc.lint`.
 
 ### Before (Old Configuration)
 
@@ -61,13 +56,10 @@ NodeLibraryBuilder.create({
 
 ### Key Changes
 
-1. **Default behavior**: Lint is enabled by default when `apiModel` is enabled
-   (which is also the default)
+1. **Default behavior**: Lint is enabled by default when `apiModel` is enabled (which is also the default)
 2. **Configuration location**: Moved from `tsdocLint` to `apiModel.tsdoc.lint`
-3. **TSDoc config sharing**: The lint plugin automatically uses tag definitions
-   from the parent `apiModel.tsdoc` object
-4. **Persistence in CI**: When `persistConfig` is true/undefined in CI, the
-   existing `tsdoc.json` is validated instead of written
+3. **TSDoc config sharing**: The lint plugin automatically uses tag definitions from the parent `apiModel.tsdoc` object
+4. **Persistence in CI**: When `persistConfig` is true/undefined in CI, the existing `tsdoc.json` is validated instead of written
 
 ### Disabling Lint
 

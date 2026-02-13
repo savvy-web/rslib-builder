@@ -4,30 +4,17 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Node.js Version](https://img.shields.io/badge/node-%3E%3D24.0.0-brightgreen)](https://nodejs.org)
 
-Build modern ESM Node.js libraries with minimal configuration. Handles
-TypeScript declarations, package.json transformations, and PNPM workspace
-resolution automatically.
+Build modern ESM Node.js libraries with minimal configuration. Handles TypeScript declarations, package.json transformations, and PNPM workspace resolution automatically.
 
 ## Features
 
-- **Zero-Config Entry Detection** - Auto-discovers
-  entry points from package.json exports
-- **10-100x Faster Types** - Uses tsgo (native
-  TypeScript compiler) with API Extractor for
-  bundled, clean public API declarations
-- **Production-Ready Transforms** - Converts `.ts`
-  exports to `.js`, resolves PNPM `catalog:` and
-  `workspace:` references, generates files array
-- **Bundled or Bundleless** - Choose single-file
-  bundles per entry or bundleless mode that
-  preserves your source file structure
-- **Multi-Target Builds** - Separate dev (with
-  source maps) and npm (optimized) outputs from a
-  single configuration
-- **Flexible Formats** - ESM, CJS, or dual format
-  output with per-entry format overrides
-- **TSDoc Validation** - Pre-build documentation
-  validation with automatic public API discovery
+- **Zero-Config Entry Detection** - Auto-discovers entry points from package.json exports
+- **10-100x Faster Types** - Uses tsgo (native TypeScript compiler) with API Extractor for bundled, clean public API declarations
+- **Production-Ready Transforms** - Converts `.ts` exports to `.js`, resolves PNPM `catalog:` and `workspace:` references, generates files array
+- **Bundled or Bundleless** - Choose single-file bundles per entry or bundleless mode that preserves your source file structure
+- **Multi-Target Builds** - Separate dev (with source maps) and npm (optimized) outputs from a single configuration
+- **Flexible Formats** - ESM, CJS, or dual format output with per-entry format overrides
+- **TSDoc Validation** - Pre-build documentation validation with automatic public API discovery
 
 ## Installation
 

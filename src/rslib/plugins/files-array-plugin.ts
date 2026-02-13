@@ -54,6 +54,15 @@ export interface FilesArrayPluginOptions<TTarget extends string = string> {
 	 * Passed to the `transformFiles` callback to allow target-specific transformations.
 	 */
 	target: TTarget;
+
+	/**
+	 * Format directories to include in the files array.
+	 * Used in dual format builds so npm's `files` field includes
+	 * format directories (e.g., `["esm", "cjs"]`).
+	 * Directory names are treated as recursive includes by npm,
+	 * so individual files under these dirs are filtered out.
+	 */
+	formatDirs?: string[];
 }
 
 /**
@@ -163,6 +172,14 @@ export const FilesArrayPlugin = <TTarget extends string = string>(
 						}
 					}
 
+					// Add format directories to files array for dual format builds
+					// npm's `files` field treats directory names as recursive includes
+					if (options?.formatDirs) {
+						for (const dir of options.formatDirs) {
+							filesArray.add(dir);
+						}
+					}
+
 					// Call user-provided transformFiles callback if provided
 					if (options?.transformFiles) {
 						await options.transformFiles({
@@ -195,6 +212,16 @@ export const FilesArrayPlugin = <TTarget extends string = string>(
 
 						// Combine existing files with new essential files from filesArray
 						const allFiles = new Set([...previousFiles, ...Array.from(filesArray)].sort());
+
+						// Remove individual files under format directories since the
+						// directory entry already covers them (npm treats dirs as recursive includes)
+						if (options?.formatDirs) {
+							for (const file of [...allFiles]) {
+								if (options.formatDirs.some((dir) => file.startsWith(`${dir}/`))) {
+									allFiles.delete(file);
+								}
+							}
+						}
 
 						if (allFiles.size === 0) {
 							delete packageJson.data.files;

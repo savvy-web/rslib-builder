@@ -14,10 +14,7 @@ dependencies: []
 
 # RSlib Builder - Architecture
 
-A sophisticated build system abstraction layer built on RSlib/Rsbuild/Rspack,
-providing a fluent API for building TypeScript packages with multi-target
-support, automatic package.json transformation, and TypeScript declaration
-bundling.
+A sophisticated build system abstraction layer built on RSlib/Rsbuild/Rspack, providing a fluent API for building TypeScript packages with multi-target support, automatic package.json transformation, and TypeScript declaration bundling.
 
 ## Table of Contents
 
@@ -35,25 +32,16 @@ bundling.
 
 ## Overview
 
-`@savvy-web/rslib-builder` provides a high-level `NodeLibraryBuilder` API that
-simplifies building TypeScript packages for multiple targets (dev, npm). It
-handles automatic configuration generation, plugin orchestration, and complex
-package.json transformations.
+`@savvy-web/rslib-builder` provides a high-level `NodeLibraryBuilder` API that simplifies building TypeScript packages for multiple targets (dev, npm). It handles automatic configuration generation, plugin orchestration, and complex package.json transformations.
 
-The system features a plugin-based architecture where plugins operate at
-different Rsbuild asset processing stages, collectively transforming raw
-TypeScript source into production-ready distributions with proper type
-declarations, export mappings, and dependency resolution.
+The system features a plugin-based architecture where plugins operate at different Rsbuild asset processing stages, collectively transforming raw TypeScript source into production-ready distributions with proper type declarations, export mappings, and dependency resolution.
 
 **Key Design Principles:**
 
-- **Abstraction over complexity**: Hide RSlib/Rsbuild configuration details
-  behind a fluent API
-- **Plugin composition**: Modular plugins handle specific concerns (entries,
-  types, transforms)
+- **Abstraction over complexity**: Hide RSlib/Rsbuild configuration details behind a fluent API
+- **Plugin composition**: Modular plugins handle specific concerns (entries, types, transforms)
 - **Multi-target support**: Single configuration produces dev and npm builds
-- **Convention over configuration**: Sensible defaults with escape hatches for
-  customization
+- **Convention over configuration**: Sensible defaults with escape hatches for customization
 - **Self-building**: The package builds itself using its own NodeLibraryBuilder
 
 **When to reference this document:**
@@ -73,8 +61,7 @@ declarations, export mappings, and dependency resolution.
 
 **Location:** `src/rslib/builders/node-library-builder.ts`
 
-**Purpose:** Main public API providing a fluent interface for building Node.js
-libraries.
+**Purpose:** Main public API providing a fluent interface for building Node.js libraries.
 
 **Responsibilities:**
 
@@ -121,8 +108,7 @@ NodeLibraryBuilder.DEFAULT_OPTIONS = {
 NodeLibraryBuilder.create(options): RslibConfigAsyncFn
 ```
 
-**Note:** TSDoc linting is controlled via `apiModel.tsdoc.lint` option (not a separate
-top-level option). Lint is enabled by default when `apiModel` is enabled.
+**Note:** TSDoc linting is controlled via `apiModel.tsdoc.lint` option (not a separate top-level option). Lint is enabled by default when `apiModel` is enabled.
 
 **Dependencies:**
 
@@ -133,8 +119,7 @@ top-level option). Lint is enabled by default when `apiModel` is enabled.
 
 **Location:** `src/rslib/plugins/`
 
-**Purpose:** Modular build transformations operating at specific Rsbuild asset
-processing stages.
+**Purpose:** Modular build transformations operating at specific Rsbuild asset processing stages.
 
 **Plugins:**
 
@@ -150,8 +135,7 @@ processing stages.
   - Stages: modifyRsbuildConfig, pre-process, summarize, onCloseBuild
   - When apiModel enabled: emits tsconfig.json, api model, tsdoc-metadata.json
   - API model is enabled by default for npm target
-  - Multi-entry: runs API Extractor per entry, merges into single `.api.json`
-    with multiple `EntryPoint` members via `mergeApiModels()`
+  - Multi-entry: runs API Extractor per entry, merges into single `.api.json` with multiple `EntryPoint` members via `mergeApiModels()`
   - Format-aware: emits `.d.cts` for CJS entries, `.d.ts` for ESM entries
 - **PackageJsonTransformPlugin** - Transform package.json for dist
   - Stages: pre-process, optimize, optimize-inline
@@ -165,16 +149,14 @@ processing stages.
 
 **Location:** `src/rslib/plugins/utils/`
 
-**Purpose:** Shared utilities for entry extraction, package.json building, and
-transformations. Consolidated from 14 files to 6 focused modules.
+**Purpose:** Shared utilities for entry extraction, package.json building, and transformations. Consolidated from 14 files to 6 focused modules.
 
 **Consolidated structure (6 files):**
 
 1. **`build-logger.ts`** - Build logging and timing utilities
    - Consolidated from: `time-utils.ts`, `logger-utils.ts`
    - Exports: `createTimer()`, `formatTime()`, `createEnvLogger()`
-   - Provides formatted build logging with test suppression and duration
-     tracking
+   - Provides formatted build logging with test suppression and duration tracking
 
 2. **`asset-utils.ts`** - Asset handling utilities
    - Consolidated from: `json-asset-utils.ts`, `asset-processor-utils.ts`
@@ -184,51 +166,35 @@ transformations. Consolidated from 14 files to 6 focused modules.
 3. **`file-utils.ts`** - File system utilities
    - Consolidated with: `dependency-path-utils.ts`
    - Exports: `fileExistAsync()`, `packageJsonVersion()`, `getApiExtractorPath()`
-   - File existence checks, package version reading, API Extractor path
-     resolution
+   - File existence checks, package version reading, API Extractor path resolution
 
 4. **`package-json-transformer.ts`** - Package.json transformation pipeline
-   - Consolidated from: `bin-transform-utils.ts`, `export-transform-utils.ts`,
-     `path-transform-utils.ts`, `rslib-transform-utils.ts`,
-     `pnpm-transform-utils.ts`, `package-json-builder-utils.ts`,
-     `package-json-types-utils.ts`
-   - Exports: `buildPackageJson()`, `transformExportPath()`, `createTypePath()`,
-     `transformPackageExports()`, `transformPackageBin()`,
-     `applyRslibTransformations()`, `applyPnpmTransformations()`
-   - Orchestrates pnpm + RSlib transformation pipeline, handles exports/bin
-     fields, path transformations, type conditions
+   - Consolidated from: `bin-transform-utils.ts`, `export-transform-utils.ts`, `path-transform-utils.ts`, `rslib-transform-utils.ts`, `pnpm-transform-utils.ts`, `package-json-builder-utils.ts`, `package-json-types-utils.ts`
+   - Exports: `buildPackageJson()`, `transformExportPath()`, `createTypePath()`, `transformPackageExports()`, `transformPackageBin()`, `applyRslibTransformations()`, `applyPnpmTransformations()`
+   - Orchestrates pnpm + RSlib transformation pipeline, handles exports/bin fields, path transformations, type conditions
 
 5. **`workspace-catalog.ts`** - Multi-package-manager workspace catalog resolution
    - Exports: `WorkspaceCatalog` class, `createWorkspaceCatalog()` factory
    - Multi-package-manager support via `workspace-tools`:
-     - **pnpm**: Reads from `pnpm-lock.yaml` (primary, for config dependency
-       catalogs like `catalog:silk`) then falls back to `pnpm-workspace.yaml`
+     - **pnpm**: Reads from `pnpm-lock.yaml` (primary, for config dependency catalogs like `catalog:silk`) then falls back to `pnpm-workspace.yaml`
      - **yarn**: Uses `workspace-tools`'s `getCatalogs()` function
      - Other package managers return empty catalogs
    - Factory pattern for dependency injection:
      - `createWorkspaceCatalog()` returns new instances (no global singleton)
      - Plugins can create, cache, and share their own instances
-     - `applyPnpmTransformations()` accepts optional `catalog?: WorkspaceCatalog`
-       parameter for DI
-   - Named catalog support: Handles `catalog:default`, `catalog:silk`,
-     `catalog:tools`, etc.
-   - Validation: Validates referenced catalogs exist before resolution with
-     clear error messages showing available catalogs
-   - Logging: Shows which catalog each dependency was resolved from
-     (e.g., `@microsoft/api-extractor: ^7.56.0 (catalog:silk)`)
+     - `applyPnpmTransformations()` accepts optional `catalog?: WorkspaceCatalog` parameter for DI
+   - Named catalog support: Handles `catalog:default`, `catalog:silk`, `catalog:tools`, etc.
+   - Validation: Validates referenced catalogs exist before resolution with clear error messages showing available catalogs
+   - Logging: Shows which catalog each dependency was resolved from (e.g., `@microsoft/api-extractor: ^7.56.0 (catalog:silk)`)
 
 6. **`entry-extractor.ts`** - Entry point extraction
    - Exports: `EntryExtractor` class, `ExtractedEntries` interface
    - Class-based entry extraction from package.json exports/bin fields
-   - `ExtractedEntries` contains `entries` (name-to-source mapping) and
-     `exportPaths` (name-to-original-export-key mapping, e.g.,
-     `"nested-one"` -> `"./nested/one"`)
-   - `exportPaths` enables lossless reverse mapping for multi-entry API
-     model canonical references
+   - `ExtractedEntries` contains `entries` (name-to-source mapping) and `exportPaths` (name-to-original-export-key mapping, e.g., `"nested-one"` -> `"./nested/one"`)
+   - `exportPaths` enables lossless reverse mapping for multi-entry API model canonical references
 
 7. **`import-graph.ts`** - TypeScript import graph analysis
-   - Exports: `ImportGraph` class, `ImportGraphOptions`, `ImportGraphResult`,
-     `ImportGraphError`, `ImportGraphErrorType`
+   - Exports: `ImportGraph` class, `ImportGraphOptions`, `ImportGraphResult`, `ImportGraphError`, `ImportGraphErrorType`
    - Traces imports from entry points to discover all reachable TypeScript files
    - Uses TypeScript compiler API for accurate module resolution
    - Filters test files, declaration files, and node_modules
@@ -236,8 +202,7 @@ transformations. Consolidated from 14 files to 6 focused modules.
    - Supports configurable exclude patterns for custom filtering
 
 8. **`tsconfig-resolver.ts`** - TypeScript config resolution for virtual environments
-   - Exports: `TsconfigResolver` class, `TsconfigResolverError`,
-     `ResolvedTsconfig`, `ResolvedCompilerOptions`, standalone converter functions
+   - Exports: `TsconfigResolver` class, `TsconfigResolverError`, `ResolvedTsconfig`, `ResolvedCompilerOptions`, standalone converter functions
    - Converts TypeScript's `ParsedCommandLine` to JSON-serializable format
    - Static methods for enum conversion (ScriptTarget, ModuleKind, JsxEmit, etc.)
    - Sets `composite: false` and `noEmit: true` for virtual environment compatibility
@@ -250,8 +215,7 @@ transformations. Consolidated from 14 files to 6 focused modules.
 
 **Location:** `src/rslib/builders/node-library-builder.ts` (createSingleTarget)
 
-**Purpose:** Generate multiple LibConfig entries when the build requires
-different output formats for different entries.
+**Purpose:** Generate multiple LibConfig entries when the build requires different output formats for different entries.
 
 **Responsibilities:**
 
@@ -293,8 +257,7 @@ lib: [
 
 **Location:** `src/rslib/plugins/utils/package-json-transformer.ts`
 
-Post-processing step that transforms standard `{ types, import }` conditions
-into format-specific conditions:
+Post-processing step that transforms standard `{ types, import }` conditions into format-specific conditions:
 
 - `toCjsPath()` - `.js` → `.cjs`
 - `toCtsTypePath()` - `.d.ts` → `.d.cts`
@@ -358,16 +321,14 @@ into format-specific conditions:
 
 #### Decision 1: Plugin-Based Architecture
 
-**Context:** Need modular, testable build transformations that can be composed
-differently per target.
+**Context:** Need modular, testable build transformations that can be composed differently per target.
 
 **Options considered:**
 
 1. **Plugin composition (Chosen):**
    - Pros: Modular, testable, reusable across targets
    - Cons: Complexity of shared state management
-   - Why chosen: Aligns with Rsbuild's extension model, enables fine-grained
-     control
+   - Why chosen: Aligns with Rsbuild's extension model, enables fine-grained control
 
 2. **Monolithic build function:**
    - Pros: Simpler control flow, no shared state concerns
@@ -376,8 +337,7 @@ differently per target.
 
 #### Decision 2: Shared State via api.expose()
 
-**Context:** Plugins need to share data (entries, files array) across execution
-stages.
+**Context:** Plugins need to share data (entries, files array) across execution stages.
 
 **Options considered:**
 
@@ -425,16 +385,14 @@ stages.
 
 #### Decision 5: Two-Stage Package.json Transformation
 
-**Context:** Need to resolve pnpm references and transform paths for
-distribution.
+**Context:** Need to resolve pnpm references and transform paths for distribution.
 
 **Options considered:**
 
 1. **Separate pnpm and RSlib stages (Chosen):**
    - Pros: Clear separation of concerns, easier debugging
    - Cons: Two-pass transformation
-   - Why chosen: pnpm catalog/workspace resolution must happen before path
-     transformation
+   - Why chosen: pnpm catalog/workspace resolution must happen before path transformation
 
 2. **Single-pass transformation:**
    - Pros: Potentially faster
@@ -443,17 +401,14 @@ distribution.
 
 #### Decision 6: Pre-Build TSDoc Validation
 
-**Context:** Need to catch TSDoc documentation errors early, before declaration
-generation and API model creation.
+**Context:** Need to catch TSDoc documentation errors early, before declaration generation and API model creation.
 
 **Options considered:**
 
 1. **onBeforeBuild hook (Chosen):**
-   - Pros: Runs before all plugins, fails fast on doc errors, no wasted
-     compilation time
+   - Pros: Runs before all plugins, fails fast on doc errors, no wasted compilation time
    - Cons: Adds latency before build starts
-   - Why chosen: Documentation errors should block the build early, not after
-     expensive TypeScript compilation
+   - Why chosen: Documentation errors should block the build early, not after expensive TypeScript compilation
 
 2. **processAssets pre-process stage:**
    - Pros: Runs alongside other plugins
@@ -467,8 +422,7 @@ generation and API model creation.
 
 #### Decision 7: Environment-Aware Error Handling
 
-**Context:** TSDoc errors should fail CI builds but not block local development
-iteration.
+**Context:** TSDoc errors should fail CI builds but not block local development iteration.
 
 **Options considered:**
 
@@ -510,11 +464,8 @@ iteration.
 #### Pattern 4: Factory with Instance Caching
 
 - **Where used:** WorkspaceCatalog class
-- **Why used:** Avoid repeated filesystem operations while enabling DI and
-  plugin-level caching
-- **Implementation:** Factory function `createWorkspaceCatalog()` returns new
-  instances; each instance caches catalog data and workspace root internally;
-  plugins can create and share instances via dependency injection
+- **Why used:** Avoid repeated filesystem operations while enabling DI and plugin-level caching
+- **Implementation:** Factory function `createWorkspaceCatalog()` returns new instances; each instance caches catalog data and workspace root internally; plugins can create and share instances via dependency injection
 
 #### Pattern 5: Chain of Responsibility
 
@@ -540,8 +491,7 @@ iteration.
 
 - **What we gained:** Simple shared state with api.expose()
 - **What we sacrificed:** Compile-time type safety for shared state
-- **Why it's worth it:** Rsbuild's pattern is well-understood, runtime checks
-  suffice
+- **Why it's worth it:** Rsbuild's pattern is well-understood, runtime checks suffice
 
 ---
 
@@ -686,9 +636,7 @@ iteration.
 
 **Location:** `src/rslib/plugins/utils/import-graph.ts`
 
-**Purpose:** Analyzes TypeScript import relationships to discover all files
-reachable from specified entry points. Used by TsDocLintPlugin to automatically
-determine which files need TSDoc validation.
+**Purpose:** Analyzes TypeScript import relationships to discover all files reachable from specified entry points. Used by TsDocLintPlugin to automatically determine which files need TSDoc validation.
 
 **Key interfaces:**
 
@@ -785,23 +733,17 @@ for (const error of result.errors) {
 }
 ```
 
-**Integration with EntryExtractor:** ImportGraph uses EntryExtractor internally
-when tracing from package.json exports. EntryExtractor parses the `exports`
-and `bin` fields, then ImportGraph traces imports from those entry points.
+**Integration with EntryExtractor:** ImportGraph uses EntryExtractor internally when tracing from package.json exports. EntryExtractor parses the `exports` and `bin` fields, then ImportGraph traces imports from those entry points.
 
 ---
 
 ### TsDocLintPlugin Configuration
 
-The TsDocLintPlugin validates TSDoc comments before the build starts using
-ESLint with `eslint-plugin-tsdoc`. It shares TSDoc configuration with the
-DtsPlugin through the `TsDocConfigBuilder` utility.
+The TsDocLintPlugin validates TSDoc comments before the build starts using ESLint with `eslint-plugin-tsdoc`. It shares TSDoc configuration with the DtsPlugin through the `TsDocConfigBuilder` utility.
 
 **Configuration via apiModel.tsdoc.lint:**
 
-TSDoc linting is now configured through the `apiModel.tsdoc.lint` option in
-`NodeLibraryBuilderOptions`. Lint is enabled by default when `apiModel` is
-enabled (which is the default).
+TSDoc linting is now configured through the `apiModel.tsdoc.lint` option in `NodeLibraryBuilderOptions`. Lint is enabled by default when `apiModel` is enabled (which is the default).
 
 ```typescript
 // Lint enabled by default (apiModel: true is the default)
@@ -845,9 +787,7 @@ type TsDocLintErrorBehavior = "warn" | "error" | "throw";
 
 **Automatic file discovery (default behavior):**
 
-By default, TsDocLintPlugin uses ImportGraph to automatically discover files
-from your package's exports. This ensures only public API files are linted,
-not internal implementation details or test files.
+By default, TsDocLintPlugin uses ImportGraph to automatically discover files from your package's exports. This ensures only public API files are linted, not internal implementation details or test files.
 
 The discovery process:
 
@@ -858,8 +798,7 @@ The discovery process:
 
 **The `include` option (override automatic discovery):**
 
-Use the `include` option when you need to lint specific files that are not
-part of the export graph, or to override automatic discovery entirely:
+Use the `include` option when you need to lint specific files that are not part of the export graph, or to override automatic discovery entirely:
 
 ```typescript
 apiModel: {
@@ -887,14 +826,11 @@ Controls how TSDoc lint errors are handled:
 | `"error"` | Log errors, continue build (default local) |
 | `"throw"` | Fail build immediately (default CI) |
 
-Environment detection uses `CI` or `GITHUB_ACTIONS` environment variables
-to determine if running in CI.
+Environment detection uses `CI` or `GITHUB_ACTIONS` environment variables to determine if running in CI.
 
 **The `persistConfig` option (tsdoc.json management):**
 
-Controls whether the generated `tsdoc.json` configuration file is kept after
-linting. In CI environments, this validates the existing file matches expected
-configuration instead of writing.
+Controls whether the generated `tsdoc.json` configuration file is kept after linting. In CI environments, this validates the existing file matches expected configuration instead of writing.
 
 | Value | Local Behavior | CI Behavior |
 | --- | --- | --- |
@@ -1333,11 +1269,9 @@ ImportGraph.traceFromPackageExports()
 
 - **@pnpm/exportable-manifest**: Resolve pnpm catalog/workspace references
 - **@pnpm/lockfile.fs**: Read `pnpm-lock.yaml` for config dependency catalogs
-- **@pnpm/workspace.read-manifest**: Read `pnpm-workspace.yaml` for traditional
-  catalog definitions
+- **@pnpm/workspace.read-manifest**: Read `pnpm-workspace.yaml` for traditional catalog definitions
 - **@pnpm/catalogs.config**: Normalize catalogs from workspace manifest
-- **@pnpm/catalogs.protocol-parser**: Parse `catalog:name` specifiers to
-  extract catalog names
+- **@pnpm/catalogs.protocol-parser**: Parse `catalog:name` specifiers to extract catalog names
 - **@pnpm/types**: Type definitions for pnpm manifests
 - **sort-package-json**: Consistent package.json field ordering
 - **type-fest**: PackageJson type definitions
@@ -1345,8 +1279,7 @@ ImportGraph.traceFromPackageExports()
 **Workspace Detection and Catalog Resolution:**
 
 - **workspace-tools**: Multi-package-manager workspace support
-  - `getWorkspaceManagerAndRoot()`: Detect package manager (pnpm, yarn, npm,
-    etc.) and workspace root
+  - `getWorkspaceManagerAndRoot()`: Detect package manager (pnpm, yarn, npm, etc.) and workspace root
   - `getCatalogs()`: Read yarn workspace catalogs
 
 **Utilities:**
@@ -1360,8 +1293,7 @@ ImportGraph.traceFromPackageExports()
 
 ### Co-Located Test Structure
 
-Tests are co-located with source files for better discoverability and
-maintenance:
+Tests are co-located with source files for better discoverability and maintenance:
 
 ```text
 src/
@@ -1446,8 +1378,7 @@ expect(config.environments.development.source).toHaveProperty('entry');
 Shared test helpers remain in the `__test__` directory:
 
 - `types/test-types.ts` - Mock asset types (`MockAsset`, `MockAssetRegistry`)
-- `utils/test-types.ts` - Utility functions (`createMockStats()`,
-  `createMockProcessAssetsContext()`)
+- `utils/test-types.ts` - Utility functions (`createMockStats()`, `createMockProcessAssetsContext()`)
 
 **Type-safe mocks:**
 
@@ -1477,8 +1408,7 @@ pnpm test:coverage
 pnpm test:watch
 ```
 
-For comprehensive testing strategy details, see
-[testing-strategy.md](./testing-strategy.md).
+For comprehensive testing strategy details, see [testing-strategy.md](./testing-strategy.md).
 
 ---
 
@@ -1507,8 +1437,7 @@ For comprehensive testing strategy details, see
 
 **Internal Design Docs:**
 
-- [API Extraction](./api-extraction.md) - API model generation and TSDoc
-  configuration (TsDocLintPlugin shares tsdoc options with DtsPlugin)
+- [API Extraction](./api-extraction.md) - API model generation and TSDoc configuration (TsDocLintPlugin shares tsdoc options with DtsPlugin)
 
 **Package Documentation:**
 
@@ -1518,8 +1447,7 @@ For comprehensive testing strategy details, see
 **External Resources:**
 
 - [RSlib Documentation](https://rslib.dev/) - Build system documentation
-- [Rsbuild Plugin API](https://rsbuild.dev/plugins/dev/core) - Plugin
-  development
+- [Rsbuild Plugin API](https://rsbuild.dev/plugins/dev/core) - Plugin development
 - [Rspack](https://rspack.dev/) - Underlying bundler
 - [API Extractor](https://api-extractor.com/) - Declaration bundling
 - [PNPM Workspace](https://pnpm.io/workspaces) - Workspace configuration
@@ -1527,12 +1455,6 @@ For comprehensive testing strategy details, see
 
 ---
 
-**Document Status:** Current - Core architecture documented with all components
-including ImportGraph analysis, TsDocLintPlugin file discovery, multi-entry
-API model generation with per-entry API Extractor runs and merge, multi-
-package-manager workspace catalog resolution (pnpm, yarn) with factory pattern
-for dependency injection, and multi-format build system (dual format, per-entry
-format overrides, format-aware DTS and export conditions)
+**Document Status:** Current - Core architecture documented with all components including ImportGraph analysis, TsDocLintPlugin file discovery, multi-entry API model generation with per-entry API Extractor runs and merge, multi-package-manager workspace catalog resolution (pnpm, yarn) with factory pattern for dependency injection, and multi-format build system (dual format, per-entry format overrides, format-aware DTS and export conditions)
 
-**Next Steps:** Add sequence diagrams for complex flows, document edge cases in
-transformation pipeline
+**Next Steps:** Add sequence diagrams for complex flows, document edge cases in transformation pipeline
