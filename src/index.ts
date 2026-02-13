@@ -51,11 +51,12 @@ export type {
 	TransformPackageJsonFn,
 	VirtualEntryConfig,
 } from "./rslib/builders/node-library-builder.js";
-
 export { NodeLibraryBuilder } from "./rslib/builders/node-library-builder.js";
-export type { AutoEntryPluginOptions } from "./rslib/plugins/auto-entry-plugin.js";
+
 // Plugins
+export type { AutoEntryPluginOptions } from "./rslib/plugins/auto-entry-plugin.js";
 export { AutoEntryPlugin } from "./rslib/plugins/auto-entry-plugin.js";
+
 export type {
 	ApiModelOptions,
 	DtsPluginOptions,
@@ -67,16 +68,18 @@ export type {
 	TsDocTagGroup,
 } from "./rslib/plugins/dts-plugin.js";
 export { DtsPlugin, TsDocConfigBuilder } from "./rslib/plugins/dts-plugin.js";
+
 export type { FilesArrayPluginOptions } from "./rslib/plugins/files-array-plugin.js";
 export { FilesArrayPlugin } from "./rslib/plugins/files-array-plugin.js";
+
 export type { PackageJsonTransformPluginOptions } from "./rslib/plugins/package-json-transform-plugin.js";
 export { PackageJsonTransformPlugin } from "./rslib/plugins/package-json-transform-plugin.js";
+
 export type { TsDocLintPluginOptions } from "./rslib/plugins/tsdoc-lint-plugin.js";
 export { TsDocLintPlugin } from "./rslib/plugins/tsdoc-lint-plugin.js";
-// Utilities - Entry Extraction
+// Utilities
 export type { EntryExtractorOptions, ExtractedEntries } from "./rslib/plugins/utils/entry-extractor.js";
 export { EntryExtractor } from "./rslib/plugins/utils/entry-extractor.js";
-// Utilities - Import Graph Analysis
 export type {
 	ImportGraphError,
 	ImportGraphErrorType,
@@ -84,7 +87,6 @@ export type {
 	ImportGraphResult,
 } from "./rslib/plugins/utils/import-graph.js";
 export { ImportGraph } from "./rslib/plugins/utils/import-graph.js";
-// Utilities - TSConfig Resolution
 export type {
 	ResolvedCompilerOptions,
 	ResolvedTsconfig,

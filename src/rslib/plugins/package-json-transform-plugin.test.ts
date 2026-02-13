@@ -143,6 +143,7 @@ describe("PackageJsonTransformPlugin", () => {
 			undefined,
 			undefined,
 			undefined,
+			undefined,
 		);
 		expect(mockPackageJsonAsset.update).toHaveBeenCalled();
 	});
@@ -183,6 +184,7 @@ describe("PackageJsonTransformPlugin", () => {
 			undefined,
 			undefined,
 			undefined,
+			undefined,
 		);
 	});
 
@@ -218,6 +220,7 @@ describe("PackageJsonTransformPlugin", () => {
 		expect(mockBuildPackageJson).toHaveBeenCalledWith(
 			originalPackageJson,
 			true,
+			undefined,
 			undefined,
 			undefined,
 			undefined,
@@ -471,6 +474,7 @@ describe("PackageJsonTransformPlugin", () => {
 			undefined,
 			undefined,
 			undefined,
+			undefined,
 		);
 	});
 
@@ -673,6 +677,88 @@ describe("PackageJsonTransformPlugin", () => {
 
 		// Should not have set type
 		expect(mockPackageJsonAsset.data.type).toBeUndefined();
+	});
+
+	it("should pass entryFormats as formatConditions to buildPackageJson", async () => {
+		const plugin = PackageJsonTransformPlugin({
+			format: "esm",
+			entryFormats: { "./markdownlint": "cjs" },
+		});
+		const mockApi = { processAssets: vi.fn(), expose: vi.fn(), useExposed: vi.fn().mockReturnValue(undefined) };
+
+		plugin.setup(mockApi as unknown as Parameters<ReturnType<typeof PackageJsonTransformPlugin>["setup"]>[0]);
+
+		const optimizeCallback = mockApi.processAssets.mock.calls[1][1];
+
+		const originalPackageJson: PackageJson = { name: "test", version: "1.0.0" };
+
+		const mockPackageJsonAsset = {
+			data: { ...originalPackageJson },
+			update: vi.fn(),
+		};
+		// biome-ignore lint/suspicious/noExplicitAny: Mock object for testing
+		mockJsonAssetCreate.mockResolvedValue(mockPackageJsonAsset as any);
+
+		mockBuildPackageJson.mockResolvedValue({ ...originalPackageJson });
+
+		const mockContext = createMockContext();
+		await optimizeCallback(mockContext);
+
+		// Should have passed formatConditions with entryFormats
+		expect(mockBuildPackageJson).toHaveBeenCalledWith(
+			originalPackageJson,
+			true,
+			undefined,
+			undefined,
+			undefined,
+			undefined,
+			undefined,
+			{
+				format: "esm",
+				entryFormats: { "./markdownlint": "cjs" },
+			},
+		);
+	});
+
+	it("should pass dualFormat as formatConditions to buildPackageJson", async () => {
+		const plugin = PackageJsonTransformPlugin({
+			format: "esm",
+			dualFormat: true,
+		});
+		const mockApi = { processAssets: vi.fn(), expose: vi.fn(), useExposed: vi.fn().mockReturnValue(undefined) };
+
+		plugin.setup(mockApi as unknown as Parameters<ReturnType<typeof PackageJsonTransformPlugin>["setup"]>[0]);
+
+		const optimizeCallback = mockApi.processAssets.mock.calls[1][1];
+
+		const originalPackageJson: PackageJson = { name: "test", version: "1.0.0" };
+
+		const mockPackageJsonAsset = {
+			data: { ...originalPackageJson },
+			update: vi.fn(),
+		};
+		// biome-ignore lint/suspicious/noExplicitAny: Mock object for testing
+		mockJsonAssetCreate.mockResolvedValue(mockPackageJsonAsset as any);
+
+		mockBuildPackageJson.mockResolvedValue({ ...originalPackageJson });
+
+		const mockContext = createMockContext();
+		await optimizeCallback(mockContext);
+
+		// Should have passed formatConditions with dualFormat
+		expect(mockBuildPackageJson).toHaveBeenCalledWith(
+			originalPackageJson,
+			true,
+			undefined,
+			undefined,
+			undefined,
+			undefined,
+			undefined,
+			{
+				format: "esm",
+				dualFormat: true,
+			},
+		);
 	});
 
 	it("should handle exports without types field when useRollupTypes is true", async () => {

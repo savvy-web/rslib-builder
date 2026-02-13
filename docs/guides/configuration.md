@@ -36,11 +36,14 @@ interface NodeLibraryBuilderOptions {
   dtsBundledPackages?: string[];
   transformFiles?: TransformFilesCallback;
   transform?: TransformPackageJsonFn;
-  apiModel?: ApiModelOptions | boolean;  // TSDoc lint is controlled via apiModel.tsdoc.lint
-  format?: 'esm' | 'cjs';  // Output format, affects package.json type field
-  virtualEntries?: Record<string, VirtualEntryConfig>;  // Additional bundled files
-  bundle?: boolean;  // Bundle JS into single files (true) or preserve file structure (false)
+  apiModel?: ApiModelOptions | boolean;
+  format?: LibraryFormat | LibraryFormat[];
+  entryFormats?: Record<string, LibraryFormat>;
+  virtualEntries?: Record<string, VirtualEntryConfig>;
+  bundle?: boolean;
 }
+
+type LibraryFormat = 'esm' | 'cjs';
 
 interface VirtualEntryConfig {
   source: string;  // Path to source file
@@ -516,9 +519,9 @@ NodeLibraryBuilder.create({
 
 | Option | Type | Default | Description |
 | :----- | :--- | :------ | :---------- |
-| `onError` | `TsDocLintErrorBehavior` | `throw` (CI) / `error` (local) | Error mode |
-| `include` | `string[]` | Auto from exports | Override discovery |
-| `persistConfig` | `boolean \| PathLike` | `true` (local) | Keep tsdoc.json |
+| `onError` | `ErrorBehavior` | `throw`/`error` | Error mode |
+| `include` | `string[]` | Auto | Override discovery |
+| `persistConfig` | `boolean` | `true` (local) | Keep tsdoc.json |
 
 ### Automatic File Discovery
 
@@ -910,16 +913,16 @@ EntryExtractor prioritizes TypeScript sources:
 
 ### format
 
-Specify the output format for main entry points:
+Specify the output format for entry points:
 
 ```typescript
 NodeLibraryBuilder.create({
-  format: 'cjs',  // Output CommonJS instead of ESM
+  format: 'cjs',
 });
 ```
 
-| Value | package.json type | File Extension |
-| :---- | :---------------- | :------------- |
+| Value | package.json type | Extension |
+| :---- | :---------------- | :-------- |
 | `'esm'` (default) | `"module"` | `.js` |
 | `'cjs'` | `"commonjs"` | `.cjs` |
 
@@ -927,7 +930,119 @@ The format option affects:
 
 - The `type` field in the output package.json
 - The file extension of bundled output files
-- The default format for virtual entries (when not overridden)
+- The default format for virtual entries
+
+### Dual Format
+
+Build all entries in both ESM and CJS by passing
+an array:
+
+```typescript
+NodeLibraryBuilder.create({
+  format: ['esm', 'cjs'],
+});
+```
+
+Each format outputs to its own subdirectory:
+
+```text
+dist/npm/
+├── esm/
+│   ├── index.js
+│   └── index.d.ts
+└── cjs/
+    ├── index.cjs
+    └── index.d.cts
+```
+
+The first format in the array is the primary format
+and determines the `type` field in package.json.
+Exports get both `import` and `require` conditions:
+
+```json
+{
+  "exports": {
+    ".": {
+      "types": "./esm/index.d.ts",
+      "import": "./esm/index.js",
+      "require": "./cjs/index.cjs"
+    }
+  }
+}
+```
+
+### Per-Entry Format Overrides (entryFormats)
+
+Override the format for specific exports while
+keeping the rest as the top-level format:
+
+```typescript
+NodeLibraryBuilder.create({
+  format: 'esm',
+  entryFormats: {
+    './markdownlint': 'cjs',
+  },
+});
+```
+
+Keys must match your package.json export paths
+exactly (e.g., `"./markdownlint"`, not
+`"markdownlint"`).
+
+Overridden entries get format-specific conditions:
+
+```json
+{
+  "exports": {
+    ".": {
+      "types": "./index.d.ts",
+      "import": "./index.js"
+    },
+    "./markdownlint": {
+      "types": "./markdownlint.d.cts",
+      "require": "./markdownlint.cjs"
+    }
+  }
+}
+```
+
+CJS entries emit `.cjs` files and `.d.cts` type
+declarations.
+
+### Combining Dual Format with entryFormats
+
+When both features are used, `entryFormats` takes
+precedence. An entry with an explicit format
+override is built only in that format, even if the
+global format is dual:
+
+```typescript
+NodeLibraryBuilder.create({
+  format: ['esm', 'cjs'],
+  entryFormats: {
+    './markdownlint': 'cjs',
+  },
+});
+```
+
+In this case, `./markdownlint` is CJS-only while
+all other entries get both ESM and CJS.
+
+### When to Use Each Approach
+
+**Use dual format when:**
+
+- Publishing to npm for both ESM and CJS consumers
+- Supporting older Node.js versions that don't
+  fully support ESM
+
+**Use per-entry overrides when:**
+
+- Specific files need CJS for compatibility
+  (e.g., config files consumed by tools that
+  require CommonJS)
+- Most of your package is ESM but some utilities
+  need CJS
 
 ## Virtual Entries
 
@@ -1013,10 +1128,10 @@ NodeLibraryBuilder.create({
 });
 ```
 
-| Value | JS Output | DTS Output | Use Case |
-| :---- | :-------- | :--------- | :------- |
-| `true` (default) | Single file per entry | Bundled per entry | Most libraries |
-| `false` | Preserves file structure | Still bundled per entry | Large libraries, tree-shaking |
+| Value | JS Output | DTS Output |
+| :---- | :-------- | :--------- |
+| `true` (default) | Single file per entry | Bundled per entry |
+| `false` | Preserves file structure | Bundled per entry |
 
 **How bundleless mode works:**
 

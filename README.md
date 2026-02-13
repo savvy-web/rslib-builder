@@ -10,23 +10,33 @@ resolution automatically.
 
 ## Features
 
-- **Zero-Config Entry Detection** - Auto-discovers entry points from package.json
-  exports, no manual configuration needed
-- **10-100x Faster Types** - Uses tsgo (native TypeScript compiler) with API
-  Extractor for bundled, clean public API declarations
-- **Production-Ready Transforms** - Converts `.ts` exports to `.js`, resolves
-  PNPM `catalog:` and `workspace:` references, generates files array
-- **Bundled or Bundleless** - Choose single-file bundles per entry or
-  bundleless mode that preserves your source file structure
-- **Multi-Target Builds** - Separate dev (with source maps) and npm (optimized)
-  outputs from a single configuration
-- **TSDoc Validation** - Pre-build documentation validation with automatic
-  public API discovery
+- **Zero-Config Entry Detection** - Auto-discovers
+  entry points from package.json exports
+- **10-100x Faster Types** - Uses tsgo (native
+  TypeScript compiler) with API Extractor for
+  bundled, clean public API declarations
+- **Production-Ready Transforms** - Converts `.ts`
+  exports to `.js`, resolves PNPM `catalog:` and
+  `workspace:` references, generates files array
+- **Bundled or Bundleless** - Choose single-file
+  bundles per entry or bundleless mode that
+  preserves your source file structure
+- **Multi-Target Builds** - Separate dev (with
+  source maps) and npm (optimized) outputs from a
+  single configuration
+- **Flexible Formats** - ESM, CJS, or dual format
+  output with per-entry format overrides
+- **TSDoc Validation** - Pre-build documentation
+  validation with automatic public API discovery
 
 ## Installation
 
 ```bash
-npm install --save-dev @savvy-web/rslib-builder @rslib/core @microsoft/api-extractor @typescript/native-preview
+npm install --save-dev \
+  @savvy-web/rslib-builder \
+  @rslib/core \
+  @microsoft/api-extractor \
+  @typescript/native-preview
 ```
 
 ## Quick Start

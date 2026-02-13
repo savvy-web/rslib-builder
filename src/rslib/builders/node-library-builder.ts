@@ -69,7 +69,8 @@ export interface VirtualEntryConfig {
 
 	/**
 	 * Output format for this entry.
-	 * If not specified, inherits from top-level `format` option.
+	 * If not specified, inherits from the primary format
+	 * (first element when `format` is an array, or the single format value).
 	 */
 	format?: LibraryFormat;
 }
@@ -182,9 +183,43 @@ export interface NodeLibraryBuilderOptions {
 	 * - `"esm"` → `"type": "module"`
 	 * - `"cjs"` → `"type": "commonjs"`
 	 *
+	 * When an array is provided, the package is built in both formats.
+	 * The first format in the array is the primary format (determines `type` field).
+	 * Each format outputs to its own subdirectory (`dist/{target}/esm/`, `dist/{target}/cjs/`).
+	 *
 	 * @defaultValue `"esm"`
+	 *
+	 * @example
+	 * Dual format output:
+	 * ```typescript
+	 * NodeLibraryBuilder.create({
+	 *   format: ['esm', 'cjs'],
+	 * })
+	 * ```
 	 */
-	format?: LibraryFormat;
+	format?: LibraryFormat | LibraryFormat[];
+
+	/**
+	 * Per-entry format overrides.
+	 * Maps export paths (matching package.json exports keys like `"./markdownlint"`)
+	 * to a specific format. Entries not listed inherit the top-level `format`.
+	 *
+	 * @remarks
+	 * When both `entryFormats` and array `format` are used, `entryFormats` takes precedence.
+	 * An entry with a specific format override will only be built in that format,
+	 * even if the global format is dual.
+	 *
+	 * @example
+	 * ```typescript
+	 * NodeLibraryBuilder.create({
+	 *   format: 'esm',
+	 *   entryFormats: {
+	 *     './markdownlint': 'cjs',
+	 *   },
+	 * })
+	 * ```
+	 */
+	entryFormats?: Record<string, LibraryFormat>;
 
 	/**
 	 * Additional entry points bundled with custom output names.
@@ -561,6 +596,7 @@ export class NodeLibraryBuilder {
 			...(options.transformFiles !== undefined && { transformFiles: options.transformFiles }),
 			...(options.transform !== undefined && { transform: options.transform }),
 			...(options.virtualEntries !== undefined && { virtualEntries: options.virtualEntries }),
+			...(options.entryFormats !== undefined && { entryFormats: options.entryFormats }),
 		};
 
 		return merged;
@@ -608,6 +644,7 @@ export class NodeLibraryBuilder {
 	 */
 	static async createSingleTarget(target: BuildTarget, opts: NodeLibraryBuilderOptions): Promise<RslibConfig> {
 		const options = NodeLibraryBuilder.mergeOptions(opts);
+		const bundle = options.bundle ?? true;
 
 		const VERSION = await packageJsonVersion();
 
@@ -636,7 +673,7 @@ export class NodeLibraryBuilder {
 			plugins.push(
 				TsDocLintPlugin({
 					...lintOptions,
-					...(options.bundle === false && { perEntry: true }),
+					...(!bundle && { perEntry: true }),
 				}),
 			);
 		}
@@ -646,7 +683,7 @@ export class NodeLibraryBuilder {
 			plugins.push(
 				AutoEntryPlugin({
 					...(options.exportsAsIndexes != null && { exportsAsIndexes: options.exportsAsIndexes }),
-					...(options.bundle === false && { bundleless: true }),
+					...(!bundle && { bundleless: true }),
 				}),
 			);
 		}
@@ -656,43 +693,43 @@ export class NodeLibraryBuilder {
 		const userTransform = options.transform;
 		const transformFn = userTransform ? (pkg: PackageJson): PackageJson => userTransform({ target, pkg }) : undefined;
 
-		// Get format (defaults to "esm")
-		const libraryFormat = options.format ?? "esm";
+		// Normalize format: accept single or array, determine primary format
+		const formatOption = options.format ?? "esm";
+		const formats: LibraryFormat[] = Array.isArray(formatOption) ? formatOption : [formatOption];
+		const primaryFormat = formats[0] ?? "esm";
+		const isDualFormat = formats.length > 1;
+
+		// Determine entry format overrides
+		const entryFormats = options.entryFormats;
+		const hasFormatOverrides = entryFormats !== undefined && Object.keys(entryFormats).length > 0;
 
 		// collapseIndex: bundle || !exportsAsIndexes
 		// In bundleless mode with exportsAsIndexes, keep ./foo/index.js paths
 		// In bundleless mode without exportsAsIndexes, collapse ./foo/index.ts → ./foo.js
-		const collapseIndex = (options.bundle ?? true) || !(options.exportsAsIndexes ?? false);
-
-		plugins.push(
-			PackageJsonTransformPlugin({
-				forcePrivate: target === "dev",
-				bundle: collapseIndex,
-				target,
-				format: libraryFormat,
-				...(transformFn && { transform: transformFn }),
-			}),
-		);
-
-		// Add files array plugin to manage package.json files array
-		plugins.push(
-			FilesArrayPlugin({
-				target,
-				...(options.transformFiles && { transformFiles: options.transformFiles }),
-			}),
-		);
-
-		// Add user-provided plugins
-		plugins.push(...options.plugins);
+		const collapseIndex = bundle || !(options.exportsAsIndexes ?? false);
 
 		// Build output configuration
-		const outputDir = `dist/${target}`;
+		const baseOutputDir = `dist/${target}`;
+		// For dual format, each format gets its own subdirectory
+		const outputDir = isDualFormat ? `${baseOutputDir}/${primaryFormat}` : baseOutputDir;
+
+		// Only enable API model generation for npm target (not dev)
+		const apiModelForTarget = target === "npm" ? options.apiModel : undefined;
+
+		// Shared config fragments for lib configs
+		const sourceMap = target === "dev";
+		const externalsConfig = options.externals && options.externals.length > 0 ? { externals: options.externals } : {};
+		const bundlelessOutput = !bundle ? { legalComments: "inline" as const } : {};
+		const sourceDefine = {
+			"process.env.__PACKAGE_VERSION__": JSON.stringify(VERSION),
+			...options.define,
+		};
 
 		// In bundleless mode, compute traced entries from import graph so RSlib
 		// receives them on the lib config (modifyRsbuildConfig is too late —
 		// RSlib resolves entries before plugin hooks run)
 		let entry = options.entry;
-		if (options.bundle === false && !entry) {
+		if (!bundle && !entry) {
 			const cwd = process.cwd();
 			const packageJsonPath = join(cwd, "package.json");
 			const packageJson = JSON.parse(readFileSync(packageJsonPath, "utf-8")) as PackageJson;
@@ -707,61 +744,72 @@ export class NodeLibraryBuilder {
 			entry = tracedEntries;
 		}
 
+		plugins.push(
+			PackageJsonTransformPlugin({
+				forcePrivate: target === "dev",
+				bundle: collapseIndex,
+				target,
+				format: primaryFormat,
+				...(transformFn && { transform: transformFn }),
+				...(hasFormatOverrides && { entryFormats }),
+				...(isDualFormat && { dualFormat: true }),
+			}),
+		);
+
+		// Add files array plugin to manage package.json files array
+		plugins.push(
+			FilesArrayPlugin({
+				target,
+				...(options.transformFiles && { transformFiles: options.transformFiles }),
+			}),
+		);
+
+		// Add user-provided plugins
+		plugins.push(...options.plugins);
+
 		// Add our custom DTS plugin that uses tsgo and emits through asset pipeline
 		// The plugin will generate the temp tsconfig itself since it needs access to api.context.rootPath
-		// Only enable API model generation for npm target (not dev)
-		const apiModelForTarget = target === "npm" ? options.apiModel : undefined;
-
 		plugins.push(
 			DtsPlugin({
 				...(options.tsconfigPath && { tsconfigPath: options.tsconfigPath }),
 				abortOnError: true,
-				bundle: options.bundle ?? true,
+				bundle,
 				...(options.dtsBundledPackages && { bundledPackages: options.dtsBundledPackages }),
 				buildTarget: target,
-				format: libraryFormat,
+				format: primaryFormat,
 				...(apiModelForTarget !== undefined && { apiModel: apiModelForTarget }),
 			}),
 		);
 
 		const lib: LibConfig = {
-			id: target,
-			outBase: options.bundle === false ? "src" : outputDir,
+			id: isDualFormat ? `${target}-${primaryFormat}` : target,
+			outBase: !bundle ? "src" : outputDir,
 			output: {
 				target: "node",
 				module: true,
 				cleanDistPath: true,
-				sourceMap: target === "dev", // Only enable source maps for dev target
-				// Prevent @preserve comments from generating .LICENSE.txt files
-				...(options.bundle === false && { legalComments: "inline" as const }),
+				sourceMap,
+				...bundlelessOutput,
 				distPath: {
 					root: outputDir,
 				},
 				copy: {
 					patterns: options.copyPatterns,
 				},
-				...(options.externals && options.externals.length > 0 && { externals: options.externals }),
+				...externalsConfig,
 			},
-			format: libraryFormat,
+			format: primaryFormat,
 			experiments: {
-				advancedEsm: libraryFormat === "esm",
+				advancedEsm: primaryFormat === "esm",
 			},
-			bundle: options.bundle ?? true,
+			bundle,
 			plugins,
 			source: {
-				// Don't set tsconfigPath here - DtsPlugin will generate and use its own temp config
-				// RSLib will use its default tsconfig resolution for JS compilation
 				...(options.tsconfigPath && { tsconfigPath: options.tsconfigPath }),
 				...(entry && { entry }),
-				define: {
-					"process.env.__PACKAGE_VERSION__": JSON.stringify(VERSION),
-					...options.define,
-				},
+				define: sourceDefine,
 			},
 		};
-
-		// TypeScript declarations are now handled by our custom DtsPlugin (added to plugins above)
-		// which uses tsgo and emits through the asset pipeline instead of RSLib's default DTS plugin
 
 		// Check if we have regular entries (from package.json exports or explicit entry option)
 		const hasRegularEntries = options.entry !== undefined || NodeLibraryBuilder.packageHasExports();
@@ -783,6 +831,121 @@ export class NodeLibraryBuilder {
 		// Add main lib config only if we have regular entries
 		if (hasRegularEntries) {
 			libConfigs.push(lib);
+
+			// Create additional LibConfigs for secondary formats (dual format)
+			if (isDualFormat) {
+				for (const secondaryFormat of formats.slice(1)) {
+					const secondaryOutputDir = `${baseOutputDir}/${secondaryFormat}`;
+					const secondaryPlugins: RsbuildPlugin[] = [
+						// No AutoEntryPlugin - entries are shared from primary
+						// No PackageJsonTransformPlugin - primary handles package.json
+						FilesArrayPlugin({ target }),
+						DtsPlugin({
+							...(options.tsconfigPath && { tsconfigPath: options.tsconfigPath }),
+							abortOnError: true,
+							bundle,
+							...(options.dtsBundledPackages && { bundledPackages: options.dtsBundledPackages }),
+							buildTarget: target,
+							format: secondaryFormat,
+						}),
+					];
+
+					const secondaryLib: LibConfig = {
+						id: `${target}-${secondaryFormat}`,
+						outBase: !bundle ? "src" : secondaryOutputDir,
+						output: {
+							target: "node",
+							cleanDistPath: false,
+							sourceMap,
+							...bundlelessOutput,
+							distPath: {
+								root: secondaryOutputDir,
+							},
+							...externalsConfig,
+						},
+						format: secondaryFormat,
+						experiments: {
+							advancedEsm: secondaryFormat === "esm",
+						},
+						bundle,
+						plugins: secondaryPlugins,
+						source: {
+							...(options.tsconfigPath && { tsconfigPath: options.tsconfigPath }),
+							...(entry && { entry }),
+							define: sourceDefine,
+						},
+					};
+
+					libConfigs.push(secondaryLib);
+				}
+			}
+
+			// Create additional LibConfigs for per-entry format overrides
+			if (hasFormatOverrides && !isDualFormat) {
+				// Read package.json to determine which entries need override format
+				const cwd = process.cwd();
+				const packageJsonPath = join(cwd, "package.json");
+				const packageJson = JSON.parse(readFileSync(packageJsonPath, "utf-8")) as PackageJson;
+				const { entries: extractedEntries, exportPaths } = new EntryExtractor().extract(packageJson);
+
+				// Group overridden entries by their override format (only formats different from primary)
+				const overridesByFormat = new Map<LibraryFormat, Record<string, string>>();
+				for (const [entryName, sourcePath] of Object.entries(extractedEntries)) {
+					const exportPath = exportPaths[entryName];
+					if (exportPath && entryFormats?.[exportPath] && entryFormats[exportPath] !== primaryFormat) {
+						const overrideFormat = entryFormats[exportPath];
+						let formatEntries = overridesByFormat.get(overrideFormat);
+						if (!formatEntries) {
+							formatEntries = {};
+							overridesByFormat.set(overrideFormat, formatEntries);
+						}
+						formatEntries[entryName] = sourcePath;
+					}
+				}
+
+				// Create LibConfig for each override format group
+				for (const [overrideFormat, overrideEntries] of overridesByFormat) {
+					const overridePlugins: RsbuildPlugin[] = [
+						FilesArrayPlugin({ target }),
+						DtsPlugin({
+							...(options.tsconfigPath && { tsconfigPath: options.tsconfigPath }),
+							abortOnError: true,
+							bundle,
+							...(options.dtsBundledPackages && { bundledPackages: options.dtsBundledPackages }),
+							buildTarget: target,
+							format: overrideFormat,
+						}),
+					];
+
+					const overrideLib: LibConfig = {
+						id: `${target}-${overrideFormat}`,
+						outBase: !bundle ? "src" : baseOutputDir,
+						output: {
+							target: "node",
+							cleanDistPath: false,
+							sourceMap,
+							...bundlelessOutput,
+							distPath: {
+								root: baseOutputDir,
+							},
+							...externalsConfig,
+						},
+						format: overrideFormat,
+						experiments: {
+							advancedEsm: overrideFormat === "esm",
+						},
+						bundle,
+						plugins: overridePlugins,
+						source: {
+							entry: overrideEntries,
+							...(options.tsconfigPath && { tsconfigPath: options.tsconfigPath }),
+							define: sourceDefine,
+						},
+					};
+
+					libConfigs.push(overrideLib);
+				}
+			}
 		}
 
 		// Process virtual entries and create additional lib configs
@@ -791,7 +954,7 @@ export class NodeLibraryBuilder {
 			const virtualByFormat = new Map<LibraryFormat, Map<string, string>>();
 
 			for (const [outputName, config] of Object.entries(virtualEntries)) {
-				const entryFormat = config.format ?? libraryFormat;
+				const entryFormat = config.format ?? primaryFormat;
 				let formatMap = virtualByFormat.get(entryFormat);
 				if (!formatMap) {
 					formatMap = new Map();
@@ -813,12 +976,12 @@ export class NodeLibraryBuilder {
 					bundle: true,
 					output: {
 						target: "node",
-						cleanDistPath: false, // Don't clean - main lib already cleaned
-						sourceMap: false, // No source maps for virtual entries
+						cleanDistPath: false,
+						sourceMap: false,
 						distPath: {
-							root: outputDir,
+							root: baseOutputDir,
 						},
-						...(options.externals && options.externals.length > 0 && { externals: options.externals }),
+						...externalsConfig,
 					},
 					source: {
 						entry: entryMap,

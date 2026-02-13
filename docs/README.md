@@ -24,13 +24,13 @@ that simplifies building TypeScript packages for npm distribution.
 | Type Generation | Uses tsgo for fast TypeScript declaration generation |
 | Declaration Bundling | Bundles .d.ts files with API Extractor |
 | API Model Generation | Creates machine-readable API docs for tooling |
-| Resolved tsconfig Export | Exports flattened tsconfig for virtual TS environments |
+| Resolved tsconfig Export | Flattened tsconfig for virtual TS environments |
 | TSDoc Validation | Pre-build TSDoc comment validation (enabled by default) |
 | Package Transform | Resolves PNPM references, updates export paths |
 | Bundleless Mode | Preserve source file structure with hybrid DTS bundling |
 | Multi-Target | Separate dev (debugging) and npm (production) builds |
 | Virtual Entries | Bundle additional files with custom names (no types) |
-| Flexible Format | ESM or CJS output with per-entry format overrides |
+| Flexible Format | ESM, CJS, or dual format with per-entry overrides |
 | Utility Classes | Reusable TsconfigResolver, EntryExtractor, ImportGraph |
 
 ### How It Compares

@@ -63,8 +63,9 @@ export default NodeLibraryBuilder.create({
 
 ### Layer 2: Configuration Generation
 
-When you call `NodeLibraryBuilder.create()`, it returns an async function
-that RSlib calls with environment parameters:
+When you call `NodeLibraryBuilder.create()`, it
+returns an async function that RSlib calls with
+environment parameters:
 
 ```typescript
 // Returns this function
@@ -73,6 +74,12 @@ async ({ envMode }) => {
   return defineConfig({ lib: [...] });
 }
 ```
+
+When dual format or per-entry format overrides are
+used, multiple `lib` configs are generated (one per
+format group). The primary format handles
+package.json transformation; secondary formats get
+minimal plugin sets.
 
 ### Layer 3: Plugin Orchestration
 
@@ -390,10 +397,10 @@ dist/npm/
 
 rslib-builder supports two JavaScript output modes:
 
-| Mode | JS Output | DTS Output | Config |
-| :--- | :-------- | :--------- | :----- |
-| Bundled (default) | Single file per entry | Bundled per entry | `bundle: true` |
-| Bundleless | Preserves file structure | Still bundled per entry | `bundle: false` |
+| Mode | JS Output | DTS Output |
+| :--- | :-------- | :--------- |
+| Bundled (default) | Single file per entry | Bundled per entry |
+| Bundleless | Preserves file structure | Bundled per entry |
 
 In bundleless mode, rslib-builder uses a hybrid approach: JavaScript files
 preserve the source directory structure while TypeScript declarations remain
