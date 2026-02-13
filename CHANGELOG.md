@@ -1,5 +1,11 @@
 # @savvy-web/rslib-builder
 
+## 0.14.0
+
+### Minor Changes
+
+- a55e9b1: Add `cjsInterop` option that injects a footer snippet into CJS output files so `require('module')` returns the default export directly instead of `{ default: value }`. Named exports are preserved as properties on the default value.
+
 ## 0.13.1
 
 ### Patch Changes
