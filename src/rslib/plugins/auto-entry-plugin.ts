@@ -184,9 +184,9 @@ export const AutoEntryPlugin = (options?: AutoEntryPluginOptions): RsbuildPlugin
 					if (Object.keys(entries).length > 0) {
 						const environments = Object.entries(config?.environments ?? {});
 
-						// In bundleless mode, trace import graph and use all reachable files
-						// Named entries are still exposed via entrypoints map above
 						if (options?.bundleless) {
+							// In bundleless mode, trace import graph and use all reachable files
+							// Named entries are still exposed via entrypoints map above
 							const cwd = process.cwd();
 							const graph = new ImportGraph({ rootDir: cwd });
 							const entrySourcePaths = Object.values(entries);
@@ -201,35 +201,29 @@ export const AutoEntryPlugin = (options?: AutoEntryPluginOptions): RsbuildPlugin
 								`bundleless: traced ${Object.keys(tracedEntries).length} files from ${entrySourcePaths.length} entries`,
 							);
 
-							// Replace entry entirely with traced files — don't spread existing
+							// Replace entry entirely with traced files -- don't spread existing
 							// entry which may contain RSlib's default "src/**" glob
-							environments.forEach(([_env, lib]) => {
-								lib.source = {
-									...lib.source,
-									entry: tracedEntries,
-								};
-							});
+							for (const [, lib] of environments) {
+								lib.source = { ...lib.source, entry: tracedEntries };
+							}
 						} else {
 							// Apply named entries to each environment
-							environments.forEach(([_env, lib]) => {
+							for (const [, lib] of environments) {
 								lib.source = {
 									...lib.source,
-									entry: {
-										...lib.source?.entry,
-										...entries,
-									},
+									entry: { ...lib.source?.entry, ...entries },
 								};
-							});
+							}
 						}
 
 						// Log entries only once per build process
 						const state = buildStateMap.get(api);
 						if (state && !state.hasLoggedEntries) {
 							state.hasLoggedEntries = true;
-							environments.forEach(([env]) => {
+							for (const [env] of environments) {
 								const log = createEnvLogger(env);
 								log.entries("auto-detected entries", entries);
-							});
+							}
 						}
 					}
 					/* v8 ignore start - Hard to test JSON parsing errors */

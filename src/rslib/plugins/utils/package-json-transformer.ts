@@ -1,5 +1,5 @@
 import sortPkg from "sort-package-json";
-import type { PackageJson } from "../../../types/package-json.js";
+import type { LibraryFormat, PackageJson } from "../../../types/package-json.js";
 import type { WorkspaceCatalog } from "./workspace-catalog.js";
 import { createWorkspaceCatalog } from "./workspace-catalog.js";
 
@@ -114,7 +114,6 @@ export function createTypePath(jsPath: string, collapseIndex: boolean = true): s
  * Non-TypeScript entries (shell scripts, compiled JS) are preserved as-is.
  *
  * @param bin - The bin field value from package.json
- * @param _processTSExports - Unused, kept for backwards compatibility
  * @returns The transformed bin field with updated paths
  *
  * @example
@@ -128,7 +127,7 @@ export function createTypePath(jsPath: string, collapseIndex: boolean = true): s
  *
  * @internal
  */
-export function transformPackageBin(bin: PackageJson["bin"], _processTSExports: boolean = true): PackageJson["bin"] {
+export function transformPackageBin(bin: PackageJson["bin"]): PackageJson["bin"] {
 	if (typeof bin === "string") {
 		// Only transform TypeScript files to ./bin/cli.js
 		if (bin.endsWith(".ts") || bin.endsWith(".tsx")) {
@@ -385,7 +384,7 @@ export function applyRslibTransformations(
 	}
 
 	if (processedManifest.bin) {
-		const transformedBin = transformPackageBin(processedManifest.bin, processTSExports);
+		const transformedBin = transformPackageBin(processedManifest.bin);
 		if (transformedBin) {
 			processedManifest.bin = transformedBin;
 		}
@@ -456,6 +455,7 @@ export async function applyPnpmTransformations(
  * @param exportToOutputMap - Map of export paths to output files (for exportsAsIndexes mode)
  * @param bundle - Whether the build is in bundle mode
  * @param transform - Optional custom transform function to modify package.json after standard transformations
+ * @param formatConditions - Optional format condition options for per-entry format overrides and dual format
  * @returns Promise resolving to the fully transformed package.json
  * @internal
  */
@@ -467,6 +467,7 @@ export async function buildPackageJson(
 	exportToOutputMap?: Map<string, string>,
 	bundle?: boolean,
 	transform?: (pkg: PackageJson) => PackageJson,
+	formatConditions?: FormatConditionOptions,
 ): Promise<PackageJson> {
 	let result: PackageJson;
 	if (isProduction) {
@@ -490,9 +491,125 @@ export async function buildPackageJson(
 		);
 	}
 
+	// Apply format-specific export conditions (per-entry overrides and dual format)
+	if (formatConditions && result.exports) {
+		result.exports = applyFormatConditions(result.exports, formatConditions);
+	}
+
 	if (transform) {
 		result = transform(result);
 	}
 
 	return result;
+}
+
+/**
+ * Options for format-aware export condition transformation.
+ * @internal
+ */
+export interface FormatConditionOptions {
+	/** Default format for entries not in entryFormats. */
+	format?: LibraryFormat;
+	/** Per-entry format overrides. Keys are export paths (e.g., "./markdownlint"). */
+	entryFormats?: Record<string, LibraryFormat>;
+	/** Whether the build uses dual format (both ESM and CJS). */
+	dualFormat?: boolean;
+}
+
+/**
+ * Converts an ESM JS path to a CJS path (.js → .cjs).
+ * @internal
+ */
+export function toCjsPath(jsPath: string): string {
+	if (jsPath.endsWith(".js")) {
+		return `${jsPath.slice(0, -3)}.cjs`;
+	}
+	return jsPath;
+}
+
+/**
+ * Converts an ESM type path to a CJS type path (.d.ts → .d.cts).
+ * @internal
+ */
+export function toCtsTypePath(dtsPath: string): string {
+	if (dtsPath.endsWith(".d.ts")) {
+		return `${dtsPath.slice(0, -5)}.d.cts`;
+	}
+	return dtsPath;
+}
+
+/**
+ * Adds a format directory prefix to a path (e.g., "./index.js" → "./esm/index.js").
+ * @internal
+ */
+export function addFormatDirPrefix(path: string, format: LibraryFormat): string {
+	if (path.startsWith("./")) {
+		return `./${format}/${path.slice(2)}`;
+	}
+	return `./${format}/${path}`;
+}
+
+/**
+ * Applies format-specific export conditions to transformed package exports.
+ *
+ * @remarks
+ * This is a post-processing step that transforms the standard `{ types, import }` conditions
+ * into format-specific conditions:
+ * - CJS entries: `{ types: "...d.cts", require: "...cjs" }`
+ * - ESM entries: `{ types: "...d.ts", import: "...js" }` (unchanged)
+ * - Dual format: `{ types: "...d.ts", import: "./esm/...js", require: "./cjs/...cjs" }`
+ *
+ * @param exports - The transformed exports from applyRslibTransformations
+ * @param options - Format condition options
+ * @returns The exports with format-specific conditions applied
+ * @internal
+ */
+export function applyFormatConditions(
+	exports: PackageJson.Exports,
+	options: FormatConditionOptions,
+): PackageJson.Exports {
+	if (!exports || typeof exports !== "object" || Array.isArray(exports)) {
+		return exports;
+	}
+
+	const { format = "esm", entryFormats, dualFormat } = options;
+	const result: Record<string, unknown> = {};
+
+	for (const [key, value] of Object.entries(exports as Record<string, unknown>)) {
+		if (value && typeof value === "object" && !Array.isArray(value)) {
+			const condObj = value as Record<string, unknown>;
+
+			// Check if this is a condition object with types+import (generated by standard transform)
+			if (typeof condObj.types === "string" && typeof condObj.import === "string") {
+				const entryFormat = entryFormats?.[key] ?? format;
+				const hasExplicitOverride = entryFormats !== undefined && key in entryFormats;
+
+				if (dualFormat && !hasExplicitOverride) {
+					// Dual format: both import and require with directory prefixes
+					result[key] = {
+						types: addFormatDirPrefix(condObj.types as string, "esm"),
+						import: addFormatDirPrefix(condObj.import as string, "esm"),
+						require: addFormatDirPrefix(toCjsPath(condObj.import as string), "cjs"),
+					};
+				} else if (entryFormat === "cjs") {
+					// CJS entry: require condition with .cjs/.d.cts extensions
+					result[key] = {
+						types: toCtsTypePath(condObj.types as string),
+						require: toCjsPath(condObj.import as string),
+					};
+				} else {
+					// ESM entry: no changes needed
+					result[key] = value;
+				}
+			} else {
+				// Not a standard condition object, preserve as-is
+				result[key] = value;
+			}
+		} else {
+			// Non-object value, preserve as-is
+			result[key] = value;
+		}
+	}
+
+	return result as PackageJson.Exports;
 }

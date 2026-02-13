@@ -1,6 +1,7 @@
 import type { RsbuildPlugin, RsbuildPluginAPI } from "@rsbuild/core";
 import type { LibraryFormat, PackageJson } from "../../types/package-json.js";
 import { JsonAsset, TextAsset } from "./utils/asset-utils.js";
+import type { FormatConditionOptions } from "./utils/package-json-transformer.js";
 import { buildPackageJson } from "./utils/package-json-transformer.js";
 
 /**
@@ -106,6 +107,20 @@ export interface PackageJsonTransformPluginOptions {
 	 * ```
 	 */
 	transform?: (pkg: PackageJson) => PackageJson;
+
+	/**
+	 * Per-entry format overrides for export conditions.
+	 * Maps export paths to their format (e.g., `{ "./markdownlint": "cjs" }`).
+	 * Entries not listed inherit the top-level `format`.
+	 */
+	entryFormats?: Record<string, LibraryFormat>;
+
+	/**
+	 * Whether the build uses dual format (both ESM and CJS).
+	 * When true, exports get both `import` and `require` conditions
+	 * with format directory prefixes.
+	 */
+	dualFormat?: boolean;
 }
 
 /**
@@ -214,6 +229,16 @@ export const PackageJsonTransformPlugin = (options: PackageJsonTransformPluginOp
 					const entrypoints = api.useExposed<Map<string, string>>("entrypoints");
 					const exportToOutputMap = api.useExposed<Map<string, string>>("exportToOutputMap");
 
+					// Build format conditions from plugin options
+					let formatConditions: FormatConditionOptions | undefined;
+					if (options.entryFormats || options.dualFormat) {
+						formatConditions = {
+							...(options.format && { format: options.format }),
+							...(options.entryFormats && { entryFormats: options.entryFormats }),
+							...(options.dualFormat && { dualFormat: options.dualFormat }),
+						};
+					}
+
 					const processedPackageJson = await buildPackageJson(
 						packageJson.data,
 						isProduction,
@@ -222,6 +247,7 @@ export const PackageJsonTransformPlugin = (options: PackageJsonTransformPluginOp
 						exportToOutputMap,
 						options.bundle,
 						options.transform,
+						formatConditions,
 					);
 					packageJson.data = processedPackageJson;
 					if (options.forcePrivate) {
@@ -233,7 +259,7 @@ export const PackageJsonTransformPlugin = (options: PackageJsonTransformPluginOp
 						packageJson.data.type = options.format === "esm" ? "module" : "commonjs";
 					}
 
-					// Check if we should use rollup types (set by ApiReportPluginNew)
+					// Check if we should use rollup types (set by DtsPlugin)
 					const useRollupTypes = api.useExposed<boolean>("use-rollup-types");
 					if (useRollupTypes && packageJson.data.exports && typeof packageJson.data.exports === "object") {
 						const exports = packageJson.data.exports as Record<string, unknown>;
@@ -242,7 +268,7 @@ export const PackageJsonTransformPlugin = (options: PackageJsonTransformPluginOp
 						delete exports["./api-extractor"];
 
 						// Update all exports to point types to the rollup
-						for (const [, value] of Object.entries(exports)) {
+						for (const value of Object.values(exports)) {
 							if (value && typeof value === "object" && "types" in value) {
 								(value as Record<string, string>).types = "./index.d.ts";
 							}

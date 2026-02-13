@@ -67,6 +67,21 @@ ${SOURCE_MAP_PREFIX}bar.d.ts.map`;
 			expect(result).toBe("");
 		});
 
+		it("should strip .d.cts.map sourceMappingURL comment", () => {
+			const content = `export declare const foo: string;\n${SOURCE_MAP_PREFIX}index.d.cts.map`;
+			const result = stripSourceMapComment(content);
+			expect(result).toBe("export declare const foo: string;");
+		});
+
+		it("should strip mixed .d.ts.map and .d.cts.map comments", () => {
+			const content = `export declare const foo: string;
+${SOURCE_MAP_PREFIX}foo.d.ts.map
+export declare const bar: number;
+${SOURCE_MAP_PREFIX}bar.d.cts.map`;
+			const result = stripSourceMapComment(content);
+			expect(result).toBe("export declare const foo: string;\n\nexport declare const bar: number;");
+		});
+
 		it("should preserve other comments", () => {
 			const content = `// This is a regular comment
 export declare const foo: string;

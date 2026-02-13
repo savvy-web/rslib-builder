@@ -3,8 +3,8 @@ status: current
 module: rslib-builder
 category: architecture
 created: 2026-01-18
-updated: 2026-02-05
-last-synced: 2026-02-05
+updated: 2026-02-13
+last-synced: 2026-02-13
 completeness: 95
 related:
   - rslib-builder/api-extraction.md
@@ -100,8 +100,11 @@ interface NodeLibraryBuilderOptions {
   transformFiles?: (context: TransformFilesContext) => void;
   transform?: TransformPackageJsonFn;
   apiModel?: ApiModelOptions | boolean;  // Default: true
+  format?: LibraryFormat | LibraryFormat[];  // Single or dual format
+  entryFormats?: Record<string, LibraryFormat>;  // Per-entry overrides
 }
 
+type LibraryFormat = "esm" | "cjs";
 type BuildTarget = "dev" | "npm";
 
 // Default options
@@ -149,8 +152,12 @@ processing stages.
   - API model is enabled by default for npm target
   - Multi-entry: runs API Extractor per entry, merges into single `.api.json`
     with multiple `EntryPoint` members via `mergeApiModels()`
+  - Format-aware: emits `.d.cts` for CJS entries, `.d.ts` for ESM entries
 - **PackageJsonTransformPlugin** - Transform package.json for dist
   - Stages: pre-process, optimize, optimize-inline
+  - Format-aware: generates `import`/`require` conditions based on format
+  - Supports `entryFormats` for per-entry format overrides
+  - Supports `dualFormat` for combined ESM + CJS export conditions
 - **FilesArrayPlugin** - Build package.json files array, exclude source maps
   - Stages: additional, optimize-inline
 
@@ -238,6 +245,61 @@ transformations. Consolidated from 14 files to 6 focused modules.
    - Excludes file selection patterns (include, exclude, files, references)
    - Converts lib references from full paths to canonical names (e.g., "esnext")
    - Used by DtsPlugin to emit resolved tsconfig.json alongside API model
+
+#### Component 4: Multi-Format Build System
+
+**Location:** `src/rslib/builders/node-library-builder.ts` (createSingleTarget)
+
+**Purpose:** Generate multiple LibConfig entries when the build requires
+different output formats for different entries.
+
+**Responsibilities:**
+
+- Normalize `format` option (single or array) into `formats[]`
+- Detect dual format mode (`formats.length > 1`)
+- Create primary LibConfig with full plugin set
+- Create secondary LibConfigs (one per additional format) with minimal plugins
+- Handle per-entry format overrides via `entryFormats`
+- Assign format-specific output directories for dual format
+
+**Multi-Format LibConfig Generation:**
+
+```typescript
+// Dual format: format: ['esm', 'cjs']
+lib: [
+  { id: "npm-esm", format: "esm", distPath: "dist/npm/esm/" },  // Primary
+  { id: "npm-cjs", format: "cjs", distPath: "dist/npm/cjs/" },  // Secondary
+]
+
+// Per-entry override: entryFormats: { "./markdownlint": "cjs" }
+lib: [
+  { id: "npm", format: "esm", entries: { index, utils } },   // Primary (ESM)
+  { id: "npm-cjs", format: "cjs", entries: { markdownlint } }, // Override (CJS)
+]
+```
+
+**Primary vs Secondary LibConfigs:**
+
+| Aspect | Primary | Secondary |
+| --- | --- | --- |
+| AutoEntryPlugin | Yes | No |
+| PackageJsonTransformPlugin | Yes | No |
+| DtsPlugin | Yes (with apiModel) | Yes (without apiModel) |
+| FilesArrayPlugin | Yes | Yes |
+| cleanDistPath | true | false |
+| User plugins | Yes | No |
+
+**Format Condition Utilities:**
+
+**Location:** `src/rslib/plugins/utils/package-json-transformer.ts`
+
+Post-processing step that transforms standard `{ types, import }` conditions
+into format-specific conditions:
+
+- `toCjsPath()` - `.js` → `.cjs`
+- `toCtsTypePath()` - `.d.ts` → `.d.cts`
+- `addFormatDirPrefix()` - `./index.js` → `./esm/index.js`
+- `applyFormatConditions()` - Orchestrates per-entry and dual format transforms
 
 ### Architecture Diagram
 
@@ -936,6 +998,18 @@ Source package.json
 +----------------------------------------+
          |
          v
++----------------------------------------+
+| applyFormatConditions() (if needed)    |
+|   - Per-entry CJS overrides:           |
+|     import → require, .js → .cjs       |
+|     .d.ts → .d.cts                     |
+|   - Dual format:                       |
+|     Add both import + require with     |
+|     format directory prefixes          |
+|     (./esm/index.js, ./cjs/index.cjs) |
++----------------------------------------+
+         |
+         v
     Custom transform function (if provided)
          |
          v
@@ -1162,7 +1236,7 @@ ImportGraph.traceFromPackageExports()
 
 ### RSlib Integration
 
-**Configuration returned:**
+**Configuration returned (single format):**
 
 ```typescript
 {
@@ -1176,7 +1250,7 @@ ImportGraph.traceFromPackageExports()
       target: "node",
       module: true,
       cleanDistPath: true,
-      sourceMap: target === "dev", // Only for dev
+      sourceMap: target === "dev",
       distPath: { root: `dist/${target}` },
       copy: { patterns: [...] },
       externals: [...],
@@ -1195,6 +1269,30 @@ ImportGraph.traceFromPackageExports()
   performance: {
     buildCache: { cacheDirectory: `.rslib/cache/${target}` }
   }
+}
+```
+
+**Configuration returned (dual format):**
+
+```typescript
+{
+  lib: [
+    {
+      id: `${target}-esm`,          // Primary format
+      format: "esm",
+      output: { distPath: { root: `dist/${target}/esm` } },
+      plugins: [AutoEntry, PackageJson, Files, Dts, ...userPlugins],
+    },
+    {
+      id: `${target}-cjs`,          // Secondary format
+      format: "cjs",
+      output: {
+        distPath: { root: `dist/${target}/cjs` },
+        cleanDistPath: false,
+      },
+      plugins: [Files, Dts],        // Minimal plugin set
+    },
+  ],
 }
 ```
 
@@ -1431,9 +1529,10 @@ For comprehensive testing strategy details, see
 
 **Document Status:** Current - Core architecture documented with all components
 including ImportGraph analysis, TsDocLintPlugin file discovery, multi-entry
-API model generation with per-entry API Extractor runs and merge, and multi-
+API model generation with per-entry API Extractor runs and merge, multi-
 package-manager workspace catalog resolution (pnpm, yarn) with factory pattern
-for dependency injection
+for dependency injection, and multi-format build system (dual format, per-entry
+format overrides, format-aware DTS and export conditions)
 
 **Next Steps:** Add sequence diagrams for complex flows, document edge cases in
 transformation pipeline

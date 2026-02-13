@@ -8,6 +8,7 @@ Common issues and solutions when using rslib-builder.
 - [Type Generation Issues](#type-generation-issues)
 - [Package.json Problems](#packagejson-problems)
 - [Performance Issues](#performance-issues)
+- [Format Issues](#format-issues)
 - [Plugin Issues](#plugin-issues)
 
 ## Build Errors
@@ -343,6 +344,63 @@ virtualEntries: {
 
 Without explicit format, virtual entries inherit the top-level `format` option
 (default: `'esm'`).
+
+## Format Issues
+
+### Wrong export conditions in output
+
+**Symptom:** Output package.json has `import` instead
+of `require` (or vice versa).
+
+**Common causes:**
+
+1. **entryFormats key mismatch**
+
+   Keys must exactly match package.json export paths:
+
+   ```typescript
+   // Correct
+   entryFormats: { './markdownlint': 'cjs' }
+
+   // Wrong - missing "./" prefix
+   entryFormats: { 'markdownlint': 'cjs' }
+   ```
+
+2. **Missing format option**
+
+   Dual format requires an array:
+
+   ```typescript
+   // Dual format
+   format: ['esm', 'cjs']
+
+   // Single format (no require conditions)
+   format: 'esm'
+   ```
+
+### CJS types using .d.ts instead of .d.cts
+
+**Symptom:** CJS entries have `.d.ts` type
+declarations instead of `.d.cts`.
+
+**Solution:** Ensure `entryFormats` is configured.
+The DTS plugin reads the format from the LibConfig
+and emits `.d.cts` only when the format is `"cjs"`.
+
+### Dual format output missing a directory
+
+**Symptom:** Only one format directory appears
+in `dist/npm/`.
+
+**Solution:** Both formats must be specified:
+
+```typescript
+format: ['esm', 'cjs']  // Creates esm/ and cjs/
+```
+
+Check that the build completes without errors.
+The secondary format uses `cleanDistPath: false`
+so it won't delete the primary format's output.
 
 ## Bundleless Mode Issues
 

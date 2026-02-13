@@ -60,27 +60,6 @@ describe("bin-transform-utils", () => {
 			expect(result).toBe("./bin/start.sh");
 		});
 
-		it("should transform TypeScript even when processTSExports is false (deprecated param)", () => {
-			// The processTSExports parameter is deprecated and no longer affects bin transformation
-			const result = transformPackageBin("./src/cli.ts", false);
-			expect(result).toBe("./bin/cli.js");
-		});
-
-		it("should transform object bin TypeScript even when processTSExports is false (deprecated param)", () => {
-			// The processTSExports parameter is deprecated and no longer affects bin transformation
-			const result = transformPackageBin(
-				{
-					"my-cli": "./src/cli.ts",
-					"my-tool": "./src/tool.ts",
-				},
-				false,
-			);
-			expect(result).toEqual({
-				"my-cli": "./bin/my-cli.js",
-				"my-tool": "./bin/my-tool.js",
-			});
-		});
-
 		it("should handle null/undefined bin field", () => {
 			expect(transformPackageBin(null as unknown as PackageJson["bin"])).toBeNull();
 			expect(transformPackageBin(undefined)).toBeUndefined();
