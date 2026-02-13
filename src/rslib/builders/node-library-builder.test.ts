@@ -92,6 +92,7 @@ describe("NodeLibraryBuilder", () => {
 				externals: [],
 				apiModel: true,
 				bundle: true,
+				cjsInterop: false,
 			});
 		});
 	});
@@ -383,6 +384,56 @@ describe("NodeLibraryBuilder", () => {
 
 				const filesCalls = vi.mocked(FilesArrayPlugin).mock.calls;
 				expect(filesCalls[0][0]).not.toHaveProperty("formatDirs");
+			});
+		});
+
+		describe("cjsInterop", () => {
+			it("should default cjsInterop to false", () => {
+				vi.mocked(existsSync).mockReturnValue(false);
+
+				const result = NodeLibraryBuilder.mergeOptions();
+
+				expect(result.cjsInterop).toBe(false);
+			});
+
+			it("should add footer to CJS primary lib when cjsInterop is true", async () => {
+				const options = NodeLibraryBuilder.mergeOptions({ format: "cjs", cjsInterop: true });
+				await NodeLibraryBuilder.createSingleTarget("npm", options);
+
+				const lib = capturedConfig?.lib?.[0];
+				expect(lib?.footer).toBeDefined();
+				expect(lib?.footer).toHaveProperty("js");
+				expect((lib?.footer as { js: string }).js).toContain("module.exports = _def");
+			});
+
+			it("should add footer to CJS secondary lib in dual format when cjsInterop is true", async () => {
+				const options = NodeLibraryBuilder.mergeOptions({ format: ["esm", "cjs"], cjsInterop: true });
+				await NodeLibraryBuilder.createSingleTarget("npm", options);
+
+				// Primary lib (ESM) should NOT have footer
+				const primaryLib = capturedConfig?.lib?.[0];
+				expect(primaryLib?.footer).toBeUndefined();
+
+				// Secondary lib (CJS) should have footer
+				const secondaryLib = capturedConfig?.lib?.[1];
+				expect(secondaryLib?.footer).toBeDefined();
+				expect((secondaryLib?.footer as { js: string }).js).toContain("module.exports = _def");
+			});
+
+			it("should not add footer to ESM lib when cjsInterop is true", async () => {
+				const options = NodeLibraryBuilder.mergeOptions({ format: "esm", cjsInterop: true });
+				await NodeLibraryBuilder.createSingleTarget("npm", options);
+
+				const lib = capturedConfig?.lib?.[0];
+				expect(lib?.footer).toBeUndefined();
+			});
+
+			it("should not add footer when cjsInterop is false", async () => {
+				const options = NodeLibraryBuilder.mergeOptions({ format: "cjs", cjsInterop: false });
+				await NodeLibraryBuilder.createSingleTarget("npm", options);
+
+				const lib = capturedConfig?.lib?.[0];
+				expect(lib?.footer).toBeUndefined();
 			});
 		});
 	});

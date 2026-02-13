@@ -402,6 +402,55 @@ Check that the build completes without errors.
 The secondary format uses `cleanDistPath: false`
 so it won't delete the primary format's output.
 
+### CJS require() returns { default: value } instead of value
+
+**Symptom:** A CJS consumer does `require('my-package')` and
+gets `{ default: fn, __esModule: true }` instead of `fn`
+directly. Tools like `markdownlint-cli2` fail because they
+expect the default export value.
+
+**Solution:** Enable the `cjsInterop` option:
+
+```typescript
+NodeLibraryBuilder.create({
+  format: ['esm', 'cjs'],
+  cjsInterop: true,
+});
+```
+
+This injects a footer snippet into CJS output files that
+reassigns `module.exports` to the default export value.
+Named exports are preserved as properties on that value.
+
+See [CJS Interop](./configuration.md#cjs-interop) for full
+details.
+
+### cjsInterop not taking effect
+
+**Symptom:** `cjsInterop: true` is set but CJS output still
+wraps the default export.
+
+**Common causes:**
+
+1. **No CJS format configured**
+
+   `cjsInterop` only affects CJS output. Ensure at least one
+   entry uses CJS format:
+
+   ```typescript
+   // Correct - has CJS output
+   format: ['esm', 'cjs']
+   // or
+   format: 'cjs'
+   // or
+   entryFormats: { './config': 'cjs' }
+   ```
+
+2. **No default export in the module**
+
+   The interop snippet is a no-op when there is no default
+   export. Verify your entry file has `export default`.
+
 ## Bundleless Mode Issues
 
 ### Unexpected file structure in output

@@ -117,6 +117,8 @@ export default NodeLibraryBuilder.create({
 });
 ```
 
+**CJS Interop** (`cjsInterop: true`): When enabled on CJS-format builds, injects a footer snippet so `require('module')` returns the default export directly instead of `{ default: value, __esModule: true }`. Named exports are preserved as properties on the default value. Only affects CJS output; ESM is unchanged.
+
 #### Plugin System
 
 Custom RSlib plugins handle complex build scenarios:

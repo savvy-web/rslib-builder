@@ -17,6 +17,7 @@ Complete reference for all `NodeLibraryBuilder` configuration options.
 - [TsconfigResolver Utility](#tsconfigresolver-utility)
 - [EntryExtractor Utility](#entryextractor-utility)
 - [Bundle Mode](#bundle-mode)
+- [CJS Interop](#cjs-interop)
 - [Define Constants](#define-constants)
 
 ## Basic Options
@@ -41,6 +42,7 @@ interface NodeLibraryBuilderOptions {
   entryFormats?: Record<string, LibraryFormat>;
   virtualEntries?: Record<string, VirtualEntryConfig>;
   bundle?: boolean;
+  cjsInterop?: boolean;
 }
 
 type LibraryFormat = 'esm' | 'cjs';
@@ -1167,6 +1169,73 @@ src/                          dist/npm/
 - Packages with many internal modules where tree-shaking is important
 - Projects that want to preserve source file organization in the output
 
+## CJS Interop
+
+### cjsInterop
+
+Enable CJS default export interop so that `require('module')` returns the
+default export directly instead of `{ default: value, __esModule: true }`.
+
+```typescript
+NodeLibraryBuilder.create({
+  format: ['esm', 'cjs'],
+  cjsInterop: true,
+});
+```
+
+| Option | Type | Default |
+| :----- | :--- | :------ |
+| `cjsInterop` | `boolean` | `false` |
+
+**What it solves:**
+
+RSlib's `commonjs-static` library type puts the default export on
+`exports["default"]` and sets `__esModule: true`. When a CJS consumer does
+`require('module')`, it gets `{ default: value, NamedExport: ..., __esModule: true }`
+instead of `value` directly. This breaks tools like `markdownlint-cli2` that
+expect `require()` to return the default export value.
+
+When `cjsInterop` is enabled, a footer snippet is appended to each CJS output
+file that reassigns `module.exports` to the default export value after the
+bundle runs.
+
+**Behavior details:**
+
+- Only affects CJS format output; ESM output is unchanged
+- Named exports are preserved as properties on the default export value
+  (works for objects, arrays, and functions)
+- The snippet is a no-op when there is no default export
+- Primitive default exports (strings, numbers, booleans) are exported directly
+  but cannot carry named export properties
+
+**Works with all CJS configurations:**
+
+```typescript
+// Single CJS format
+NodeLibraryBuilder.create({
+  format: 'cjs',
+  cjsInterop: true,
+});
+
+// Dual format
+NodeLibraryBuilder.create({
+  format: ['esm', 'cjs'],
+  cjsInterop: true,
+});
+
+// Per-entry format overrides
+NodeLibraryBuilder.create({
+  format: 'esm',
+  entryFormats: {
+    './config': 'cjs',
+  },
+  cjsInterop: true,
+});
+```
+
+In all cases, the interop footer is applied only to CJS-format lib
+configurations. ESM libs are never affected.
+
 ## Define Constants
 
 ### define
@@ -1231,6 +1300,10 @@ export default NodeLibraryBuilder.create({
       },
     },
   },
+
+  // Dual format with CJS interop
+  format: ['esm', 'cjs'],
+  cjsInterop: true,
 
   // Build constants
   define: {

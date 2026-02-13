@@ -89,6 +89,7 @@ interface NodeLibraryBuilderOptions {
   apiModel?: ApiModelOptions | boolean;  // Default: true
   format?: LibraryFormat | LibraryFormat[];  // Single or dual format
   entryFormats?: Record<string, LibraryFormat>;  // Per-entry overrides
+  cjsInterop?: boolean;  // Default: false - CJS default export interop
 }
 
 type LibraryFormat = "esm" | "cjs";
@@ -96,12 +97,15 @@ type BuildTarget = "dev" | "npm";
 
 // Default options
 NodeLibraryBuilder.DEFAULT_OPTIONS = {
+  format: "esm",
   plugins: [],
   define: {},
   copyPatterns: [],
   targets: ["dev", "npm"],
   externals: [],
   apiModel: true,  // API model enabled by default
+  bundle: true,
+  cjsInterop: false,  // CJS default export interop disabled by default
 };
 
 // Factory method
@@ -252,6 +256,7 @@ lib: [
 | FilesArrayPlugin | Yes | Yes |
 | cleanDistPath | true | false |
 | User plugins | Yes | No |
+| cjsInterop footer | If format is CJS | If format is CJS |
 
 **Format Condition Utilities:**
 
@@ -263,6 +268,25 @@ Post-processing step that transforms standard `{ types, import }` conditions int
 - `toCtsTypePath()` - `.d.ts` → `.d.cts`
 - `addFormatDirPrefix()` - `./index.js` → `./esm/index.js`
 - `applyFormatConditions()` - Orchestrates per-entry and dual format transforms
+
+#### Component 5: CJS Interop
+
+**Location:** `src/rslib/builders/node-library-builder.ts`
+
+**Purpose:** Patch CJS output so `require('module')` returns the default export directly rather than `{ default: value, __esModule: true }`.
+
+**Option:** `cjsInterop?: boolean` (default: `false`)
+
+**How it works:**
+
+- A `CJS_INTEROP_FOOTER` constant is defined at module level containing a self-contained JavaScript snippet
+- The snippet is injected via RSlib's `footer: { js: ... }` LibConfig property (maps to rspack's `BannerPlugin` with `footer: true`)
+- Only applied to LibConfigs with `format: "cjs"` -- ESM output is never affected
+- Applied at three LibConfig creation points: primary lib, secondary lib (dual format), and per-entry format override libs
+- The snippet checks for `__esModule` and `default` on `module.exports`, copies named exports onto the default value, and reassigns `module.exports` to the default value
+- No-op when there is no default export in the module
+
+**Use case:** Tools like `markdownlint-cli2` that expect `require()` to return the default export directly.
 
 ### Architecture Diagram
 
@@ -1227,6 +1251,7 @@ ImportGraph.traceFromPackageExports()
         cleanDistPath: false,
       },
       plugins: [Files, Dts],        // Minimal plugin set
+      // If cjsInterop: true, adds footer: { js: CJS_INTEROP_FOOTER }
     },
   ],
 }
@@ -1455,6 +1480,6 @@ For comprehensive testing strategy details, see [testing-strategy.md](./testing-
 
 ---
 
-**Document Status:** Current - Core architecture documented with all components including ImportGraph analysis, TsDocLintPlugin file discovery, multi-entry API model generation with per-entry API Extractor runs and merge, multi-package-manager workspace catalog resolution (pnpm, yarn) with factory pattern for dependency injection, and multi-format build system (dual format, per-entry format overrides, format-aware DTS and export conditions)
+**Document Status:** Current - Core architecture documented with all components including ImportGraph analysis, TsDocLintPlugin file discovery, multi-entry API model generation with per-entry API Extractor runs and merge, multi-package-manager workspace catalog resolution (pnpm, yarn) with factory pattern for dependency injection, multi-format build system (dual format, per-entry format overrides, format-aware DTS and export conditions), and CJS interop footer injection for default export compatibility
 
 **Next Steps:** Add sequence diagrams for complex flows, document edge cases in transformation pipeline
