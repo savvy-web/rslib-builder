@@ -480,7 +480,39 @@ export interface NodeLibraryBuilderOptions {
 	 * @defaultValue true
 	 */
 	bundle?: boolean;
+
+	/**
+	 * Enable CJS default export interop for CommonJS output files.
+	 * When true, CJS files are patched so `require('module')` returns
+	 * the default export directly instead of `{ default: value }`.
+	 * Named exports are preserved as properties on the default value.
+	 * Only affects CJS format output; ESM is unchanged.
+	 * @defaultValue false
+	 */
+	cjsInterop?: boolean;
 }
+
+/**
+ * CJS interop footer snippet injected into CommonJS output files.
+ * Reassigns `module.exports` to the default export value so that
+ * `require('module')` returns it directly. Named exports are copied
+ * onto the default value as properties.
+ * @internal
+ */
+const CJS_INTEROP_FOOTER = `
+if (module.exports && module.exports.__esModule && 'default' in module.exports) {
+  var _def = module.exports.default;
+  if (_def !== null && _def !== undefined && (typeof _def === 'object' || typeof _def === 'function')) {
+    var _keys = Object.keys(module.exports);
+    for (var _i = 0; _i < _keys.length; _i++) {
+      var _key = _keys[_i];
+      if (_key !== 'default' && _key !== '__esModule' && !(_key in _def)) {
+        _def[_key] = module.exports[_key];
+      }
+    }
+  }
+  module.exports = _def;
+}`;
 
 /**
  * Builder for Node.js ESM libraries using RSlib.
@@ -556,6 +588,7 @@ export class NodeLibraryBuilder {
 		externals: [],
 		apiModel: true,
 		bundle: true,
+		cjsInterop: false,
 	} satisfies Partial<NodeLibraryBuilderOptions>;
 
 	/**
@@ -589,6 +622,7 @@ export class NodeLibraryBuilder {
 			externals: options.externals ?? NodeLibraryBuilder.DEFAULT_OPTIONS.externals,
 			apiModel: options.apiModel ?? NodeLibraryBuilder.DEFAULT_OPTIONS.apiModel,
 			bundle: options.bundle ?? NodeLibraryBuilder.DEFAULT_OPTIONS.bundle,
+			cjsInterop: options.cjsInterop ?? NodeLibraryBuilder.DEFAULT_OPTIONS.cjsInterop,
 			// Optional properties - only include if explicitly defined
 			...(options.entry !== undefined && { entry: options.entry }),
 			...(options.exportsAsIndexes !== undefined && { exportsAsIndexes: options.exportsAsIndexes }),
@@ -810,6 +844,10 @@ export class NodeLibraryBuilder {
 				...(entry && { entry }),
 				define: sourceDefine,
 			},
+			...(options.cjsInterop &&
+				primaryFormat === "cjs" && {
+					footer: { js: CJS_INTEROP_FOOTER },
+				}),
 		};
 
 		// Check if we have regular entries (from package.json exports or explicit entry option)
@@ -890,6 +928,10 @@ export class NodeLibraryBuilder {
 							...(entry && { entry }),
 							define: sourceDefine,
 						},
+						...(options.cjsInterop &&
+							secondaryFormat === "cjs" && {
+								footer: { js: CJS_INTEROP_FOOTER },
+							}),
 					};
 
 					libConfigs.push(secondaryLib);
@@ -957,6 +999,10 @@ export class NodeLibraryBuilder {
 							...(options.tsconfigPath && { tsconfigPath: options.tsconfigPath }),
 							define: sourceDefine,
 						},
+						...(options.cjsInterop &&
+							overrideFormat === "cjs" && {
+								footer: { js: CJS_INTEROP_FOOTER },
+							}),
 					};
 
 					libConfigs.push(overrideLib);
