@@ -710,8 +710,6 @@ export class NodeLibraryBuilder {
 
 		// Build output configuration
 		const baseOutputDir = `dist/${target}`;
-		// For dual format, each format gets its own subdirectory
-		const outputDir = isDualFormat ? `${baseOutputDir}/${primaryFormat}` : baseOutputDir;
 
 		// Only enable API model generation for npm target (not dev)
 		const apiModelForTarget = target === "npm" ? options.apiModel : undefined;
@@ -761,6 +759,7 @@ export class NodeLibraryBuilder {
 			FilesArrayPlugin({
 				target,
 				...(options.transformFiles && { transformFiles: options.transformFiles }),
+				...(isDualFormat && { formatDirs: formats }),
 			}),
 		);
 
@@ -778,12 +777,13 @@ export class NodeLibraryBuilder {
 				buildTarget: target,
 				format: primaryFormat,
 				...(apiModelForTarget !== undefined && { apiModel: apiModelForTarget }),
+				...(isDualFormat && { dtsPathPrefix: primaryFormat }),
 			}),
 		);
 
 		const lib: LibConfig = {
 			id: isDualFormat ? `${target}-${primaryFormat}` : target,
-			outBase: !bundle ? "src" : outputDir,
+			outBase: !bundle ? "src" : baseOutputDir,
 			output: {
 				target: "node",
 				module: true,
@@ -791,7 +791,8 @@ export class NodeLibraryBuilder {
 				sourceMap,
 				...bundlelessOutput,
 				distPath: {
-					root: outputDir,
+					root: baseOutputDir,
+					...(isDualFormat && { js: primaryFormat }),
 				},
 				copy: {
 					patterns: options.copyPatterns,
@@ -835,11 +836,24 @@ export class NodeLibraryBuilder {
 			// Create additional LibConfigs for secondary formats (dual format)
 			if (isDualFormat) {
 				for (const secondaryFormat of formats.slice(1)) {
-					const secondaryOutputDir = `${baseOutputDir}/${secondaryFormat}`;
 					const secondaryPlugins: RsbuildPlugin[] = [
 						// No AutoEntryPlugin - entries are shared from primary
 						// No PackageJsonTransformPlugin - primary handles package.json
-						FilesArrayPlugin({ target }),
+						// No FilesArrayPlugin - primary uses directory entries to cover all formats
+						// Strip metadata assets that RSlib auto-copies, so they don't overwrite
+						// the primary's processed versions (package.json, README, LICENSE)
+						{
+							name: "strip-metadata-assets",
+							setup(api) {
+								api.processAssets({ stage: "additional" }, (context) => {
+									for (const name of Object.keys(context.compilation.assets)) {
+										if (name === "package.json" || name === "README.md" || name === "LICENSE") {
+											delete context.compilation.assets[name];
+										}
+									}
+								});
+							},
+						},
 						DtsPlugin({
 							...(options.tsconfigPath && { tsconfigPath: options.tsconfigPath }),
 							abortOnError: true,
@@ -847,19 +861,21 @@ export class NodeLibraryBuilder {
 							...(options.dtsBundledPackages && { bundledPackages: options.dtsBundledPackages }),
 							buildTarget: target,
 							format: secondaryFormat,
+							dtsPathPrefix: secondaryFormat,
 						}),
 					];
 
 					const secondaryLib: LibConfig = {
 						id: `${target}-${secondaryFormat}`,
-						outBase: !bundle ? "src" : secondaryOutputDir,
+						outBase: !bundle ? "src" : baseOutputDir,
 						output: {
 							target: "node",
 							cleanDistPath: false,
 							sourceMap,
 							...bundlelessOutput,
 							distPath: {
-								root: secondaryOutputDir,
+								root: baseOutputDir,
+								js: secondaryFormat,
 							},
 							...externalsConfig,
 						},

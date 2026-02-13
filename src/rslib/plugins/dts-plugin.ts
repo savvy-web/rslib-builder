@@ -750,6 +750,14 @@ export interface DtsPluginOptions {
 	 * The API model is excluded from npm publish (not added to `files` array).
 	 */
 	apiModel?: ApiModelOptions | boolean;
+
+	/**
+	 * Path prefix for emitted DTS files.
+	 * Used in dual format builds to place declarations in format subdirectories
+	 * (e.g., `esm/index.d.ts`, `cjs/index.d.cts`).
+	 * Metadata files (api.json, tsdoc-metadata.json, tsconfig.json) are NOT prefixed.
+	 */
+	dtsPathPrefix?: string;
 }
 
 /**
@@ -1656,10 +1664,14 @@ export const DtsPlugin = (options: DtsPluginOptions = {}): RsbuildPlugin => {
 									outputPath = outputPath.replace(/\.d\.ts$/, dtsExtension);
 								}
 
+								// Apply dtsPathPrefix for dual format builds
+								const prefixedPath = options.dtsPathPrefix ? `${options.dtsPathPrefix}/${outputPath}` : outputPath;
+
 								// Only emit .d.ts for files that have a corresponding .js in the compilation
 								// tsgo generates declarations for all files in tsconfig scope, but we only
 								// want declarations for files that are in the JS compilation (import graph)
-								const jsOutputPath = outputPath.replace(/\.d\.(ts|mts|cts)$/, ".js");
+								// Use prefixed path since JS files also have format prefix from distPath.js
+								const jsOutputPath = prefixedPath.replace(/\.d\.(ts|mts|cts)$/, ".js");
 								if (!context.compilation.assets[jsOutputPath]) {
 									continue;
 								}
@@ -1670,13 +1682,13 @@ export const DtsPlugin = (options: DtsPluginOptions = {}): RsbuildPlugin => {
 								content = stripSourceMapComment(content);
 
 								// Create source and emit asset
-								const source = new context.sources.OriginalSource(content, outputPath);
-								context.compilation.emitAsset(outputPath, source);
+								const source = new context.sources.OriginalSource(content, prefixedPath);
+								context.compilation.emitAsset(prefixedPath, source);
 								emittedCount++;
 
 								// Add .d.ts files to files array
-								if (filesArray && outputPath.endsWith(".d.ts")) {
-									filesArray.add(outputPath);
+								if (filesArray && prefixedPath.endsWith(".d.ts")) {
+									filesArray.add(prefixedPath);
 								}
 							}
 
@@ -1807,16 +1819,21 @@ export const DtsPlugin = (options: DtsPluginOptions = {}): RsbuildPlugin => {
 											// For CJS format, use .d.cts extension
 											const bundledFileName = `${entryName}${bundledDtsExtension}`;
 
+											// Apply dtsPathPrefix for dual format builds
+											const prefixedBundledFileName = options.dtsPathPrefix
+												? `${options.dtsPathPrefix}/${bundledFileName}`
+												: bundledFileName;
+
 											// Read from temp and strip sourceMappingURL comment before emitting
 											let content = await readFile(tempBundledPath, "utf-8");
 											content = stripSourceMapComment(content);
-											const source = new context.sources.OriginalSource(content, bundledFileName);
-											context.compilation.emitAsset(bundledFileName, source);
+											const source = new context.sources.OriginalSource(content, prefixedBundledFileName);
+											context.compilation.emitAsset(prefixedBundledFileName, source);
 											emittedCount++;
 
 											// Add .d.ts file to files array (but not .d.ts.map files)
 											if (filesArray) {
-												filesArray.add(bundledFileName);
+												filesArray.add(prefixedBundledFileName);
 											}
 										}
 
@@ -1863,7 +1880,7 @@ export const DtsPlugin = (options: DtsPluginOptions = {}): RsbuildPlugin => {
 												hasTsdocMetadata: !!tsdocMetadataPath,
 												hasTsconfig: !!state.parsedConfig && !!state.tsconfigPath,
 												cwd,
-												distPath: `dist/${envId}`,
+												distPath: `dist/${options.buildTarget ?? envId}`,
 											});
 										}
 									}
@@ -1925,7 +1942,11 @@ export const DtsPlugin = (options: DtsPluginOptions = {}): RsbuildPlugin => {
 									if (options.bundle) {
 										for (const [entryName] of bundledFiles) {
 											const bundledFileName = `${entryName}${bundledDtsExtension}`;
-											const mapFileName = `${bundledFileName}.map`;
+											// Use prefixed path for map file cleanup (matches emitted asset path)
+											const prefixedBundledFileName = options.dtsPathPrefix
+												? `${options.dtsPathPrefix}/${bundledFileName}`
+												: bundledFileName;
+											const mapFileName = `${prefixedBundledFileName}.map`;
 
 											for (const file of dtsFiles) {
 												if (file.relativePath.endsWith(".d.ts.map")) {
@@ -1938,9 +1959,13 @@ export const DtsPlugin = (options: DtsPluginOptions = {}): RsbuildPlugin => {
 												if (dtsExtension !== ".d.ts" && outputPath.endsWith(".d.ts")) {
 													outputPath = outputPath.replace(/\.d\.ts$/, dtsExtension);
 												}
-												const mapFileName = `${outputPath}.map`;
-												if (context.compilation.assets[mapFileName]) {
-													delete context.compilation.assets[mapFileName];
+												// Apply prefix for individual DTS map cleanup
+												const prefixedOutputPath = options.dtsPathPrefix
+													? `${options.dtsPathPrefix}/${outputPath}`
+													: outputPath;
+												const individualMapFileName = `${prefixedOutputPath}.map`;
+												if (context.compilation.assets[individualMapFileName]) {
+													delete context.compilation.assets[individualMapFileName];
 												}
 											}
 

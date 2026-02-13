@@ -1,7 +1,6 @@
 # Contributing to @savvy-web/rslib-builder
 
-Thank you for your interest in contributing! This guide covers the development
-workflow and standards for this project.
+Thank you for your interest in contributing! This guide covers the development workflow and standards for this project.
 
 ## Prerequisites
 
@@ -138,11 +137,9 @@ rslib-builder/
 
 When adding or modifying plugins:
 
-1. Plugins execute in order: TsDocLintPlugin (pre-build) → AutoEntryPlugin →
-   DtsPlugin → PackageJsonTransformPlugin → VirtualEntryPlugin → FilesArrayPlugin
+1. Plugins execute in order: TsDocLintPlugin (pre-build) → AutoEntryPlugin → DtsPlugin → PackageJsonTransformPlugin → VirtualEntryPlugin → FilesArrayPlugin
 2. Use `api.expose()` / `api.useExposed()` for cross-plugin state
-3. Understand Rsbuild `processAssets` stages: `pre-process`, `optimize`,
-   `additional`, `optimize-inline`, `summarize`
+3. Understand Rsbuild `processAssets` stages: `pre-process`, `optimize`, `additional`, `optimize-inline`, `summarize`
 
 See `.claude/design/rslib-builder/architecture.md` for detailed plugin architecture.
 
@@ -176,9 +173,7 @@ See `.claude/design/rslib-builder/architecture.md` for detailed plugin architect
 
 ## Developer Certificate of Origin (DCO)
 
-This project requires all contributions to be signed off under the
-[Developer Certificate of Origin (DCO)](./DCO). This certifies that you have
-the right to submit your contribution under the project's open source license.
+This project requires all contributions to be signed off under the [Developer Certificate of Origin (DCO)](./DCO). This certifies that you have the right to submit your contribution under the project's open source license.
 
 ### How to Sign Off
 
@@ -222,6 +217,4 @@ git config user.email "your.email@example.com"
 
 ## License
 
-By contributing and signing off your commits, you agree that your contributions
-will be licensed under the MIT License and certify compliance with the
-[Developer Certificate of Origin](./DCO).
+By contributing and signing off your commits, you agree that your contributions will be licensed under the MIT License and certify compliance with the [Developer Certificate of Origin](./DCO).

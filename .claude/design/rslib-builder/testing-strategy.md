@@ -13,8 +13,7 @@ dependencies: []
 
 # RSlib Builder - Testing Strategy
 
-Comprehensive testing approach for @savvy-web/rslib-builder using Vitest with
-v8 coverage, co-located test files, and type-safe mocking patterns.
+Comprehensive testing approach for @savvy-web/rslib-builder using Vitest with v8 coverage, co-located test files, and type-safe mocking patterns.
 
 ## Table of Contents
 
@@ -38,10 +37,8 @@ The testing strategy for `@savvy-web/rslib-builder` prioritizes:
 
 - **Co-location**: Test files live next to source files for discoverability
 - **Type safety**: No `any` types; all mocks use proper interfaces
-- **High coverage**: 85% per-file thresholds for statements, branches,
-  functions, and lines
-- **Isolation**: Unit tests mock external dependencies; integration tests use
-  real APIs
+- **High coverage**: 85% per-file thresholds for statements, branches, functions, and lines
+- **Isolation**: Unit tests mock external dependencies; integration tests use real APIs
 - **Fast feedback**: Vitest provides instant re-runs in watch mode
 
 **When to reference this document:**
@@ -57,8 +54,7 @@ The testing strategy for `@savvy-web/rslib-builder` prioritizes:
 
 ### Test Organization
 
-Tests follow a co-located structure where test files sit alongside their
-source files:
+Tests follow a co-located structure where test files sit alongside their source files:
 
 ```text
 src/
@@ -142,8 +138,7 @@ Located in `test/e2e/utils/`:
 
 ### Why Co-Located Tests?
 
-**Decision:** Place test files next to source files rather than in a separate
-`__tests__` directory.
+**Decision:** Place test files next to source files rather than in a separate `__tests__` directory.
 
 **Benefits:**
 
@@ -447,8 +442,7 @@ mockReadFile.mockResolvedValue('{"name": "test"}');
 
 ### Mock Rsbuild API
 
-Plugins receive an `api` object in their `setup()` function. Create type-safe
-mocks:
+Plugins receive an `api` object in their `setup()` function. Create type-safe mocks:
 
 ```typescript
 const plugin = AutoEntryPlugin();
@@ -617,9 +611,7 @@ describe("MyPlugin", () => {
 
 ## E2E Testing Infrastructure
 
-End-to-end tests verify the complete build pipeline by building real fixture
-packages and asserting on the generated outputs. This catches integration issues
-that unit tests cannot detect.
+End-to-end tests verify the complete build pipeline by building real fixture packages and asserting on the generated outputs. This catches integration issues that unit tests cannot detect.
 
 ### Fixture Structure
 
@@ -713,8 +705,7 @@ describe("My tests", () => {
 });
 ```
 
-The `result` context provides automatic cleanup - just set `result.value` to
-your build result and the isolated fixture is cleaned up automatically.
+The `result` context provides automatic cleanup - just set `result.value` to your build result and the isolated fixture is cleaned up automatically.
 
 #### assertions.ts
 
@@ -979,10 +970,8 @@ expect(() => mySyncFn()).toThrow("Expected error message");
 
 - [architecture.md](./architecture.md) - System architecture overview
 - [Vitest Documentation](https://vitest.dev/) - Test framework reference
-- [Rsbuild Plugin API](https://rsbuild.dev/plugins/dev/core) - Plugin testing
-  patterns
+- [Rsbuild Plugin API](https://rsbuild.dev/plugins/dev/core) - Plugin testing patterns
 
 ---
 
-**Document Status:** Current - Comprehensive testing strategy documented with
-unit testing patterns, E2E testing infrastructure, and CI integration.
+**Document Status:** Current - Comprehensive testing strategy documented with unit testing patterns, E2E testing infrastructure, and CI integration.
