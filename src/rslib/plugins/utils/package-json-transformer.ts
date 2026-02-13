@@ -491,7 +491,9 @@ export async function buildPackageJson(
 		);
 	}
 
-	// Apply format-specific export conditions (per-entry overrides and dual format)
+	// Apply format conditions AFTER standard RSlib transformations so we
+	// operate on normalized { types, import } structures before converting
+	// to format-specific conditions (e.g. { types: ".d.cts", require: ".cjs" }).
 	if (formatConditions && result.exports) {
 		result.exports = applyFormatConditions(result.exports, formatConditions);
 	}

@@ -1028,6 +1028,22 @@ NodeLibraryBuilder.create({
 In this case, `./markdownlint` is CJS-only while
 all other entries get both ESM and CJS.
 
+### When to Use Each Approach
+
+**Use dual format when:**
+
+- Publishing to npm for both ESM and CJS consumers
+- Supporting older Node.js versions that don't
+  fully support ESM
+
+**Use per-entry overrides when:**
+
+- Specific files need CJS for compatibility
+  (e.g., config files consumed by tools that
+  require CommonJS)
+- Most of your package is ESM but some utilities
+  need CJS
+
 ## Virtual Entries
 
 ### virtualEntries

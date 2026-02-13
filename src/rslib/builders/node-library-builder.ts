@@ -69,7 +69,8 @@ export interface VirtualEntryConfig {
 
 	/**
 	 * Output format for this entry.
-	 * If not specified, inherits from top-level `format` option.
+	 * If not specified, inherits from the primary format
+	 * (first element when `format` is an array, or the single format value).
 	 */
 	format?: LibraryFormat;
 }
