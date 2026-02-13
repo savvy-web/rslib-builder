@@ -3,8 +3,8 @@ status: current
 module: rslib-builder
 category: testing
 created: 2026-01-18
-updated: 2026-02-05
-last-synced: 2026-02-05
+updated: 2026-02-13
+last-synced: 2026-02-13
 completeness: 95
 related:
   - rslib-builder/architecture.md
@@ -112,7 +112,7 @@ Current test file inventory:
 | Plugins | `dts-plugin.test.ts` | TypeScript declaration generation |
 | Plugins | `files-array-plugin.test.ts` | Package.json files array building |
 | Plugins | `package-json-transform-plugin.test.ts` | Package transformation |
-| Builders | `node-library-builder.test.ts` | Builder API and configuration |
+| Builders | `node-library-builder.test.ts` | Builder API, configuration, cjsInterop |
 | Utils | `workspace-catalog.test.ts` | Workspace catalog resolution |
 | Utils | `json-asset-utils.test.ts` | JSON asset handling |
 | Utils | `asset-processor-utils.test.ts` | Asset processing pipeline |
