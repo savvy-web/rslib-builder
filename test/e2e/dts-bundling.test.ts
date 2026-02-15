@@ -4,6 +4,7 @@ import {
 	assertPackageJson,
 	buildFixture,
 	describe,
+	expect,
 	test,
 } from "./utils/index.js";
 
@@ -135,6 +136,52 @@ describe("DTS Bundling E2E", () => {
 
 			assertPackageJson(result.value, { hasFile: "index.d.ts" });
 			assertPackageJson(result.value, { notHasFile: "bin/my-cli.d.ts" });
+		});
+
+		test("should set correct bin path in package.json", async ({ result }) => {
+			result.value = await buildFixture("with-bin");
+
+			assertBuildSucceeded(result.value);
+
+			assertPackageJson(result.value, {
+				fieldEquals: {
+					bin: { "my-cli": "./bin/my-cli.js" },
+				},
+			});
+		});
+	});
+
+	describe("with-bin dual format fixture", () => {
+		test("should only compile bin for primary format and prefix bin path", async ({ result }) => {
+			result.value = await buildFixture("with-bin", {
+				config: {
+					builderOptions: {
+						format: ["esm", "cjs"],
+						dtsBundledPackages: [],
+					},
+				},
+			});
+
+			assertBuildSucceeded(result.value);
+
+			// Bin JS should exist in primary format dir (esm)
+			assertOutputFile(result.value, "esm/bin/my-cli.js", {
+				exists: true,
+				matches: /^#!\/usr\/bin\/env node/,
+			});
+
+			// Bin JS should NOT exist in secondary format dir (cjs)
+			assertOutputFile(result.value, "cjs/bin/my-cli.js", { exists: false });
+			assertOutputFile(result.value, "cjs/bin/my-cli.cjs", { exists: false });
+
+			// package.json bin should point to the format-prefixed path
+			const pkgContent = result.value.outputs.get("package.json");
+			expect(pkgContent).toBeDefined();
+			if (!pkgContent) return;
+			const pkg = JSON.parse(pkgContent);
+			expect(pkg.bin).toEqual({
+				"my-cli": "./esm/bin/my-cli.js",
+			});
 		});
 	});
 });

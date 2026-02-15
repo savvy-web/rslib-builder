@@ -498,6 +498,14 @@ export async function buildPackageJson(
 		result.exports = applyFormatConditions(result.exports, formatConditions);
 	}
 
+	// Apply format prefix to bin paths in dual format mode
+	if (formatConditions?.dualFormat && result.bin) {
+		const prefixedBin = applyFormatPrefixToBin(result.bin, formatConditions.format ?? "esm");
+		if (prefixedBin) {
+			result.bin = prefixedBin;
+		}
+	}
+
 	if (transform) {
 		result = transform(result);
 	}
@@ -549,6 +557,37 @@ export function addFormatDirPrefix(path: string, format: LibraryFormat): string 
 		return `./${format}/${path.slice(2)}`;
 	}
 	return `./${format}/${path}`;
+}
+
+/**
+ * Applies a format directory prefix to bin paths (e.g., `./bin/cli.js` → `./esm/bin/cli.js`).
+ *
+ * @remarks
+ * Only prefixes TypeScript-compiled bin paths (ending in `.js`).
+ * Non-TypeScript bins (shell scripts, etc.) are preserved as-is since they aren't
+ * compiled into format-specific directories.
+ *
+ * @param bin - The bin field value from package.json (already transformed by `transformPackageBin`)
+ * @param format - The primary format to prefix with
+ * @returns The bin field with format directory prefixes applied
+ * @internal
+ */
+export function applyFormatPrefixToBin(bin: PackageJson["bin"], format: LibraryFormat): PackageJson["bin"] {
+	if (typeof bin === "string") {
+		return bin.endsWith(".js") ? addFormatDirPrefix(bin, format) : bin;
+	}
+
+	if (bin && typeof bin === "object") {
+		const result: Record<string, string> = {};
+		for (const [command, path] of Object.entries(bin)) {
+			if (path !== undefined) {
+				result[command] = path.endsWith(".js") ? addFormatDirPrefix(path, format) : path;
+			}
+		}
+		return result;
+	}
+
+	return bin;
 }
 
 /**
