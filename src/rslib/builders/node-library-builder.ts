@@ -892,7 +892,12 @@ export class NodeLibraryBuilder {
 								});
 							},
 						},
-						// Strip bin entries from secondary format - bins are only built for the primary format
+						// Strip bin entries from secondary format (bundle mode) — bins are only
+						// built for the primary format. In bundle mode, AutoEntryPlugin sets
+						// entries on all environments via modifyRsbuildConfig, so this plugin
+						// runs after it to remove bin/* entries from the secondary environment.
+						// The separate `secondaryEntry` filter below handles bundleless mode
+						// where entries are set on the LibConfig directly.
 						{
 							name: "strip-bin-entries",
 							setup(api) {
@@ -923,8 +928,11 @@ export class NodeLibraryBuilder {
 						}),
 					];
 
-					// Filter bin entries from secondary format entry object (for bundleless mode
-					// where modifyRsbuildConfig is too late for entry resolution)
+					// Filter bin entries from secondary format (bundleless mode) — in
+					// bundleless mode, entries are computed upfront and passed on the
+					// LibConfig directly because RSlib resolves entries before plugin
+					// hooks run (see line ~760). The strip-bin-entries plugin above
+					// handles bundle mode where AutoEntryPlugin sets entries later.
 					const secondaryEntry = entry
 						? Object.fromEntries(Object.entries(entry).filter(([name]) => !name.startsWith("bin/")))
 						: undefined;
