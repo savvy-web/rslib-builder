@@ -892,6 +892,26 @@ export class NodeLibraryBuilder {
 								});
 							},
 						},
+						// Strip bin entries from secondary format - bins are only built for the primary format
+						{
+							name: "strip-bin-entries",
+							setup(api) {
+								api.modifyRsbuildConfig((config) => {
+									const envKey = `${target}-${secondaryFormat}`;
+									const envConfig = config.environments?.[envKey];
+									if (envConfig?.source?.entry) {
+										const filtered: typeof envConfig.source.entry = {};
+										for (const [name, value] of Object.entries(envConfig.source.entry)) {
+											if (!name.startsWith("bin/")) {
+												filtered[name] = value;
+											}
+										}
+										envConfig.source.entry = filtered;
+									}
+									return config;
+								});
+							},
+						},
 						DtsPlugin({
 							...(options.tsconfigPath && { tsconfigPath: options.tsconfigPath }),
 							abortOnError: true,
@@ -902,6 +922,12 @@ export class NodeLibraryBuilder {
 							dtsPathPrefix: secondaryFormat,
 						}),
 					];
+
+					// Filter bin entries from secondary format entry object (for bundleless mode
+					// where modifyRsbuildConfig is too late for entry resolution)
+					const secondaryEntry = entry
+						? Object.fromEntries(Object.entries(entry).filter(([name]) => !name.startsWith("bin/")))
+						: undefined;
 
 					const secondaryLib: LibConfig = {
 						id: `${target}-${secondaryFormat}`,
@@ -925,7 +951,7 @@ export class NodeLibraryBuilder {
 						plugins: secondaryPlugins,
 						source: {
 							...(options.tsconfigPath && { tsconfigPath: options.tsconfigPath }),
-							...(entry && { entry }),
+							...(secondaryEntry && { entry: secondaryEntry }),
 							define: sourceDefine,
 						},
 						...(options.cjsInterop &&

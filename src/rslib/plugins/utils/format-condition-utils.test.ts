@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 import type { PackageJson } from "../../../types/package-json.js";
-import { addFormatDirPrefix, applyFormatConditions, toCjsPath, toCtsTypePath } from "./package-json-transformer.js";
+import {
+	addFormatDirPrefix,
+	applyFormatConditions,
+	buildPackageJson,
+	toCjsPath,
+	toCtsTypePath,
+} from "./package-json-transformer.js";
 
 describe("format condition utilities", () => {
 	describe("toCjsPath", () => {
@@ -230,6 +236,47 @@ describe("format condition utilities", () => {
 			const result = applyFormatConditions(exports, {});
 			expect(result).toEqual({
 				".": { types: "./index.d.ts", import: "./index.js" },
+			});
+		});
+	});
+
+	describe("buildPackageJson dual-format bin handling", () => {
+		it("should prefix bin paths with format directory in dual format mode", async () => {
+			const pkg: PackageJson = {
+				name: "test-pkg",
+				version: "1.0.0",
+				exports: {
+					".": "./src/index.ts",
+				},
+				bin: {
+					"my-cli": "./src/cli.ts",
+				},
+			};
+			const result = await buildPackageJson(pkg, false, true, undefined, undefined, true, undefined, {
+				format: "esm",
+				dualFormat: true,
+			});
+			expect(result.bin).toEqual({
+				"my-cli": "./esm/bin/my-cli.js",
+			});
+		});
+
+		it("should not prefix bin paths when not in dual format mode", async () => {
+			const pkg: PackageJson = {
+				name: "test-pkg",
+				version: "1.0.0",
+				exports: {
+					".": "./src/index.ts",
+				},
+				bin: {
+					"my-cli": "./src/cli.ts",
+				},
+			};
+			const result = await buildPackageJson(pkg, false, true, undefined, undefined, true, undefined, {
+				format: "esm",
+			});
+			expect(result.bin).toEqual({
+				"my-cli": "./bin/my-cli.js",
 			});
 		});
 	});

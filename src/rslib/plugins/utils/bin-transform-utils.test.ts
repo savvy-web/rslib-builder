@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { PackageJson } from "../../../types/package-json.js";
-import { transformPackageBin } from "./package-json-transformer.js";
+import { applyFormatPrefixToBin, transformPackageBin } from "./package-json-transformer.js";
 
 describe("bin-transform-utils", () => {
 	describe("transformPackageBin", () => {
@@ -69,6 +69,56 @@ describe("bin-transform-utils", () => {
 			// Even if source is already in bin/, the TypeScript file is compiled to ./bin/cli.js
 			const result = transformPackageBin("./bin/cli.ts");
 			expect(result).toBe("./bin/cli.js");
+		});
+	});
+
+	describe("applyFormatPrefixToBin", () => {
+		it("should prefix string bin path with ESM format directory", () => {
+			const result = applyFormatPrefixToBin("./bin/cli.js", "esm");
+			expect(result).toBe("./esm/bin/cli.js");
+		});
+
+		it("should prefix object bin paths with ESM format directory", () => {
+			const result = applyFormatPrefixToBin(
+				{
+					"my-cli": "./bin/my-cli.js",
+					"my-tool": "./bin/my-tool.js",
+				},
+				"esm",
+			);
+			expect(result).toEqual({
+				"my-cli": "./esm/bin/my-cli.js",
+				"my-tool": "./esm/bin/my-tool.js",
+			});
+		});
+
+		it("should preserve non-JS bin paths as-is", () => {
+			const result = applyFormatPrefixToBin(
+				{
+					"my-cli": "./bin/my-cli.js",
+					"my-script": "./scripts/run.sh",
+				},
+				"esm",
+			);
+			expect(result).toEqual({
+				"my-cli": "./esm/bin/my-cli.js",
+				"my-script": "./scripts/run.sh",
+			});
+		});
+
+		it("should preserve non-JS string bin path as-is", () => {
+			const result = applyFormatPrefixToBin("./scripts/run.sh", "esm");
+			expect(result).toBe("./scripts/run.sh");
+		});
+
+		it("should return null/undefined unchanged", () => {
+			expect(applyFormatPrefixToBin(null as unknown as PackageJson["bin"], "esm")).toBeNull();
+			expect(applyFormatPrefixToBin(undefined, "esm")).toBeUndefined();
+		});
+
+		it("should work with CJS format prefix", () => {
+			const result = applyFormatPrefixToBin("./bin/cli.js", "cjs");
+			expect(result).toBe("./cjs/bin/cli.js");
 		});
 	});
 });
