@@ -46,7 +46,7 @@
 		"build:prod": "rslib build --env-mode npm",
 		"ci:build": "CI=\"true\" turbo run build:dev build:prod --log-prefix=none --log-order=grouped --output-logs=full",
 		"ci:test": "CI=\"true\" turbo run vitest:all --log-prefix=none -- --coverage",
-		"ci:version": "changeset version && biome format --write",
+		"ci:version": "savvy-changesets version && biome format --write .",
 		"commit:check": "savvy-commit check",
 		"commit:init": "savvy-commit init",
 		"lint": "biome check --max-diagnostics=none",
