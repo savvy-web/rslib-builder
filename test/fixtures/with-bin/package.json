@@ -10,14 +10,16 @@
 		"my-cli": "./src/cli.ts"
 	},
 	"scripts": {
-		"build:prod": "rslib build --env-mode npm"
+		"build:dev": "rslib build --env-mode npm",
+		"build:prod": "rslib build --env-mode npm",
+		"types:check": "tsgo --noEmit"
 	},
 	"devDependencies": {
-		"@microsoft/api-extractor": "^7.56.0",
-		"@rslib/core": "^0.19.4",
+		"@microsoft/api-extractor": "catalog:silk",
+		"@rslib/core": "catalog:silk",
 		"@savvy-web/rslib-builder": "workspace:*",
-		"@types/node": "^25.2.0",
-		"@typescript/native-preview": "7.0.0-dev.20260203.1",
-		"typescript": "^5.9.3"
+		"@types/node": "catalog:silk",
+		"@typescript/native-preview": "catalog:silk",
+		"typescript": "catalog:silk"
 	}
 }

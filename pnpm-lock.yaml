@@ -145,85 +145,85 @@ importers:
   test/fixtures/multi-entry:
     devDependencies:
       '@microsoft/api-extractor':
-        specifier: ^7.56.0
+        specifier: catalog:silk
         version: 7.56.3(@types/node@25.2.3)
       '@rslib/core':
-        specifier: ^0.19.4
-        version: 0.19.6(@microsoft/api-extractor@7.56.3(@types/node@25.2.3))(@typescript/native-preview@7.0.0-dev.20260203.1)(typescript@5.9.3)
+        specifier: catalog:silk
+        version: 0.19.6(@microsoft/api-extractor@7.56.3(@types/node@25.2.3))(@typescript/native-preview@7.0.0-dev.20260216.1)(typescript@5.9.3)
       '@savvy-web/rslib-builder':
         specifier: workspace:*
         version: link:../../../dist/dev
       '@types/node':
-        specifier: ^25.2.0
+        specifier: catalog:silk
         version: 25.2.3
       '@typescript/native-preview':
-        specifier: 7.0.0-dev.20260203.1
-        version: 7.0.0-dev.20260203.1
+        specifier: catalog:silk
+        version: 7.0.0-dev.20260216.1
       typescript:
-        specifier: ^5.9.3
+        specifier: catalog:silk
         version: 5.9.3
 
   test/fixtures/options-testing:
     devDependencies:
       '@microsoft/api-extractor':
-        specifier: ^7.56.0
+        specifier: catalog:silk
         version: 7.56.3(@types/node@25.2.3)
       '@rslib/core':
-        specifier: ^0.19.4
-        version: 0.19.6(@microsoft/api-extractor@7.56.3(@types/node@25.2.3))(@typescript/native-preview@7.0.0-dev.20260203.1)(typescript@5.9.3)
+        specifier: catalog:silk
+        version: 0.19.6(@microsoft/api-extractor@7.56.3(@types/node@25.2.3))(@typescript/native-preview@7.0.0-dev.20260216.1)(typescript@5.9.3)
       '@savvy-web/rslib-builder':
         specifier: workspace:*
         version: link:../../../dist/dev
       '@types/node':
-        specifier: ^25.2.0
+        specifier: catalog:silk
         version: 25.2.3
       '@typescript/native-preview':
-        specifier: 7.0.0-dev.20260203.1
-        version: 7.0.0-dev.20260203.1
+        specifier: catalog:silk
+        version: 7.0.0-dev.20260216.1
       typescript:
-        specifier: ^5.9.3
+        specifier: catalog:silk
         version: 5.9.3
 
   test/fixtures/single-entry:
     devDependencies:
       '@microsoft/api-extractor':
-        specifier: ^7.56.0
+        specifier: catalog:silk
         version: 7.56.3(@types/node@25.2.3)
       '@rslib/core':
-        specifier: ^0.19.4
-        version: 0.19.6(@microsoft/api-extractor@7.56.3(@types/node@25.2.3))(@typescript/native-preview@7.0.0-dev.20260203.1)(typescript@5.9.3)
+        specifier: catalog:silk
+        version: 0.19.6(@microsoft/api-extractor@7.56.3(@types/node@25.2.3))(@typescript/native-preview@7.0.0-dev.20260216.1)(typescript@5.9.3)
       '@savvy-web/rslib-builder':
         specifier: workspace:*
         version: link:../../../dist/dev
       '@types/node':
-        specifier: ^25.2.0
+        specifier: catalog:silk
         version: 25.2.3
       '@typescript/native-preview':
-        specifier: 7.0.0-dev.20260203.1
-        version: 7.0.0-dev.20260203.1
+        specifier: catalog:silk
+        version: 7.0.0-dev.20260216.1
       typescript:
-        specifier: ^5.9.3
+        specifier: catalog:silk
         version: 5.9.3
 
   test/fixtures/with-bin:
     devDependencies:
       '@microsoft/api-extractor':
-        specifier: ^7.56.0
+        specifier: catalog:silk
         version: 7.56.3(@types/node@25.2.3)
       '@rslib/core':
-        specifier: ^0.19.4
-        version: 0.19.6(@microsoft/api-extractor@7.56.3(@types/node@25.2.3))(@typescript/native-preview@7.0.0-dev.20260203.1)(typescript@5.9.3)
+        specifier: catalog:silk
+        version: 0.19.6(@microsoft/api-extractor@7.56.3(@types/node@25.2.3))(@typescript/native-preview@7.0.0-dev.20260216.1)(typescript@5.9.3)
       '@savvy-web/rslib-builder':
         specifier: workspace:*
         version: link:../../../dist/dev
       '@types/node':
-        specifier: ^25.2.0
+        specifier: catalog:silk
         version: 25.2.3
       '@typescript/native-preview':
-        specifier: 7.0.0-dev.20260203.1
-        version: 7.0.0-dev.20260203.1
+        specifier: catalog:silk
+        version: 7.0.0-dev.20260216.1
       typescript:
-        specifier: ^5.9.3
+        specifier: catalog:silk
         version: 5.9.3
 
 packages:
@@ -1518,19 +1518,9 @@ packages:
     resolution: {integrity: sha512-q+SL+b+05Ud6LbEE35qe4A99P+htKTKVbyiNEe45eCbJFyh/HVK9QXwlrbz+Q4L8SOW4roxSVwXYj4DMBT7Ieg==}
     engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
 
-  '@typescript/native-preview-darwin-arm64@7.0.0-dev.20260203.1':
-    resolution: {integrity: sha512-0se1eibJ4rJ3JXD1WlNF3JL3GWjUeZ9fmDJyUkpP0974cFApblKhqsYubT+kDWrWExh4IXctzjRpkWfJi2srow==}
-    cpu: [arm64]
-    os: [darwin]
-
   '@typescript/native-preview-darwin-arm64@7.0.0-dev.20260216.1':
     resolution: {integrity: sha512-ZcxlhZ4Scm1LFKeGXo7V+B4H1Mb27/uVBO1o7d060jRIpGRuCOxsELo7jgUY8UhhTXtSpLECHsmAj8EyERSi9w==}
     cpu: [arm64]
-    os: [darwin]
-
-  '@typescript/native-preview-darwin-x64@7.0.0-dev.20260203.1':
-    resolution: {integrity: sha512-mMO5QBKSeVFWKvCu5+G9mbh5EmYqnCZb0g7s9HAUGAtOdjeGBVrvJTXLnahMbVB2KLU3ApUQCZQOoumZQ5z0Qw==}
-    cpu: [x64]
     os: [darwin]
 
   '@typescript/native-preview-darwin-x64@7.0.0-dev.20260216.1':
@@ -1538,19 +1528,9 @@ packages:
     cpu: [x64]
     os: [darwin]
 
-  '@typescript/native-preview-linux-arm64@7.0.0-dev.20260203.1':
-    resolution: {integrity: sha512-Vl3f5LKFAXrgb7TTag8sG7Np9imyt1QsiRN5O9yl/aoqZpopdmMSBTUFuOzQFLD9ive/0cTsRIKt32gWT4zvew==}
-    cpu: [arm64]
-    os: [linux]
-
   '@typescript/native-preview-linux-arm64@7.0.0-dev.20260216.1':
     resolution: {integrity: sha512-L+3CgBVAjpYnWgulmTWOTp7IdbLjgOzLpppr2597i79KE5MV7UyC73UCdvK3GtAl1Huiss0HsWVBBEYRkLQsfw==}
     cpu: [arm64]
-    os: [linux]
-
-  '@typescript/native-preview-linux-arm@7.0.0-dev.20260203.1':
-    resolution: {integrity: sha512-74Q4nr9zOWlWqNJ726BrujFpeqNVuNo09GUaIHtV3TatVf6qGcQtWJLD4xdsZXt1n1YwneTiBHqfXwU7h6Z26g==}
-    cpu: [arm]
     os: [linux]
 
   '@typescript/native-preview-linux-arm@7.0.0-dev.20260216.1':
@@ -1558,39 +1538,20 @@ packages:
     cpu: [arm]
     os: [linux]
 
-  '@typescript/native-preview-linux-x64@7.0.0-dev.20260203.1':
-    resolution: {integrity: sha512-HGNXkZ10rs88It98rfGhvCwG9RKLm2TVjfYOnKzYq0xKrfvG9exvpojio5n5OxXaSvTumTjRbWbRYY+qwpSCag==}
-    cpu: [x64]
-    os: [linux]
-
   '@typescript/native-preview-linux-x64@7.0.0-dev.20260216.1':
     resolution: {integrity: sha512-qIaQFRL2s+fi3zbS0+fCgR1Nk7fXMnbLW7wsFpcwn3fpEYuMdiQY9pwE8SvJsw2M78xZlXL5L9l5CL8ti0cNZQ==}
     cpu: [x64]
     os: [linux]
-
-  '@typescript/native-preview-win32-arm64@7.0.0-dev.20260203.1':
-    resolution: {integrity: sha512-GkuRbW13iq2lRijkHnTWzrM/LThrr6KG0IXewdXd//E0DXcVvlg7ommgxPC29cf18X6T3vul1owjNmjVwp8siA==}
-    cpu: [arm64]
-    os: [win32]
 
   '@typescript/native-preview-win32-arm64@7.0.0-dev.20260216.1':
     resolution: {integrity: sha512-Yu7OLyMng9A2GA0vlZ8WZuqAnI+WM55UaY1UwA03TJdcljk/AcEzb/99fEq5g0kPg3k2wwHiyMrCGxxu99+gXQ==}
     cpu: [arm64]
     os: [win32]
 
-  '@typescript/native-preview-win32-x64@7.0.0-dev.20260203.1':
-    resolution: {integrity: sha512-O+OsC8DOEnoKWWlWrPOnULh0kSvQ8DiWWfFMVIDmoWfCIi2cDLZKKE1WfCXSLi6L76H9f1zXJEvNqW58tEG/vQ==}
-    cpu: [x64]
-    os: [win32]
-
   '@typescript/native-preview-win32-x64@7.0.0-dev.20260216.1':
     resolution: {integrity: sha512-Lc+E1UNGKioOtKHUm1CLFO3W2PFWdLpJ6j2uB52RH0zhb63p4CEGCsuDH36QvgsXLibviExeNUF5Dum0rNKT9g==}
     cpu: [x64]
     os: [win32]
-
-  '@typescript/native-preview@7.0.0-dev.20260203.1':
-    resolution: {integrity: sha512-8XwI9TS/idoFXAM8fVjBS4QmRzBr/AE3dQiMdhgwW+49tcGJeiU6MOwTHYyp8MhlFFx/1kiNwwdPoUnp3cS5vQ==}
-    hasBin: true
 
   '@typescript/native-preview@7.0.0-dev.20260216.1':
     resolution: {integrity: sha512-Vhffqcro1Q3w1zRgZ0E1C5JOB+8CtwKjSsszYfpGkt0qvRtOBO227AcnQe1sEiX+VLZW3Iw1VGVMhc8hNhpRZw==}
@@ -4711,16 +4672,6 @@ snapshots:
       core-js: 3.47.0
       jiti: 2.6.1
 
-  '@rslib/core@0.19.6(@microsoft/api-extractor@7.56.3(@types/node@25.2.3))(@typescript/native-preview@7.0.0-dev.20260203.1)(typescript@5.9.3)':
-    dependencies:
-      '@rsbuild/core': 1.7.3
-      rsbuild-plugin-dts: 0.19.6(@microsoft/api-extractor@7.56.3(@types/node@25.2.3))(@rsbuild/core@1.7.3)(@typescript/native-preview@7.0.0-dev.20260203.1)(typescript@5.9.3)
-    optionalDependencies:
-      '@microsoft/api-extractor': 7.56.3(@types/node@25.2.3)
-      typescript: 5.9.3
-    transitivePeerDependencies:
-      - '@typescript/native-preview'
-
   '@rslib/core@0.19.6(@microsoft/api-extractor@7.56.3(@types/node@25.2.3))(@typescript/native-preview@7.0.0-dev.20260216.1)(typescript@5.9.3)':
     dependencies:
       '@rsbuild/core': 1.7.3
@@ -5068,57 +5019,26 @@ snapshots:
       '@typescript-eslint/types': 8.56.0
       eslint-visitor-keys: 5.0.0
 
-  '@typescript/native-preview-darwin-arm64@7.0.0-dev.20260203.1':
-    optional: true
-
   '@typescript/native-preview-darwin-arm64@7.0.0-dev.20260216.1':
-    optional: true
-
-  '@typescript/native-preview-darwin-x64@7.0.0-dev.20260203.1':
     optional: true
 
   '@typescript/native-preview-darwin-x64@7.0.0-dev.20260216.1':
     optional: true
 
-  '@typescript/native-preview-linux-arm64@7.0.0-dev.20260203.1':
-    optional: true
-
   '@typescript/native-preview-linux-arm64@7.0.0-dev.20260216.1':
-    optional: true
-
-  '@typescript/native-preview-linux-arm@7.0.0-dev.20260203.1':
     optional: true
 
   '@typescript/native-preview-linux-arm@7.0.0-dev.20260216.1':
     optional: true
 
-  '@typescript/native-preview-linux-x64@7.0.0-dev.20260203.1':
-    optional: true
-
   '@typescript/native-preview-linux-x64@7.0.0-dev.20260216.1':
-    optional: true
-
-  '@typescript/native-preview-win32-arm64@7.0.0-dev.20260203.1':
     optional: true
 
   '@typescript/native-preview-win32-arm64@7.0.0-dev.20260216.1':
     optional: true
 
-  '@typescript/native-preview-win32-x64@7.0.0-dev.20260203.1':
-    optional: true
-
   '@typescript/native-preview-win32-x64@7.0.0-dev.20260216.1':
     optional: true
-
-  '@typescript/native-preview@7.0.0-dev.20260203.1':
-    optionalDependencies:
-      '@typescript/native-preview-darwin-arm64': 7.0.0-dev.20260203.1
-      '@typescript/native-preview-darwin-x64': 7.0.0-dev.20260203.1
-      '@typescript/native-preview-linux-arm': 7.0.0-dev.20260203.1
-      '@typescript/native-preview-linux-arm64': 7.0.0-dev.20260203.1
-      '@typescript/native-preview-linux-x64': 7.0.0-dev.20260203.1
-      '@typescript/native-preview-win32-arm64': 7.0.0-dev.20260203.1
-      '@typescript/native-preview-win32-x64': 7.0.0-dev.20260203.1
 
   '@typescript/native-preview@7.0.0-dev.20260216.1':
     optionalDependencies:
@@ -6912,15 +6832,6 @@ snapshots:
       '@rollup/rollup-win32-x64-gnu': 4.57.1
       '@rollup/rollup-win32-x64-msvc': 4.57.1
       fsevents: 2.3.3
-
-  rsbuild-plugin-dts@0.19.6(@microsoft/api-extractor@7.56.3(@types/node@25.2.3))(@rsbuild/core@1.7.3)(@typescript/native-preview@7.0.0-dev.20260203.1)(typescript@5.9.3):
-    dependencies:
-      '@ast-grep/napi': 0.37.0
-      '@rsbuild/core': 1.7.3
-    optionalDependencies:
-      '@microsoft/api-extractor': 7.56.3(@types/node@25.2.3)
-      '@typescript/native-preview': 7.0.0-dev.20260203.1
-      typescript: 5.9.3
 
   rsbuild-plugin-dts@0.19.6(@microsoft/api-extractor@7.56.3(@types/node@25.2.3))(@rsbuild/core@1.7.3)(@typescript/native-preview@7.0.0-dev.20260216.1)(typescript@5.9.3):
     dependencies:

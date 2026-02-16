@@ -39,7 +39,7 @@
 			"outputs": ["dist/npm/**", ".rslib/declarations/npm/**"]
 		},
 		"types:check": {
-			"cache": false,
+			"cache": true,
 			"dependsOn": ["^build:dev"],
 			"inputs": [
 				"$TURBO_DEFAULT$",
