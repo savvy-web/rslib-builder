@@ -90,7 +90,7 @@
 		"@rsbuild/core": "^1.7.3",
 		"@savvy-web/changesets": "^0.1.1",
 		"@savvy-web/commitlint": "^0.3.3",
-		"@savvy-web/lint-staged": "^0.4.2",
+		"@savvy-web/lint-staged": "^0.4.3",
 		"@types/deep-equal": "^1.0.4",
 		"@types/tmp": "^0.2.6",
 		"@typescript/native-preview": "catalog:silk",
