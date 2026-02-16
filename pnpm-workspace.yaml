@@ -2,5 +2,5 @@ packages:
   - .
   - test/fixtures/*
 configDependencies:
-  "@savvy-web/pnpm-plugin-silk": 0.4.3+sha512-zmmwbIZeagIJ/JirQT//xn8DcEmRs/+UdKyIz3WP7oYKWChA/tIs8L3V/cMH2+/gCJ9F805yzvLCC2aAy1Ju+Q==
+  "@savvy-web/pnpm-plugin-silk": 0.5.1+sha512-Ldqg0b7SdIL2+4KruvKk7cQQZT59cQAWu3DT84Ehl4juXDrfJQq6Hir5kQwREO344iiN37AzVFR7ISs7NNF8Ww==
 loglevel: info
