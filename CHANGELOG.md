@@ -1,5 +1,12 @@
 # @savvy-web/rslib-builder
 
+## 0.14.2
+
+### Patch Changes
+
+- 21606fb: ## Features
+  - Support for @savvy-web/changesets
+
 ## 0.14.1
 
 ### Patch Changes
