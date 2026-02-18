@@ -2,6 +2,7 @@ import { existsSync } from "node:fs";
 import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+// biome-ignore lint/correctness/noUndeclaredDependencies: this is OK because these are only used in test files
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
 	TsDocConfigBuilder,
@@ -993,6 +994,67 @@ export declare const bar: number;`);
 			const entryPoints = result.members as Record<string, unknown>[];
 			expect(entryPoints[0].canonicalReference).toBe("@scope/pkg/nested/one!");
 			expect(entryPoints[0].name).toBe("nested/one");
+		});
+
+		it("should use default export path fallback when exportPaths omits an entry", () => {
+			const mainModel = makeApiModel({ packageName: "@scope/pkg", entryName: "index" });
+			const utilsModel = makeApiModel({ packageName: "@scope/pkg", entryName: "utils" });
+
+			const perEntryModels = new Map([
+				["index", mainModel],
+				["utils", utilsModel],
+			]);
+
+			// exportPaths deliberately omits "utils" to test the fallback:
+			// entryName === "index" => ".", otherwise => `./${entryName}`
+			const result = mergeApiModels({
+				perEntryModels,
+				packageName: "@scope/pkg",
+				exportPaths: {},
+			});
+
+			const entryPoints = result.members as Record<string, unknown>[];
+			expect(entryPoints).toHaveLength(2);
+
+			// "index" falls back to "." (main entry)
+			expect(entryPoints[0].canonicalReference).toBe("@scope/pkg!");
+			expect(entryPoints[0].name).toBe("");
+
+			// "utils" falls back to "./utils" (sub-entry)
+			expect(entryPoints[1].canonicalReference).toBe("@scope/pkg/utils!");
+			expect(entryPoints[1].name).toBe("utils");
+		});
+
+		it("should use default fallback for non-index entry without explicit exportPath", () => {
+			const customModel = makeApiModel({
+				packageName: "@scope/pkg",
+				entryName: "helpers",
+				members: [
+					{
+						kind: "Function",
+						canonicalReference: "@scope/pkg!doSomething:function(1)",
+						name: "doSomething",
+					},
+				],
+			});
+
+			const perEntryModels = new Map([["helpers", customModel]]);
+
+			// No exportPaths at all — should fall back to `./helpers`
+			const result = mergeApiModels({
+				perEntryModels,
+				packageName: "@scope/pkg",
+				exportPaths: {},
+			});
+
+			const entryPoints = result.members as Record<string, unknown>[];
+			expect(entryPoints).toHaveLength(1);
+			expect(entryPoints[0].canonicalReference).toBe("@scope/pkg/helpers!");
+			expect(entryPoints[0].name).toBe("helpers");
+
+			// Deep member canonical references should also be rewritten
+			const members = (entryPoints[0] as Record<string, unknown>).members as Record<string, unknown>[];
+			expect(members[0].canonicalReference).toBe("@scope/pkg/helpers!doSomething:function(1)");
 		});
 
 		it("should throw when given zero models", () => {

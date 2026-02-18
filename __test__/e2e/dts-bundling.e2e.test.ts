@@ -1,16 +1,25 @@
 // biome-ignore lint/correctness/noUndeclaredDependencies: this is OK because these are only used in test files
-import { describe, expect } from "vitest";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { assertBuildSucceeded, assertOutputFile, assertPackageJson } from "./utils/assertions.js";
+import type { BuildFixtureResult } from "./utils/build-fixture.js";
 import { buildFixture } from "./utils/build-fixture.js";
 import { test } from "./utils/test-fixture.js";
 
 describe("DTS Bundling E2E", () => {
 	describe("single-entry fixture", () => {
-		test("should generate bundled index.d.ts", async ({ result }) => {
-			result.value = await buildFixture("single-entry");
+		let result: BuildFixtureResult;
 
-			assertBuildSucceeded(result.value);
-			assertOutputFile(result.value, "index.d.ts", {
+		beforeAll(async () => {
+			result = await buildFixture("single-entry");
+		});
+
+		afterAll(async () => {
+			await result?.cleanup();
+		});
+
+		it("should generate bundled index.d.ts", () => {
+			assertBuildSucceeded(result);
+			assertOutputFile(result, "index.d.ts", {
 				exists: true,
 				contains: [
 					"export declare function add",
@@ -18,18 +27,16 @@ describe("DTS Bundling E2E", () => {
 					"export declare interface CalculatorOptions",
 				],
 			});
-			assertPackageJson(result.value, {
+			assertPackageJson(result, {
 				hasExport: ".",
 				hasTypes: ".",
 				hasFile: "index.d.ts",
 			});
 		});
 
-		test("should generate index.js", async ({ result }) => {
-			result.value = await buildFixture("single-entry");
-
-			assertBuildSucceeded(result.value);
-			assertOutputFile(result.value, "index.js", {
+		it("should generate index.js", () => {
+			assertBuildSucceeded(result);
+			assertOutputFile(result, "index.js", {
 				exists: true,
 				contains: ["function add", "function subtract"],
 			});
@@ -37,13 +44,21 @@ describe("DTS Bundling E2E", () => {
 	});
 
 	describe("multi-entry fixture", () => {
-		test("should generate bundled .d.ts for ALL entry points", async ({ result }) => {
-			result.value = await buildFixture("multi-entry");
+		let result: BuildFixtureResult;
 
-			assertBuildSucceeded(result.value);
+		beforeAll(async () => {
+			result = await buildFixture("multi-entry");
+		});
+
+		afterAll(async () => {
+			await result?.cleanup();
+		});
+
+		it("should generate bundled .d.ts for ALL entry points", () => {
+			assertBuildSucceeded(result);
 
 			// Main entry - index.d.ts
-			assertOutputFile(result.value, "index.d.ts", {
+			assertOutputFile(result, "index.d.ts", {
 				exists: true,
 				contains: [
 					"export declare function greet",
@@ -53,7 +68,7 @@ describe("DTS Bundling E2E", () => {
 			});
 
 			// Secondary entry - utils.d.ts
-			assertOutputFile(result.value, "utils.d.ts", {
+			assertOutputFile(result, "utils.d.ts", {
 				exists: true,
 				contains: [
 					"export declare function formatName",
@@ -63,7 +78,7 @@ describe("DTS Bundling E2E", () => {
 			});
 
 			// Secondary entry - types.d.ts
-			assertOutputFile(result.value, "types.d.ts", {
+			assertOutputFile(result, "types.d.ts", {
 				exists: true,
 				contains: [
 					"export declare interface User",
@@ -74,72 +89,70 @@ describe("DTS Bundling E2E", () => {
 			});
 		});
 
-		test("should have correct package.json exports with types for all entries", async ({ result }) => {
-			result.value = await buildFixture("multi-entry");
+		it("should have correct package.json exports with types for all entries", () => {
+			assertBuildSucceeded(result);
 
-			assertBuildSucceeded(result.value);
+			assertPackageJson(result, { hasExport: ".", hasTypes: "." });
+			assertPackageJson(result, { hasExport: "./utils", hasTypes: "./utils" });
+			assertPackageJson(result, { hasExport: "./types", hasTypes: "./types" });
 
-			assertPackageJson(result.value, { hasExport: ".", hasTypes: "." });
-			assertPackageJson(result.value, { hasExport: "./utils", hasTypes: "./utils" });
-			assertPackageJson(result.value, { hasExport: "./types", hasTypes: "./types" });
-
-			assertPackageJson(result.value, { hasFile: "index.d.ts" });
-			assertPackageJson(result.value, { hasFile: "utils.d.ts" });
-			assertPackageJson(result.value, { hasFile: "types.d.ts" });
+			assertPackageJson(result, { hasFile: "index.d.ts" });
+			assertPackageJson(result, { hasFile: "utils.d.ts" });
+			assertPackageJson(result, { hasFile: "types.d.ts" });
 		});
 
-		test("should generate .js files for all entry points", async ({ result }) => {
-			result.value = await buildFixture("multi-entry");
+		it("should generate .js files for all entry points", () => {
+			assertBuildSucceeded(result);
 
-			assertBuildSucceeded(result.value);
-
-			assertOutputFile(result.value, "index.js", { exists: true });
-			assertOutputFile(result.value, "utils.js", { exists: true });
-			assertOutputFile(result.value, "types.js", { exists: true });
+			assertOutputFile(result, "index.js", { exists: true });
+			assertOutputFile(result, "utils.js", { exists: true });
+			assertOutputFile(result, "types.js", { exists: true });
 		});
 	});
 
 	describe("with-bin fixture", () => {
-		test("should generate index.d.ts but NOT bin .d.ts", async ({ result }) => {
-			result.value = await buildFixture("with-bin");
+		let result: BuildFixtureResult;
 
-			assertBuildSucceeded(result.value);
+		beforeAll(async () => {
+			result = await buildFixture("with-bin");
+		});
 
-			assertOutputFile(result.value, "index.d.ts", {
+		afterAll(async () => {
+			await result?.cleanup();
+		});
+
+		it("should generate index.d.ts but NOT bin .d.ts", () => {
+			assertBuildSucceeded(result);
+
+			assertOutputFile(result, "index.d.ts", {
 				exists: true,
 				contains: ["export declare function runCommand", "export declare function parseArgs"],
 			});
 
-			assertOutputFile(result.value, "bin/my-cli.d.ts", { exists: false });
-			assertOutputFile(result.value, "bin-my-cli.d.ts", { exists: false });
+			assertOutputFile(result, "bin/my-cli.d.ts", { exists: false });
+			assertOutputFile(result, "bin-my-cli.d.ts", { exists: false });
 		});
 
-		test("should generate bin JS file with shebang", async ({ result }) => {
-			result.value = await buildFixture("with-bin");
+		it("should generate bin JS file with shebang", () => {
+			assertBuildSucceeded(result);
 
-			assertBuildSucceeded(result.value);
-
-			assertOutputFile(result.value, "bin/my-cli.js", {
+			assertOutputFile(result, "bin/my-cli.js", {
 				exists: true,
 				matches: /^#!\/usr\/bin\/env node/,
 			});
 		});
 
-		test("should not include bin .d.ts in files array", async ({ result }) => {
-			result.value = await buildFixture("with-bin");
+		it("should not include bin .d.ts in files array", () => {
+			assertBuildSucceeded(result);
 
-			assertBuildSucceeded(result.value);
-
-			assertPackageJson(result.value, { hasFile: "index.d.ts" });
-			assertPackageJson(result.value, { notHasFile: "bin/my-cli.d.ts" });
+			assertPackageJson(result, { hasFile: "index.d.ts" });
+			assertPackageJson(result, { notHasFile: "bin/my-cli.d.ts" });
 		});
 
-		test("should set correct bin path in package.json", async ({ result }) => {
-			result.value = await buildFixture("with-bin");
+		it("should set correct bin path in package.json", () => {
+			assertBuildSucceeded(result);
 
-			assertBuildSucceeded(result.value);
-
-			assertPackageJson(result.value, {
+			assertPackageJson(result, {
 				fieldEquals: {
 					bin: { "my-cli": "./bin/my-cli.js" },
 				},

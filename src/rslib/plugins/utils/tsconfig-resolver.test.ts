@@ -8,6 +8,7 @@ import {
 	NewLineKind,
 	ScriptTarget,
 } from "typescript";
+// biome-ignore lint/correctness/noUndeclaredDependencies: this is OK because these are only used in test files
 import { describe, expect, it } from "vitest";
 import { TsconfigResolver, TsconfigResolverError } from "./tsconfig-resolver.js";
 
@@ -567,6 +568,60 @@ describe("TsconfigResolver", () => {
 			};
 			const result = resolver.resolve(parsed, "/project");
 			expect(result.compilerOptions.importsNotUsedAsValues).toBe("preserve");
+		});
+
+		it("should override module settings for CJS format", () => {
+			const resolver = new TsconfigResolver();
+			const parsed: ParsedCommandLine = {
+				options: {
+					target: ScriptTarget.ES2022,
+					module: ModuleKind.NodeNext,
+					moduleResolution: ModuleResolutionKind.NodeNext,
+					strict: true,
+				},
+				fileNames: [],
+				errors: [],
+			};
+			const result = resolver.resolve(parsed, "/project", "cjs");
+			// CJS format overrides module-related settings
+			expect(result.compilerOptions.module).toBe("commonjs");
+			expect(result.compilerOptions.moduleResolution).toBe("node10");
+			expect(result.compilerOptions.esModuleInterop).toBe(true);
+			// Non-module settings should be preserved
+			expect(result.compilerOptions.target).toBe("es2022");
+			expect(result.compilerOptions.strict).toBe(true);
+		});
+
+		it("should not override module settings for ESM format", () => {
+			const resolver = new TsconfigResolver();
+			const parsed: ParsedCommandLine = {
+				options: {
+					module: ModuleKind.NodeNext,
+					moduleResolution: ModuleResolutionKind.NodeNext,
+				},
+				fileNames: [],
+				errors: [],
+			};
+			const result = resolver.resolve(parsed, "/project", "esm");
+			// ESM uses the defaults from addEnumOptions, not CJS overrides
+			expect(result.compilerOptions.module).toBe("nodenext");
+			expect(result.compilerOptions.moduleResolution).toBe("nodenext");
+			expect(result.compilerOptions.esModuleInterop).toBeUndefined();
+		});
+
+		it("should preserve string options like jsxImportSource", () => {
+			const resolver = new TsconfigResolver();
+			const parsed: ParsedCommandLine = {
+				options: {
+					jsxImportSource: "react",
+					jsx: JsxEmit.ReactJSX,
+				},
+				fileNames: [],
+				errors: [],
+			};
+			const result = resolver.resolve(parsed, "/project");
+			expect(result.compilerOptions.jsxImportSource).toBe("react");
+			expect(result.compilerOptions.jsx).toBe("react-jsx");
 		});
 	});
 });

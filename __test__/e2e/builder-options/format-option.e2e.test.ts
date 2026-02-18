@@ -1,56 +1,51 @@
 // biome-ignore lint/correctness/noUndeclaredDependencies: this is OK because these are only used in test files
-import { describe, expect } from "vitest";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
 	assertBuildSucceeded,
 	assertOutputFile,
 	assertPackageJson,
 	assertResolvedTsconfig,
 } from "../utils/assertions.js";
+import type { BuildFixtureResult } from "../utils/build-fixture.js";
 import { buildFixture } from "../utils/build-fixture.js";
 import { test } from "../utils/test-fixture.js";
 
 describe("NodeLibraryBuilder format option E2E", () => {
 	describe("default ESM format", () => {
-		test("should set package.json type to module for default format", async ({ result }) => {
-			result.value = await buildFixture("options-testing", {
+		let result: BuildFixtureResult;
+
+		beforeAll(async () => {
+			result = await buildFixture("options-testing", {
 				target: "npm",
 				config: {
 					builderOptions: {},
 				},
 			});
+		});
 
-			assertBuildSucceeded(result.value);
-			assertPackageJson(result.value, {
+		afterAll(async () => {
+			await result?.cleanup();
+		});
+
+		it("should set package.json type to module for default format", () => {
+			assertBuildSucceeded(result);
+			assertPackageJson(result, {
 				fieldEquals: { type: "module" },
 			});
 		});
 
-		test("should output .js files for ESM format", async ({ result }) => {
-			result.value = await buildFixture("options-testing", {
-				target: "npm",
-				config: {
-					builderOptions: {},
-				},
-			});
-
-			assertBuildSucceeded(result.value);
-			assertOutputFile(result.value, "index.js", { exists: true });
-			assertOutputFile(result.value, "index.cjs", { exists: false });
+		it("should output .js files for ESM format", () => {
+			assertBuildSucceeded(result);
+			assertOutputFile(result, "index.js", { exists: true });
+			assertOutputFile(result, "index.cjs", { exists: false });
 		});
 
-		test("should emit resolved tsconfig without CJS overrides for ESM format", async ({ result }) => {
-			result.value = await buildFixture("options-testing", {
-				target: "npm",
-				config: {
-					builderOptions: {},
-				},
-			});
-
-			assertBuildSucceeded(result.value);
-			assertResolvedTsconfig(result.value, { exists: true });
+		it("should emit resolved tsconfig without CJS overrides for ESM format", () => {
+			assertBuildSucceeded(result);
+			assertResolvedTsconfig(result, { exists: true });
 
 			// Parse the resolved tsconfig and verify it doesn't have CJS overrides
-			const tsconfigContent = result.value.outputs.get("tsconfig.json");
+			const tsconfigContent = result.outputs.get("tsconfig.json");
 			expect(tsconfigContent).toBeDefined();
 			if (!tsconfigContent) return;
 			const tsconfig = JSON.parse(tsconfigContent);
@@ -81,8 +76,10 @@ describe("NodeLibraryBuilder format option E2E", () => {
 	});
 
 	describe("CJS format", () => {
-		test("should set package.json type to commonjs for cjs format", async ({ result }) => {
-			result.value = await buildFixture("options-testing", {
+		let result: BuildFixtureResult;
+
+		beforeAll(async () => {
+			result = await buildFixture("options-testing", {
 				target: "npm",
 				config: {
 					builderOptions: {
@@ -90,43 +87,31 @@ describe("NodeLibraryBuilder format option E2E", () => {
 					},
 				},
 			});
+		});
 
-			assertBuildSucceeded(result.value);
-			assertPackageJson(result.value, {
+		afterAll(async () => {
+			await result?.cleanup();
+		});
+
+		it("should set package.json type to commonjs for cjs format", () => {
+			assertBuildSucceeded(result);
+			assertPackageJson(result, {
 				fieldEquals: { type: "commonjs" },
 			});
 		});
 
-		test("should output .cjs files for CJS format", async ({ result }) => {
-			result.value = await buildFixture("options-testing", {
-				target: "npm",
-				config: {
-					builderOptions: {
-						format: "cjs",
-					},
-				},
-			});
-
-			assertBuildSucceeded(result.value);
-			assertOutputFile(result.value, "index.cjs", { exists: true });
-			assertOutputFile(result.value, "index.js", { exists: false });
+		it("should output .cjs files for CJS format", () => {
+			assertBuildSucceeded(result);
+			assertOutputFile(result, "index.cjs", { exists: true });
+			assertOutputFile(result, "index.js", { exists: false });
 		});
 
-		test("should emit resolved tsconfig with CJS module settings", async ({ result }) => {
-			result.value = await buildFixture("options-testing", {
-				target: "npm",
-				config: {
-					builderOptions: {
-						format: "cjs",
-					},
-				},
-			});
-
-			assertBuildSucceeded(result.value);
-			assertResolvedTsconfig(result.value, { exists: true });
+		it("should emit resolved tsconfig with CJS module settings", () => {
+			assertBuildSucceeded(result);
+			assertResolvedTsconfig(result, { exists: true });
 
 			// Parse the resolved tsconfig and verify module settings
-			const tsconfigContent = result.value.outputs.get("tsconfig.json");
+			const tsconfigContent = result.outputs.get("tsconfig.json");
 			expect(tsconfigContent).toBeDefined();
 			if (!tsconfigContent) return;
 			const tsconfig = JSON.parse(tsconfigContent);
