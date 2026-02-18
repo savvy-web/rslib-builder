@@ -1,3 +1,5 @@
+import { readFile } from "node:fs/promises";
+import { join } from "node:path";
 import { getCatalogsFromWorkspaceManifest } from "@pnpm/catalogs.config";
 import { parseCatalogProtocol } from "@pnpm/catalogs.protocol-parser";
 import { createExportableManifest } from "@pnpm/exportable-manifest";
@@ -39,8 +41,8 @@ const WORKSPACE_PREFIX = "workspace:" as const;
  * - `workspace:` references to local workspace packages
  *
  * Supports multiple package managers:
- * - **pnpm**: Reads from `pnpm-lock.yaml` (primary, for config dependency catalogs)
- *   then falls back to `pnpm-workspace.yaml`
+ * - **pnpm**: Reads from workspace state file (primary, includes all configDependency catalogs),
+ *   then `pnpm-lock.yaml`, then `pnpm-workspace.yaml`
  * - **yarn**: Uses workspace-tools to read from yarn's catalog configuration
  *
  * The class caches the catalog data to avoid repeated filesystem operations during builds.
@@ -81,8 +83,8 @@ export class WorkspaceCatalog {
 	 * Gets all catalogs from the workspace, using the appropriate strategy for the package manager.
 	 *
 	 * @remarks
-	 * - **pnpm**: Reads from `pnpm-lock.yaml` first (contains config dependency catalogs like
-	 *   `catalog:silk`), then falls back to `pnpm-workspace.yaml`
+	 * - **pnpm**: Reads from workspace state file first (most complete, includes configDependency
+	 *   catalogs like `catalog:silkPeers`), then `pnpm-lock.yaml`, then `pnpm-workspace.yaml`
 	 * - **yarn**: Uses workspace-tools to read from yarn's catalog configuration
 	 *
 	 * @returns Mapping of catalog names to their dependency version mappings
@@ -224,18 +226,44 @@ export class WorkspaceCatalog {
 
 	/**
 	 * Reads catalogs for pnpm workspaces.
-	 * Primary: pnpm-lock.yaml (contains config dependency catalogs)
-	 * Fallback: pnpm-workspace.yaml
+	 * Primary: workspace state file (most complete, includes configDependency catalogs)
+	 * Fallback 1: pnpm-lock.yaml
+	 * Fallback 2: pnpm-workspace.yaml
 	 */
 	private async readPnpmCatalogs(workspaceRoot: string): Promise<Catalogs> {
-		// Primary: Read from lockfile (contains config dependency catalogs)
+		// Primary: workspace state (most complete, includes configDependency catalogs)
+		const stateCatalogs = await this.readPnpmWorkspaceStateCatalogs(workspaceRoot);
+		if (Object.keys(stateCatalogs).length > 0) {
+			return stateCatalogs;
+		}
+
+		// Fallback: lockfile
 		const lockfileCatalogs = await this.readPnpmLockfileCatalogs(workspaceRoot);
 		if (Object.keys(lockfileCatalogs).length > 0) {
 			return lockfileCatalogs;
 		}
 
-		// Fallback: Read from workspace manifest
+		// Last resort: workspace manifest
 		return this.readPnpmWorkspaceCatalogs(workspaceRoot);
+	}
+
+	/**
+	 * Reads catalogs from `node_modules/.pnpm-workspace-state-v1.json`.
+	 *
+	 * @remarks
+	 * The workspace state file is the most complete source of catalog data because
+	 * it includes catalogs from pnpm `configDependencies` plugins that may not appear
+	 * in the lockfile (e.g., catalogs used only in `peerDependencies`).
+	 */
+	private async readPnpmWorkspaceStateCatalogs(workspaceRoot: string): Promise<Catalogs> {
+		try {
+			const statePath = join(workspaceRoot, "node_modules", ".pnpm-workspace-state-v1.json");
+			const content = await readFile(statePath, "utf-8");
+			const state: { settings?: { catalogs?: Catalogs } } = JSON.parse(content);
+			return state.settings?.catalogs ?? {};
+		} catch {
+			return {};
+		}
 	}
 
 	/**

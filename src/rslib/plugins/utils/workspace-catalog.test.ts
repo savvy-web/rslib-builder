@@ -2,6 +2,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { PackageJson } from "../../../types/package-json.js";
 
 // Mock external dependencies before importing the module
+vi.mock("node:fs/promises", () => ({
+	readFile: vi.fn(),
+}));
 vi.mock("workspace-tools", () => ({
 	getWorkspaceManagerAndRoot: vi.fn(),
 	getCatalogs: vi.fn(),
@@ -26,6 +29,7 @@ vi.mock("@pnpm/exportable-manifest", () => ({
 	createExportableManifest: vi.fn(),
 }));
 
+import { readFile } from "node:fs/promises";
 import { getCatalogsFromWorkspaceManifest } from "@pnpm/catalogs.config";
 import { createExportableManifest } from "@pnpm/exportable-manifest";
 import { readWantedLockfile } from "@pnpm/lockfile.fs";
@@ -60,9 +64,105 @@ describe("WorkspaceCatalog", () => {
 					manager: "pnpm",
 					root: "/test/workspace",
 				});
+				// Default: workspace state file not found (so fallback sources are tested)
+				vi.mocked(readFile).mockRejectedValue(new Error("ENOENT"));
 			});
 
-			it("should read catalogs from lockfile (primary source)", async () => {
+			describe("workspace state file (primary source)", () => {
+				it("should read catalogs from workspace state file when available", async () => {
+					vi.mocked(readFile).mockResolvedValue(
+						JSON.stringify({
+							settings: {
+								catalogs: {
+									default: { react: "^18.0.0" },
+									silk: { typescript: "^5.9.0" },
+									silkPeers: { "react-dom": "^18.0.0" },
+								},
+							},
+						}),
+					);
+
+					const result = await catalog.getCatalogs();
+
+					expect(result).toEqual({
+						default: { react: "^18.0.0" },
+						silk: { typescript: "^5.9.0" },
+						silkPeers: { "react-dom": "^18.0.0" },
+					});
+					expect(readFile).toHaveBeenCalledWith("/test/workspace/node_modules/.pnpm-workspace-state-v1.json", "utf-8");
+					expect(readWantedLockfile).not.toHaveBeenCalled();
+					expect(readWorkspaceManifest).not.toHaveBeenCalled();
+				});
+
+				it("should include catalogs missing from lockfile (core bug scenario)", async () => {
+					// Workspace state has both silk and silkPeers
+					vi.mocked(readFile).mockResolvedValue(
+						JSON.stringify({
+							settings: {
+								catalogs: {
+									silk: { typescript: "^5.9.0" },
+									silkPeers: { "react-dom": "^18.0.0" },
+								},
+							},
+						}),
+					);
+
+					const result = await catalog.getCatalogs();
+
+					// Both catalogs returned - silkPeers would be missing from lockfile
+					expect(result).toEqual({
+						silk: { typescript: "^5.9.0" },
+						silkPeers: { "react-dom": "^18.0.0" },
+					});
+				});
+
+				it("should fall back to lockfile when workspace state has empty catalogs", async () => {
+					vi.mocked(readFile).mockResolvedValue(JSON.stringify({ settings: { catalogs: {} } }));
+					vi.mocked(readWantedLockfile).mockResolvedValue({
+						lockfileVersion: "9.0",
+						importers: {},
+						catalogs: {
+							default: { react: { specifier: "^18.0.0", version: "18.2.0" } },
+						},
+					});
+
+					const result = await catalog.getCatalogs();
+
+					expect(result).toEqual({ default: { react: "^18.0.0" } });
+				});
+
+				it("should fall back to lockfile when workspace state has no settings", async () => {
+					vi.mocked(readFile).mockResolvedValue(JSON.stringify({}));
+					vi.mocked(readWantedLockfile).mockResolvedValue({
+						lockfileVersion: "9.0",
+						importers: {},
+						catalogs: {
+							default: { lodash: { specifier: "^4.17.21", version: "4.17.21" } },
+						},
+					});
+
+					const result = await catalog.getCatalogs();
+
+					expect(result).toEqual({ default: { lodash: "^4.17.21" } });
+				});
+
+				it("should handle malformed workspace state JSON gracefully", async () => {
+					vi.mocked(readFile).mockResolvedValue("not valid json{");
+					vi.mocked(readWantedLockfile).mockResolvedValue({
+						lockfileVersion: "9.0",
+						importers: {},
+						catalogs: {
+							default: { react: { specifier: "^18.0.0", version: "18.2.0" } },
+						},
+					});
+
+					const result = await catalog.getCatalogs();
+
+					expect(result).toEqual({ default: { react: "^18.0.0" } });
+				});
+			});
+
+			it("should read catalogs from lockfile when workspace state is unavailable", async () => {
 				vi.mocked(readWantedLockfile).mockResolvedValue({
 					lockfileVersion: "9.0",
 					importers: {},
@@ -122,25 +222,27 @@ describe("WorkspaceCatalog", () => {
 			});
 
 			it("should cache catalogs after first read", async () => {
-				vi.mocked(readWantedLockfile).mockResolvedValue({
-					lockfileVersion: "9.0",
-					importers: {},
-					catalogs: {
-						default: { lodash: { specifier: "^4.17.21", version: "4.17.21" } },
-					},
-				});
+				vi.mocked(readFile).mockResolvedValue(
+					JSON.stringify({
+						settings: {
+							catalogs: {
+								default: { lodash: "^4.17.21" },
+							},
+						},
+					}),
+				);
 
 				// First call
 				const result1 = await catalog.getCatalogs();
 				expect(result1).toEqual({ default: { lodash: "^4.17.21" } });
 
 				// Clear mock call count
-				vi.mocked(readWantedLockfile).mockClear();
+				vi.mocked(readFile).mockClear();
 
 				// Second call - should use cache
 				const result2 = await catalog.getCatalogs();
 				expect(result2).toEqual({ default: { lodash: "^4.17.21" } });
-				expect(readWantedLockfile).not.toHaveBeenCalled();
+				expect(readFile).not.toHaveBeenCalled();
 			});
 
 			it("should handle empty lockfile catalogs", async () => {
@@ -252,13 +354,11 @@ describe("WorkspaceCatalog", () => {
 				manager: "pnpm",
 				root: "/test/workspace",
 			});
-			vi.mocked(readWantedLockfile).mockResolvedValue({
-				lockfileVersion: "9.0",
-				importers: {},
-				catalogs: {
-					default: { express: { specifier: "^4.18.0", version: "4.18.2" } },
-				},
-			});
+			vi.mocked(readFile).mockResolvedValue(
+				JSON.stringify({
+					settings: { catalogs: { default: { express: "^4.18.0" } } },
+				}),
+			);
 
 			// First call populates cache
 			await catalog.getCatalogs();
@@ -267,15 +367,13 @@ describe("WorkspaceCatalog", () => {
 			catalog.clearCache();
 
 			// Update mock to return different data
-			vi.mocked(readWantedLockfile).mockResolvedValue({
-				lockfileVersion: "9.0",
-				importers: {},
-				catalogs: {
-					default: { express: { specifier: "^4.19.0", version: "4.19.0" } },
-				},
-			});
+			vi.mocked(readFile).mockResolvedValue(
+				JSON.stringify({
+					settings: { catalogs: { default: { express: "^4.19.0" } } },
+				}),
+			);
 
-			// Should read from lockfile again
+			// Should read from workspace state again
 			const result = await catalog.getCatalogs();
 			expect(result).toEqual({ default: { express: "^4.19.0" } });
 		});
@@ -287,16 +385,15 @@ describe("WorkspaceCatalog", () => {
 				manager: "pnpm",
 				root: "/test/workspace",
 			});
-			vi.mocked(readWantedLockfile).mockResolvedValue({
-				lockfileVersion: "9.0",
-				importers: {},
-				catalogs: {
-					default: {
-						react: { specifier: "^18.2.0", version: "18.2.0" },
-						typescript: { specifier: "^5.0.0", version: "5.0.4" },
+			vi.mocked(readFile).mockResolvedValue(
+				JSON.stringify({
+					settings: {
+						catalogs: {
+							default: { react: "^18.2.0", typescript: "^5.0.0" },
+						},
 					},
-				},
-			});
+				}),
+			);
 		});
 
 		it("should resolve catalog: dependencies", async () => {
@@ -327,13 +424,11 @@ describe("WorkspaceCatalog", () => {
 		});
 
 		it("should resolve named catalog references", async () => {
-			vi.mocked(readWantedLockfile).mockResolvedValue({
-				lockfileVersion: "9.0",
-				importers: {},
-				catalogs: {
-					silk: { typescript: { specifier: "^5.9.0", version: "5.9.3" } },
-				},
-			});
+			vi.mocked(readFile).mockResolvedValue(
+				JSON.stringify({
+					settings: { catalogs: { silk: { typescript: "^5.9.0" } } },
+				}),
+			);
 			catalog.clearCache();
 
 			const pkg: PackageJson = {
@@ -400,13 +495,11 @@ describe("WorkspaceCatalog", () => {
 		});
 
 		it("should error when referenced catalog does not exist", async () => {
-			vi.mocked(readWantedLockfile).mockResolvedValue({
-				lockfileVersion: "9.0",
-				importers: {},
-				catalogs: {
-					default: { react: { specifier: "^18.0.0", version: "18.2.0" } },
-				},
-			});
+			vi.mocked(readFile).mockResolvedValue(
+				JSON.stringify({
+					settings: { catalogs: { default: { react: "^18.0.0" } } },
+				}),
+			);
 			catalog.clearCache();
 
 			const pkg: PackageJson = {
@@ -421,6 +514,7 @@ describe("WorkspaceCatalog", () => {
 		});
 
 		it("should error when no catalogs exist but catalog deps present", async () => {
+			vi.mocked(readFile).mockRejectedValue(new Error("ENOENT"));
 			vi.mocked(readWantedLockfile).mockResolvedValue(null);
 			vi.mocked(getCatalogsFromWorkspaceManifest).mockReturnValue({});
 			catalog.clearCache();
@@ -607,13 +701,11 @@ describe("WorkspaceCatalog", () => {
 				manager: "pnpm",
 				root: "/test/workspace",
 			});
-			vi.mocked(readWantedLockfile).mockResolvedValue({
-				lockfileVersion: "9.0",
-				importers: {},
-				catalogs: {
-					default: { lodash: { specifier: "^4.17.21", version: "4.17.21" } },
-				},
-			});
+			vi.mocked(readFile).mockResolvedValue(
+				JSON.stringify({
+					settings: { catalogs: { default: { lodash: "^4.17.21" } } },
+				}),
+			);
 
 			// Populate catalog1's cache
 			await catalog1.getCatalogs();
@@ -622,13 +714,11 @@ describe("WorkspaceCatalog", () => {
 			catalog1.clearCache();
 
 			// Update mock
-			vi.mocked(readWantedLockfile).mockResolvedValue({
-				lockfileVersion: "9.0",
-				importers: {},
-				catalogs: {
-					default: { lodash: { specifier: "^4.18.0", version: "4.18.0" } },
-				},
-			});
+			vi.mocked(readFile).mockResolvedValue(
+				JSON.stringify({
+					settings: { catalogs: { default: { lodash: "^4.18.0" } } },
+				}),
+			);
 
 			// catalog1 should read new data
 			const result1 = await catalog1.getCatalogs();
@@ -646,25 +736,21 @@ describe("WorkspaceCatalog", () => {
 				manager: "pnpm",
 				root: "/test/workspace",
 			});
+			vi.mocked(readFile).mockRejectedValue(new Error("ENOENT"));
 		});
 
-		it("should support multiple named catalogs from lockfile", async () => {
-			vi.mocked(readWantedLockfile).mockResolvedValue({
-				lockfileVersion: "9.0",
-				importers: {},
-				catalogs: {
-					default: {
-						react: { specifier: "^18.0.0", version: "18.2.0" },
+		it("should support multiple named catalogs from workspace state", async () => {
+			vi.mocked(readFile).mockResolvedValue(
+				JSON.stringify({
+					settings: {
+						catalogs: {
+							default: { react: "^18.0.0" },
+							silk: { typescript: "^5.9.0", eslint: "^9.0.0" },
+							tools: { vitest: "^4.0.0" },
+						},
 					},
-					silk: {
-						typescript: { specifier: "^5.9.0", version: "5.9.3" },
-						eslint: { specifier: "^9.0.0", version: "9.0.0" },
-					},
-					tools: {
-						vitest: { specifier: "^4.0.0", version: "4.0.0" },
-					},
-				},
-			});
+				}),
+			);
 
 			const result = await catalog.getCatalogs();
 
@@ -676,14 +762,16 @@ describe("WorkspaceCatalog", () => {
 		});
 
 		it("should resolve dependencies from multiple catalogs", async () => {
-			vi.mocked(readWantedLockfile).mockResolvedValue({
-				lockfileVersion: "9.0",
-				importers: {},
-				catalogs: {
-					default: { react: { specifier: "^18.0.0", version: "18.2.0" } },
-					silk: { typescript: { specifier: "^5.9.0", version: "5.9.3" } },
-				},
-			});
+			vi.mocked(readFile).mockResolvedValue(
+				JSON.stringify({
+					settings: {
+						catalogs: {
+							default: { react: "^18.0.0" },
+							silk: { typescript: "^5.9.0" },
+						},
+					},
+				}),
+			);
 			catalog.clearCache();
 
 			const pkg: PackageJson = {
