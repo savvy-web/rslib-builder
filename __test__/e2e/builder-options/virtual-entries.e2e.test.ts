@@ -1,12 +1,8 @@
-import {
-	assertBuildSucceeded,
-	assertOutputFile,
-	assertPackageJson,
-	buildFixture,
-	describe,
-	expect,
-	test,
-} from "../utils/index.js";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { assertBuildSucceeded, assertOutputFile, assertPackageJson } from "../utils/assertions.js";
+import type { BuildFixtureResult } from "../utils/build-fixture.js";
+import { buildFixture } from "../utils/build-fixture.js";
+import { test } from "../utils/test-fixture.js";
 
 describe("NodeLibraryBuilder virtualEntries option E2E", () => {
 	describe("basic virtual entry", () => {
@@ -39,9 +35,13 @@ export function readPackage(pkg: Record<string, unknown>) {
 			// Virtual entry should be bundled
 			assertOutputFile(result.value, "pnpmfile.cjs", { exists: true });
 		});
+	});
 
-		test("should NOT generate .d.ts for virtual entries", async ({ result }) => {
-			result.value = await buildFixture("options-testing", {
+	describe("pnpmfile virtual entry behavior", () => {
+		let result: BuildFixtureResult;
+
+		beforeAll(async () => {
+			result = await buildFixture("options-testing", {
 				target: "npm",
 				config: {
 					builderOptions: {
@@ -61,63 +61,27 @@ export function readPackage(pkg: Record<string, unknown>) {
 `,
 				},
 			});
+		});
 
-			assertBuildSucceeded(result.value);
+		afterAll(async () => {
+			await result?.cleanup();
+		});
+
+		it("should NOT generate .d.ts for virtual entries", () => {
+			assertBuildSucceeded(result);
 			// No .d.ts should be generated for virtual entries
-			assertOutputFile(result.value, "pnpmfile.d.ts", { exists: false });
+			assertOutputFile(result, "pnpmfile.d.ts", { exists: false });
 		});
 
-		test("should include virtual entries in files array", async ({ result }) => {
-			result.value = await buildFixture("options-testing", {
-				target: "npm",
-				config: {
-					builderOptions: {
-						virtualEntries: {
-							"pnpmfile.cjs": {
-								source: "./src/pnpmfile.ts",
-								format: "cjs",
-							},
-						},
-					},
-				},
-				sourceFiles: {
-					"src/pnpmfile.ts": `
-export function readPackage(pkg: Record<string, unknown>) {
-  return pkg;
-}
-`,
-				},
-			});
-
-			assertBuildSucceeded(result.value);
-			assertPackageJson(result.value, { hasFile: "pnpmfile.cjs" });
+		it("should include virtual entries in files array", () => {
+			assertBuildSucceeded(result);
+			assertPackageJson(result, { hasFile: "pnpmfile.cjs" });
 		});
 
-		test("should NOT add virtual entries to package.json exports", async ({ result }) => {
-			result.value = await buildFixture("options-testing", {
-				target: "npm",
-				config: {
-					builderOptions: {
-						virtualEntries: {
-							"pnpmfile.cjs": {
-								source: "./src/pnpmfile.ts",
-								format: "cjs",
-							},
-						},
-					},
-				},
-				sourceFiles: {
-					"src/pnpmfile.ts": `
-export function readPackage(pkg: Record<string, unknown>) {
-  return pkg;
-}
-`,
-				},
-			});
-
-			assertBuildSucceeded(result.value);
+		it("should NOT add virtual entries to package.json exports", () => {
+			assertBuildSucceeded(result);
 			// Virtual entries should NOT appear in exports
-			const packageJsonContent = result.value.outputs.get("package.json");
+			const packageJsonContent = result.outputs.get("package.json");
 			expect(packageJsonContent).toBeDefined();
 			if (!packageJsonContent) return;
 			const packageJson = JSON.parse(packageJsonContent);
@@ -126,6 +90,16 @@ export function readPackage(pkg: Record<string, unknown>) {
 			// Should not have ./pnpmfile.cjs or ./pnpmfile export
 			expect(exports["./pnpmfile.cjs"]).toBeUndefined();
 			expect(exports["./pnpmfile"]).toBeUndefined();
+		});
+
+		it("should build both regular and virtual entries together", () => {
+			assertBuildSucceeded(result);
+			// Regular entries should have types
+			assertOutputFile(result, "index.js", { exists: true });
+			assertOutputFile(result, "index.d.ts", { exists: true });
+			// Virtual entry should not have types
+			assertOutputFile(result, "pnpmfile.cjs", { exists: true });
+			assertOutputFile(result, "pnpmfile.d.ts", { exists: false });
 		});
 	});
 
@@ -229,39 +203,6 @@ export const config = { version: 1 };
 			// Both should be in files array
 			assertPackageJson(result.value, { hasFile: "pnpmfile.cjs" });
 			assertPackageJson(result.value, { hasFile: "config.js" });
-		});
-	});
-
-	describe("mixed regular and virtual entries", () => {
-		test("should build both regular and virtual entries together", async ({ result }) => {
-			result.value = await buildFixture("options-testing", {
-				target: "npm",
-				config: {
-					builderOptions: {
-						virtualEntries: {
-							"pnpmfile.cjs": {
-								source: "./src/pnpmfile.ts",
-								format: "cjs",
-							},
-						},
-					},
-				},
-				sourceFiles: {
-					"src/pnpmfile.ts": `
-export function readPackage(pkg: Record<string, unknown>) {
-  return pkg;
-}
-`,
-				},
-			});
-
-			assertBuildSucceeded(result.value);
-			// Regular entries should have types
-			assertOutputFile(result.value, "index.js", { exists: true });
-			assertOutputFile(result.value, "index.d.ts", { exists: true });
-			// Virtual entry should not have types
-			assertOutputFile(result.value, "pnpmfile.cjs", { exists: true });
-			assertOutputFile(result.value, "pnpmfile.d.ts", { exists: false });
 		});
 	});
 });

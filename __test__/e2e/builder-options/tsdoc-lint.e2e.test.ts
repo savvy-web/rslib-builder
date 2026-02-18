@@ -1,12 +1,7 @@
-import {
-	assertBuildFailed,
-	assertBuildOutput,
-	assertBuildSucceeded,
-	buildFixture,
-	describe,
-	expect,
-	test,
-} from "../utils/index.js";
+import { describe, expect } from "vitest";
+import { assertBuildFailed, assertBuildOutput, assertBuildSucceeded } from "../utils/assertions.js";
+import { buildFixture } from "../utils/build-fixture.js";
+import { test } from "../utils/test-fixture.js";
 
 describe("NodeLibraryBuilder TSDoc Lint Options E2E", () => {
 	describe("lint enabled (default) with valid TSDoc", () => {

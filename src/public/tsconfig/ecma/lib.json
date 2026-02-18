@@ -45,6 +45,10 @@
 		"${configDir}/lib/**/*.tsx",
 		"${configDir}/lib/**/*.cts",
 		"${configDir}/lib/**/*.mts",
+		"${configDir}/__test__/**/*.ts",
+		"${configDir}/__test__/**/*.tsx",
+		"${configDir}/__test__/**/*.cts",
+		"${configDir}/__test__/**/*.mts",
 		"${configDir}/public/**/*.json"
 	]
 }

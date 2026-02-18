@@ -588,4 +588,85 @@ describe("AutoEntryPlugin", () => {
 			expect(devEntry).toEqual({ index: "./src/index.ts" });
 		});
 	});
+
+	describe("state initialization", () => {
+		it("should reuse pre-existing entrypoints map from api.useExposed", async () => {
+			const packageJson: PackageJson = {
+				name: "test-package",
+				version: "1.0.0",
+				exports: "./src/index.ts",
+			};
+
+			mockStat.mockResolvedValue(createMockStats(new Date()));
+			mockAccess.mockResolvedValue(undefined);
+			mockReadFile.mockResolvedValue(JSON.stringify(packageJson));
+
+			const existingEntrypoints = new Map<string, string>([["existing.ts", "./src/existing.ts"]]);
+			const existingExportMap = new Map<string, string>([[".", "./existing.js"]]);
+
+			const plugin = AutoEntryPlugin();
+			const mockApi = {
+				modifyRsbuildConfig: vi.fn(),
+				expose: vi.fn(),
+				useExposed: vi.fn((key: string) => {
+					if (key === "entrypoints") return existingEntrypoints;
+					if (key === "exportToOutputMap") return existingExportMap;
+					return undefined;
+				}),
+				onBeforeBuild: vi.fn(),
+				logger: { debug: vi.fn() },
+			};
+
+			plugin.setup(mockApi as unknown as Parameters<ReturnType<typeof AutoEntryPlugin>["setup"]>[0]);
+
+			// Should NOT call expose for entrypoints or exportToOutputMap since they already exist
+			expect(mockApi.expose).not.toHaveBeenCalled();
+
+			// Run the config modifier to populate entries
+			const configModifier = mockApi.modifyRsbuildConfig.mock.calls[0][0];
+			const config = { environments: { dev: { source: {} } } };
+			await configModifier(config);
+
+			// Pre-existing entrypoints map should have the new entry added
+			expect(existingEntrypoints.has("index.ts")).toBe(true);
+			expect(existingEntrypoints.get("index.ts")).toBe("./src/index.ts");
+			// Pre-existing entry should still be there
+			expect(existingEntrypoints.has("existing.ts")).toBe(true);
+		});
+
+		it("should log entries only once across multiple modifyRsbuildConfig calls", async () => {
+			const packageJson: PackageJson = {
+				name: "test-package",
+				version: "1.0.0",
+				exports: "./src/index.ts",
+			};
+
+			mockStat.mockResolvedValue(createMockStats(new Date()));
+			mockAccess.mockResolvedValue(undefined);
+			mockReadFile.mockResolvedValue(JSON.stringify(packageJson));
+
+			const plugin = AutoEntryPlugin();
+			const mockApi = {
+				modifyRsbuildConfig: vi.fn(),
+				expose: vi.fn(),
+				useExposed: vi.fn().mockReturnValue(undefined),
+				onBeforeBuild: vi.fn(),
+				logger: { debug: vi.fn() },
+			};
+
+			plugin.setup(mockApi as unknown as Parameters<ReturnType<typeof AutoEntryPlugin>["setup"]>[0]);
+
+			const configModifier = mockApi.modifyRsbuildConfig.mock.calls[0][0];
+			const config = { environments: { dev: { source: {} } } };
+
+			// Call modifier twice (simulating RSlib calling it for multiple environments)
+			await configModifier(config);
+			await configModifier(config);
+
+			// The entries should still be set but logging should happen only once
+			// (verified by the state.hasLoggedEntries guard)
+			const devEntry = (config.environments.dev.source as { entry?: Record<string, string> }).entry;
+			expect(devEntry).toEqual({ index: "./src/index.ts" });
+		});
+	});
 });

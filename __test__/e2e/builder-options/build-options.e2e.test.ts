@@ -1,3 +1,4 @@
+import { afterAll, beforeAll, describe, it } from "vitest";
 import {
 	assertApiModelFile,
 	assertBuildSucceeded,
@@ -5,10 +6,10 @@ import {
 	assertPackageJson,
 	assertResolvedTsconfig,
 	assertTsDocMetadata,
-	buildFixture,
-	describe,
-	test,
-} from "../utils/index.js";
+} from "../utils/assertions.js";
+import type { BuildFixtureResult } from "../utils/build-fixture.js";
+import { buildFixture } from "../utils/build-fixture.js";
+import { test } from "../utils/test-fixture.js";
 
 describe("NodeLibraryBuilder Build Options E2E", () => {
 	describe("externals option", () => {
@@ -77,7 +78,7 @@ describe("NodeLibraryBuilder Build Options E2E", () => {
 		});
 	});
 
-	describe("build target differences", () => {
+	describe("dev target", () => {
 		test("should generate source maps for dev target", async ({ result }) => {
 			result.value = await buildFixture("options-testing", {
 				target: "dev",
@@ -89,29 +90,44 @@ describe("NodeLibraryBuilder Build Options E2E", () => {
 			assertApiModelFile(result.value, { exists: false });
 			assertOutputFile(result.value, "index.d.ts", { exists: true });
 		});
+	});
 
-		test("should generate API model for npm target", async ({ result }) => {
-			result.value = await buildFixture("options-testing", {
+	describe("npm target defaults", () => {
+		let result: BuildFixtureResult;
+
+		beforeAll(async () => {
+			result = await buildFixture("options-testing", {
 				target: "npm",
 				config: { builderOptions: {} },
 			});
-
-			assertBuildSucceeded(result.value);
-			assertApiModelFile(result.value, { exists: true });
-			assertTsDocMetadata(result.value, { exists: true });
-			assertResolvedTsconfig(result.value, { exists: true });
 		});
 
-		test("npm target should exclude api model and tsconfig from files array", async ({ result }) => {
-			result.value = await buildFixture("options-testing", {
-				target: "npm",
-				config: { builderOptions: {} },
-			});
+		afterAll(async () => {
+			await result?.cleanup();
+		});
 
-			assertBuildSucceeded(result.value);
-			assertPackageJson(result.value, { hasFile: "!options-testing.api.json" });
-			assertPackageJson(result.value, { hasFile: "!tsconfig.json" });
-			assertPackageJson(result.value, { hasFile: "tsdoc-metadata.json" });
+		it("should generate API model for npm target", () => {
+			assertBuildSucceeded(result);
+			assertApiModelFile(result, { exists: true });
+			assertTsDocMetadata(result, { exists: true });
+			assertResolvedTsconfig(result, { exists: true });
+		});
+
+		it("should exclude api model and tsconfig from files array", () => {
+			assertBuildSucceeded(result);
+			assertPackageJson(result, { hasFile: "!options-testing.api.json" });
+			assertPackageJson(result, { hasFile: "!tsconfig.json" });
+			assertPackageJson(result, { hasFile: "tsdoc-metadata.json" });
+		});
+
+		it("should generate .d.ts for all exports", () => {
+			assertBuildSucceeded(result);
+			assertOutputFile(result, "index.d.ts", { exists: true });
+			assertOutputFile(result, "index.js", { exists: true });
+			assertOutputFile(result, "types.d.ts", { exists: true });
+			assertOutputFile(result, "types.js", { exists: true });
+			assertPackageJson(result, { hasExport: ".", hasTypes: "." });
+			assertPackageJson(result, { hasExport: "./types", hasTypes: "./types" });
 		});
 	});
 
@@ -121,7 +137,7 @@ describe("NodeLibraryBuilder Build Options E2E", () => {
 				target: "npm",
 				config: {
 					builderOptions: {
-						transform: ({ target, pkg }: { target: string; pkg: Record<string, unknown> }) => {
+						transform: ({ target, pkg }) => {
 							pkg.customField = `built-for-${target}`;
 							return pkg;
 						},
@@ -140,7 +156,7 @@ describe("NodeLibraryBuilder Build Options E2E", () => {
 				target: "npm",
 				config: {
 					builderOptions: {
-						transform: ({ pkg }: { pkg: Record<string, unknown> }) => {
+						transform: ({ pkg }) => {
 							delete pkg.devDependencies;
 							return pkg;
 						},
@@ -152,22 +168,6 @@ describe("NodeLibraryBuilder Build Options E2E", () => {
 			assertPackageJson(result.value, {
 				fieldEquals: { devDependencies: undefined },
 			});
-		});
-	});
-
-	describe("multi-entry exports", () => {
-		test("should generate .d.ts for all exports", async ({ result }) => {
-			result.value = await buildFixture("options-testing", {
-				config: { builderOptions: {} },
-			});
-
-			assertBuildSucceeded(result.value);
-			assertOutputFile(result.value, "index.d.ts", { exists: true });
-			assertOutputFile(result.value, "index.js", { exists: true });
-			assertOutputFile(result.value, "types.d.ts", { exists: true });
-			assertOutputFile(result.value, "types.js", { exists: true });
-			assertPackageJson(result.value, { hasExport: ".", hasTypes: "." });
-			assertPackageJson(result.value, { hasExport: "./types", hasTypes: "./types" });
 		});
 	});
 
@@ -187,7 +187,7 @@ describe("NodeLibraryBuilder Build Options E2E", () => {
 								lint: false,
 							},
 						},
-						transform: ({ pkg }: { pkg: Record<string, unknown> }) => {
+						transform: ({ pkg }) => {
 							pkg.description = "Built with custom options";
 							return pkg;
 						},

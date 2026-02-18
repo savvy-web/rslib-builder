@@ -1,5 +1,6 @@
 import type { Stats } from "node:fs";
 import type { ProcessAssetsHandler } from "@rsbuild/core";
+// biome-ignore lint/correctness/noUndeclaredDependencies: only used for type definitions in tests
 import { vi } from "vitest";
 
 /**

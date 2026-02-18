@@ -79,7 +79,7 @@ export interface BuildFixtureResult {
  * Get the fixtures directory path.
  */
 export function getFixturesDir(): string {
-	return join(process.cwd(), "test", "fixtures");
+	return join(process.cwd(), "__fixtures__");
 }
 
 /**

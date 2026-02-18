@@ -1,15 +1,13 @@
 {
-	"name": "@fixtures/multi-entry",
+	"name": "@fixtures/single-entry",
 	"version": "1.0.0",
 	"private": true,
 	"type": "module",
 	"exports": {
-		".": "./src/index.ts",
-		"./utils": "./src/utils.ts",
-		"./types": "./src/types.ts"
+		".": "./src/index.ts"
 	},
 	"scripts": {
-		"build:dev": "rslib build --env-mode npm",
+		"build:dev": "rslib build --env-mode dev",
 		"build:prod": "rslib build --env-mode npm",
 		"types:check": "tsgo --noEmit"
 	},

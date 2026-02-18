@@ -10,7 +10,7 @@
 		"my-cli": "./src/cli.ts"
 	},
 	"scripts": {
-		"build:dev": "rslib build --env-mode npm",
+		"build:dev": "rslib build --env-mode dev",
 		"build:prod": "rslib build --env-mode npm",
 		"types:check": "tsgo --noEmit"
 	},
