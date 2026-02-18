@@ -1,5 +1,13 @@
 # @savvy-web/rslib-builder
 
+## 0.14.4
+
+### Patch Changes
+
+* [`2982720`](https://github.com/savvy-web/rslib-builder/commit/298272091fe670ed6542a51f57753e3a58fbdf3a) Fix catalog resolution for named catalogs from pnpm configDependencies
+
+Reads catalogs from `node_modules/.pnpm-workspace-state-v1.json` as the primary source, with lockfile and workspace manifest as fallbacks. The workspace state file contains all resolved catalogs including those from `configDependencies` plugins that may not appear in the lockfile (e.g., catalogs used only in `peerDependencies`).
+
 ## 0.14.3
 
 ### Dependencies
