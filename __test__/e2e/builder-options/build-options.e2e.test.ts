@@ -1,3 +1,5 @@
+// biome-ignore lint/correctness/noUndeclaredDependencies: this is OK because these are only used in test files
+import { describe } from "vitest";
 import {
 	assertApiModelFile,
 	assertBuildSucceeded,
@@ -5,10 +7,9 @@ import {
 	assertPackageJson,
 	assertResolvedTsconfig,
 	assertTsDocMetadata,
-	buildFixture,
-	describe,
-	test,
-} from "../utils/index.js";
+} from "../utils/assertions.js";
+import { buildFixture } from "../utils/build-fixture.js";
+import { test } from "../utils/test-fixture.js";
 
 describe("NodeLibraryBuilder Build Options E2E", () => {
 	describe("externals option", () => {
@@ -121,7 +122,7 @@ describe("NodeLibraryBuilder Build Options E2E", () => {
 				target: "npm",
 				config: {
 					builderOptions: {
-						transform: ({ target, pkg }: { target: string; pkg: Record<string, unknown> }) => {
+						transform: ({ target, pkg }) => {
 							pkg.customField = `built-for-${target}`;
 							return pkg;
 						},
@@ -140,7 +141,7 @@ describe("NodeLibraryBuilder Build Options E2E", () => {
 				target: "npm",
 				config: {
 					builderOptions: {
-						transform: ({ pkg }: { pkg: Record<string, unknown> }) => {
+						transform: ({ pkg }) => {
 							delete pkg.devDependencies;
 							return pkg;
 						},
@@ -187,7 +188,7 @@ describe("NodeLibraryBuilder Build Options E2E", () => {
 								lint: false,
 							},
 						},
-						transform: ({ pkg }: { pkg: Record<string, unknown> }) => {
+						transform: ({ pkg }) => {
 							pkg.description = "Built with custom options";
 							return pkg;
 						},

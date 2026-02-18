@@ -1,3 +1,5 @@
+// biome-ignore lint/correctness/noUndeclaredDependencies: this is OK because these are only used in test files
+import { describe } from "vitest";
 import {
 	assertApiModelFile,
 	assertBuildFailed,
@@ -7,10 +9,9 @@ import {
 	assertPackageJson,
 	assertResolvedTsconfig,
 	assertTsDocMetadata,
-	buildFixture,
-	describe,
-	test,
-} from "../utils/index.js";
+} from "../utils/assertions.js";
+import { buildFixture } from "../utils/build-fixture.js";
+import { test } from "../utils/test-fixture.js";
 
 describe("NodeLibraryBuilder apiModel Options E2E", () => {
 	describe("apiModel: false", () => {

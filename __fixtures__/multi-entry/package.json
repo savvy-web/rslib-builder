@@ -1,14 +1,15 @@
 {
-	"name": "@fixtures/options-testing",
+	"name": "@fixtures/multi-entry",
 	"version": "1.0.0",
 	"private": true,
 	"type": "module",
 	"exports": {
 		".": "./src/index.ts",
+		"./utils": "./src/utils.ts",
 		"./types": "./src/types.ts"
 	},
 	"scripts": {
-		"build:dev": "rslib build --env-mode npm",
+		"build:dev": "rslib build --env-mode dev",
 		"build:prod": "rslib build --env-mode npm",
 		"types:check": "tsgo --noEmit"
 	},

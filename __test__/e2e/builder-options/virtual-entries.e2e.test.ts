@@ -1,12 +1,8 @@
-import {
-	assertBuildSucceeded,
-	assertOutputFile,
-	assertPackageJson,
-	buildFixture,
-	describe,
-	expect,
-	test,
-} from "../utils/index.js";
+// biome-ignore lint/correctness/noUndeclaredDependencies: this is OK because these are only used in test files
+import { describe, expect } from "vitest";
+import { assertBuildSucceeded, assertOutputFile, assertPackageJson } from "../utils/assertions.js";
+import { buildFixture } from "../utils/build-fixture.js";
+import { test } from "../utils/test-fixture.js";
 
 describe("NodeLibraryBuilder virtualEntries option E2E", () => {
 	describe("basic virtual entry", () => {

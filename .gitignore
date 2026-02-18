@@ -46,4 +46,4 @@ test.ts
 website/lib/packages/*/*.api.json
 website/lib/packages/*/package.json
 # E2E test temp directories
-test/fixtures/.tmp/
+__fixtures__/**/.tmp

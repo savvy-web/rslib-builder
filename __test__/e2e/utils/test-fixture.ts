@@ -1,3 +1,4 @@
+// biome-ignore lint/correctness/noUndeclaredDependencies: this is OK because these are only used in test files
 import { test as baseTest } from "vitest";
 import type { BuildFixtureResult } from "./build-fixture.js";
 
@@ -53,5 +54,3 @@ export const test = baseTest.extend<FixtureContext>({
 		}
 	},
 });
-
-export { afterEach, beforeEach, describe, expect } from "vitest";

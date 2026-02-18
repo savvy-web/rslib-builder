@@ -1,3 +1,4 @@
+// biome-ignore lint/correctness/noUndeclaredDependencies: this is OK because these are only used in test files
 import { expect } from "vitest";
 import type { BuildFixtureResult } from "./build-fixture.js";
 

@@ -1,13 +1,13 @@
+// biome-ignore lint/correctness/noUndeclaredDependencies: this is OK because these are only used in test files
+import { describe, expect } from "vitest";
 import {
 	assertBuildSucceeded,
 	assertOutputFile,
 	assertPackageJson,
 	assertResolvedTsconfig,
-	buildFixture,
-	describe,
-	expect,
-	test,
-} from "../utils/index.js";
+} from "../utils/assertions.js";
+import { buildFixture } from "../utils/build-fixture.js";
+import { test } from "../utils/test-fixture.js";
 
 describe("NodeLibraryBuilder format option E2E", () => {
 	describe("default ESM format", () => {
