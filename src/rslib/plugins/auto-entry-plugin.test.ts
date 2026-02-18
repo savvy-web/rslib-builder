@@ -1,5 +1,4 @@
 import { access, readFile, stat } from "node:fs/promises";
-// biome-ignore lint/correctness/noUndeclaredDependencies: this is OK because these are only used in test files
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createMockStats } from "../../__test__/rslib/types/test-types.js";
 import type { PackageJson } from "../../types/package-json.js";

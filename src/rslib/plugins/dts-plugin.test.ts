@@ -2,7 +2,6 @@ import { existsSync } from "node:fs";
 import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-// biome-ignore lint/correctness/noUndeclaredDependencies: this is OK because these are only used in test files
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
 	TsDocConfigBuilder,

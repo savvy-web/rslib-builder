@@ -8,7 +8,7 @@ import {
 	NewLineKind,
 	ScriptTarget,
 } from "typescript";
-// biome-ignore lint/correctness/noUndeclaredDependencies: this is OK because these are only used in test files
+
 import { describe, expect, it } from "vitest";
 import { TsconfigResolver, TsconfigResolverError } from "./tsconfig-resolver.js";
 

@@ -1,4 +1,3 @@
-// biome-ignore lint/correctness/noUndeclaredDependencies: this is OK because these are only used in test files
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { assertBuildSucceeded, assertOutputFile, assertPackageJson } from "./utils/assertions.js";
 import type { BuildFixtureResult } from "./utils/build-fixture.js";

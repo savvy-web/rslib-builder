@@ -1,4 +1,3 @@
-// biome-ignore lint/correctness/noUndeclaredDependencies: this is OK because these are only used in test files
 import { describe } from "vitest";
 import {
 	assertApiModelFile,
