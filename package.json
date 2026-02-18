@@ -45,7 +45,7 @@
 		"build:inspect": "rslib inspect --verbose",
 		"build:prod": "rslib build --env-mode npm",
 		"ci:build": "CI=\"true\" turbo run build:dev build:prod --log-prefix=none --log-order=grouped --output-logs=full",
-		"ci:test": "CI=\"true\" turbo run vitest:all --log-prefix=none -- --coverage",
+		"ci:test": "CI=\"true\" turbo run vitest:all --filter=@savvy-web/rslib-builder --log-prefix=none -- --coverage",
 		"ci:version": "savvy-changesets version && biome format --write .",
 		"commit:check": "savvy-commit check",
 		"commit:init": "savvy-commit init",
@@ -56,16 +56,16 @@
 		"lint:md:fix": "markdownlint-cli2  --config './lib/configs/.markdownlint-cli2.jsonc' --fix",
 		"lint:tsdoc": "eslint --config ./lib/configs/eslint.config.ts --ignore-pattern '**/*.test.ts'",
 		"prepare": "husky",
-		"test": "turbo run vitest:unit --log-prefix=none",
-		"test:ai": "turbo run vitest:unit --log-prefix=none -- --reporter=basic",
-		"test:all": "turbo run vitest:all --log-prefix=none",
-		"test:e2e": "turbo run vitest:e2e --log-prefix=none",
+		"test": "turbo run vitest:unit vitest:e2e --filter=@savvy-web/rslib-builder --log-prefix=none",
+		"test:ai": "turbo run vitest:all --filter=@savvy-web/rslib-builder --log-prefix=none -- --reporter=dot",
+		"test:e2e": "turbo run vitest:e2e --filter=@savvy-web/rslib-builder --log-prefix=none",
+		"test:unit": "turbo run vitest:unit --filter=@savvy-web/rslib-builder --log-prefix=none",
 		"test:watch": "vitest --watch --log-prefix=none --project unit",
 		"typecheck": "turbo run types:check --log-prefix=none",
 		"types:check": "tsgo --noEmit",
-		"vitest:all": "vitest run --project unit --project e2e",
-		"vitest:e2e": "vitest run --project e2e --no-coverage",
-		"vitest:unit": "vitest run --project unit"
+		"vitest:all": "vitest run --project @savvy-web/rslib-builder:unit --project @savvy-web/rslib-builder:e2e",
+		"vitest:e2e": "vitest run --project @savvy-web/rslib-builder:e2e",
+		"vitest:unit": "vitest run --project @savvy-web/rslib-builder:unit"
 	},
 	"dependencies": {
 		"@microsoft/tsdoc": "^0.16.0",
@@ -91,21 +91,20 @@
 		"@savvy-web/changesets": "^0.1.1",
 		"@savvy-web/commitlint": "^0.3.3",
 		"@savvy-web/lint-staged": "^0.4.3",
+		"@savvy-web/vitest": "^0.1.0",
 		"@types/deep-equal": "^1.0.4",
 		"@types/tmp": "^0.2.6",
 		"@typescript/native-preview": "catalog:silk",
-		"@vitest/coverage-v8": "catalog:silk",
 		"turbo": "catalog:silk",
 		"type-fest": "^5.4.3",
-		"typescript": "catalog:silk",
-		"vitest": "catalog:silk"
+		"typescript": "catalog:silk"
 	},
 	"peerDependencies": {
-		"@microsoft/api-extractor": "catalog:silk",
-		"@rslib/core": "catalog:silk",
-		"@types/node": "catalog:silk",
-		"@typescript/native-preview": "catalog:silk",
-		"typescript": "catalog:silk"
+		"@microsoft/api-extractor": "catalog:silkPeers",
+		"@rslib/core": "catalog:silkPeers",
+		"@types/node": "catalog:silkPeers",
+		"@typescript/native-preview": "catalog:silkPeers",
+		"typescript": "catalog:silkPeers"
 	},
 	"peerDependenciesMeta": {
 		"@microsoft/api-extractor": {
