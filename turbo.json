@@ -1,6 +1,5 @@
 {
 	"$schema": "https://turborepo.com/schema.v2.json",
-	"daemon": true,
 	"envMode": "strict",
 	"globalPassThroughEnv": ["RSLIB_BUILDER_LOCAL_PATH", "CI", "GITHUB_ACTIONS"],
 	"tasks": {
