@@ -1,5 +1,11 @@
 # @savvy-web/rslib-builder
 
+## 0.14.5
+
+### Bug Fixes
+
+* [`4ae13dc`](https://github.com/savvy-web/rslib-builder/commit/4ae13dc450707b3de325029d494dfd972a3eb352) Pins api-extractor version temporarily
+
 ## 0.14.4
 
 ### Patch Changes
