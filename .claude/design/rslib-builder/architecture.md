@@ -3,8 +3,8 @@ status: current
 module: rslib-builder
 category: architecture
 created: 2026-01-18
-updated: 2026-02-13
-last-synced: 2026-02-13
+updated: 2026-02-26
+last-synced: 2026-02-26
 completeness: 95
 related:
   - rslib-builder/api-extraction.md
@@ -14,7 +14,7 @@ dependencies: []
 
 # RSlib Builder - Architecture
 
-A sophisticated build system abstraction layer built on RSlib/Rsbuild/Rspack, providing a fluent API for building TypeScript packages with multi-target support, automatic package.json transformation, and TypeScript declaration bundling.
+A sophisticated build system abstraction layer built on RSlib/Rsbuild/Rspack, providing a fluent API for building TypeScript packages with multi-mode support (dev/npm), automatic package.json transformation, and TypeScript declaration bundling.
 
 ## Table of Contents
 
@@ -32,7 +32,7 @@ A sophisticated build system abstraction layer built on RSlib/Rsbuild/Rspack, pr
 
 ## Overview
 
-`@savvy-web/rslib-builder` provides a high-level `NodeLibraryBuilder` API that simplifies building TypeScript packages for multiple targets (dev, npm). It handles automatic configuration generation, plugin orchestration, and complex package.json transformations.
+`@savvy-web/rslib-builder` provides a high-level `NodeLibraryBuilder` API that simplifies building TypeScript packages for multiple build modes (dev, npm). It handles automatic configuration generation, plugin orchestration, and complex package.json transformations.
 
 The system features a plugin-based architecture where plugins operate at different Rsbuild asset processing stages, collectively transforming raw TypeScript source into production-ready distributions with proper type declarations, export mappings, and dependency resolution.
 
@@ -40,7 +40,7 @@ The system features a plugin-based architecture where plugins operate at differe
 
 - **Abstraction over complexity**: Hide RSlib/Rsbuild configuration details behind a fluent API
 - **Plugin composition**: Modular plugins handle specific concerns (entries, types, transforms)
-- **Multi-target support**: Single configuration produces dev and npm builds
+- **Multi-mode support**: Single configuration produces dev and npm builds
 - **Convention over configuration**: Sensible defaults with escape hatches for customization
 - **Self-building**: The package builds itself using its own NodeLibraryBuilder
 
@@ -66,8 +66,8 @@ The system features a plugin-based architecture where plugins operate at differe
 **Responsibilities:**
 
 - Parse and validate build options
-- Detect build target from `envMode` parameter
-- Compose plugins for the selected target
+- Detect build mode from `envMode` parameter
+- Compose plugins for the selected build mode
 - Generate RSlib configuration
 - Inject package version at build time
 
@@ -81,7 +81,7 @@ interface NodeLibraryBuilderOptions {
   plugins: RsbuildPlugin[];
   define: SourceConfig["define"];
   tsconfigPath: string | undefined;
-  targets?: BuildTarget[];
+  targets?: BuildMode[];
   externals?: (string | RegExp)[];
   dtsBundledPackages?: string[];
   transformFiles?: (context: TransformFilesContext) => void;
@@ -93,7 +93,24 @@ interface NodeLibraryBuilderOptions {
 }
 
 type LibraryFormat = "esm" | "cjs";
-type BuildTarget = "dev" | "npm";
+type BuildMode = "dev" | "npm";
+type PublishProtocol = "npm" | "jsr";
+
+interface PublishTarget {
+  protocol: PublishProtocol;
+  registry?: string;
+  directory?: string;
+  access?: "public" | "restricted";
+  provenance?: boolean;
+  tag?: string;
+}
+
+// Resolve publish targets from package.json publishConfig.targets
+function resolvePublishTargets(
+  packageJson: PackageJson,
+  cwd: string,
+  outdir: string,
+): PublishTarget[];
 
 // Default options
 NodeLibraryBuilder.DEFAULT_OPTIONS = {
@@ -138,7 +155,7 @@ NodeLibraryBuilder.create(options): RslibConfigAsyncFn
 - **DtsPlugin** - Generate .d.ts with tsgo, optional API Extractor bundling
   - Stages: modifyRsbuildConfig, pre-process, summarize, onCloseBuild
   - When apiModel enabled: emits tsconfig.json, api model, tsdoc-metadata.json
-  - API model is enabled by default for npm target
+  - API model is enabled by default for npm mode
   - Multi-entry: runs API Extractor per entry, merges into single `.api.json` with multiple `EntryPoint` members via `mergeApiModels()`
   - Format-aware: emits `.d.cts` for CJS entries, `.d.ts` for ESM entries
 - **PackageJsonTransformPlugin** - Transform package.json for dist
@@ -217,7 +234,7 @@ NodeLibraryBuilder.create(options): RslibConfigAsyncFn
 
 #### Component 4: Multi-Format Build System
 
-**Location:** `src/rslib/builders/node-library-builder.ts` (createSingleTarget)
+**Location:** `src/rslib/builders/node-library-builder.ts` (createSingleMode)
 
 **Purpose:** Generate multiple LibConfig entries when the build requires different output formats for different entries.
 
@@ -301,7 +318,7 @@ Post-processing step that transforms standard `{ types, import }` conditions int
                               v
 +-------------------------------------------------------------+
 |              Configuration Generation Layer                 |
-|    - Target selection (dev/npm)                             |
+|    - Mode selection (dev/npm)                               |
 |    - Plugin composition                                     |
 |    - RSlib config assembly                                  |
 |    - Build cache configuration                              |
@@ -345,7 +362,7 @@ Post-processing step that transforms standard `{ types, import }` conditions int
 
 #### Decision 1: Plugin-Based Architecture
 
-**Context:** Need modular, testable build transformations that can be composed differently per target.
+**Context:** Need modular, testable build transformations that can be composed differently per build mode.
 
 **Options considered:**
 
@@ -356,7 +373,7 @@ Post-processing step that transforms standard `{ types, import }` conditions int
 
 2. **Monolithic build function:**
    - Pros: Simpler control flow, no shared state concerns
-   - Cons: Hard to test, difficult to customize per-target
+   - Cons: Hard to test, difficult to customize per-mode
    - Why rejected: Would become unmaintainable as features grow
 
 #### Decision 2: Shared State via api.expose()
@@ -543,13 +560,13 @@ Post-processing step that transforms standard `{ types, import }` conditions int
 **Responsibilities:**
 
 - Merge user options with defaults
-- Detect and validate build target
-- Generate single-target configuration
+- Detect and validate build mode
+- Generate single-mode configuration
 
 **Components:**
 
 - NodeLibraryBuilder.mergeOptions()
-- NodeLibraryBuilder.createSingleTarget()
+- NodeLibraryBuilder.createSingleMode()
 
 **Communication:** Produces LibConfig with composed plugins
 
@@ -557,7 +574,7 @@ Post-processing step that transforms standard `{ types, import }` conditions int
 
 **Responsibilities:**
 
-- Compose plugins for target
+- Compose plugins for build mode
 - Manage shared state
 - Execute stages in order
 
@@ -886,7 +903,7 @@ User Options (NodeLibraryBuilder.create)
     Merged defaults + user config
          |
          v
-    createSingleTarget(target, opts)
+    createSingleMode(mode, opts)
          |
          v
     Plugin instantiation
@@ -991,7 +1008,7 @@ Source .ts files
     tsgo --declaration --emitDeclarationOnly
          |
          v
-    .rslib/declarations/{target}/
+    .rslib/declarations/{mode}/
          |
          v
 +----------------------------------------+
@@ -1029,7 +1046,7 @@ Source .ts files
     Remove .d.ts.map from dist
          |
          v
-    dist/{target}/*.d.ts
+    dist/{mode}/*.d.ts
 ```
 
 ### Entry Detection Flow
@@ -1201,7 +1218,7 @@ ImportGraph.traceFromPackageExports()
 ```typescript
 {
   lib: [{
-    id: target,                    // "dev" or "npm"
+    id: mode,                      // "dev" or "npm"
     outBase: outputDir,
     format: "esm",
     bundle: true,
@@ -1210,8 +1227,8 @@ ImportGraph.traceFromPackageExports()
       target: "node",
       module: true,
       cleanDistPath: true,
-      sourceMap: target === "dev",
-      distPath: { root: `dist/${target}` },
+      sourceMap: mode === "dev",
+      distPath: { root: `dist/${mode}` },
       copy: { patterns: [...] },
       externals: [...],
     },
@@ -1227,7 +1244,7 @@ ImportGraph.traceFromPackageExports()
   }],
   source: { tsconfigPath },
   performance: {
-    buildCache: { cacheDirectory: `.rslib/cache/${target}` }
+    buildCache: { cacheDirectory: `.rslib/cache/${mode}` }
   }
 }
 ```
@@ -1238,16 +1255,16 @@ ImportGraph.traceFromPackageExports()
 {
   lib: [
     {
-      id: `${target}-esm`,          // Primary format
+      id: `${mode}-esm`,            // Primary format
       format: "esm",
-      output: { distPath: { root: `dist/${target}/esm` } },
+      output: { distPath: { root: `dist/${mode}/esm` } },
       plugins: [AutoEntry, PackageJson, Files, Dts, ...userPlugins],
     },
     {
-      id: `${target}-cjs`,          // Secondary format
+      id: `${mode}-cjs`,            // Secondary format
       format: "cjs",
       output: {
-        distPath: { root: `dist/${target}/cjs` },
+        distPath: { root: `dist/${mode}/cjs` },
         cleanDistPath: false,
       },
       plugins: [Files, Dts],        // Minimal plugin set
@@ -1384,7 +1401,7 @@ expect(config.environments.development.source).toHaveProperty('entry');
 **Approach:**
 
 - Test option merging
-- Verify plugin composition per target
+- Verify plugin composition per mode
 - Snapshot configuration output
 
 ### Utility Testing

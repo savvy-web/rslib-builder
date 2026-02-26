@@ -75,13 +75,13 @@ export interface PackageJsonTransformPluginOptions {
 	bundle?: boolean;
 
 	/**
-	 * Build target identifier for custom transformations.
+	 * Build mode identifier for custom transformations.
 	 *
 	 * @remarks
-	 * Passed to the transform function to allow target-specific modifications.
+	 * Passed to the transform function to allow mode-specific modifications.
 	 * Common values: "dev", "npm"
 	 */
-	target?: string;
+	mode?: string;
 
 	/**
 	 * Custom transform function to modify package.json after standard transformations.

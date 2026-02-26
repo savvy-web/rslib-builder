@@ -8,7 +8,7 @@ describe("NodeLibraryBuilder virtualEntries option E2E", () => {
 	describe("basic virtual entry", () => {
 		test("should bundle virtual entry with CJS format", async ({ result }) => {
 			result.value = await buildFixture("options-testing", {
-				target: "npm",
+				mode: "npm",
 				config: {
 					builderOptions: {
 						virtualEntries: {
@@ -42,7 +42,7 @@ export function readPackage(pkg: Record<string, unknown>) {
 
 		beforeAll(async () => {
 			result = await buildFixture("options-testing", {
-				target: "npm",
+				mode: "npm",
 				config: {
 					builderOptions: {
 						virtualEntries: {
@@ -106,7 +106,7 @@ export function readPackage(pkg: Record<string, unknown>) {
 	describe("format inheritance", () => {
 		test("should inherit format from top-level when not specified", async ({ result }) => {
 			result.value = await buildFixture("options-testing", {
-				target: "npm",
+				mode: "npm",
 				config: {
 					builderOptions: {
 						format: "cjs",
@@ -134,7 +134,7 @@ export function helper() {
 
 		test("should allow overriding inherited format per-entry", async ({ result }) => {
 			result.value = await buildFixture("options-testing", {
-				target: "npm",
+				mode: "npm",
 				config: {
 					builderOptions: {
 						format: "esm", // Top-level ESM
@@ -166,7 +166,7 @@ export function readPackage(pkg: Record<string, unknown>) {
 	describe("multiple virtual entries", () => {
 		test("should handle multiple virtual entries with different formats", async ({ result }) => {
 			result.value = await buildFixture("options-testing", {
-				target: "npm",
+				mode: "npm",
 				config: {
 					builderOptions: {
 						virtualEntries: {

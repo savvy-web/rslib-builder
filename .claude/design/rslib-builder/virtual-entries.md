@@ -3,8 +3,8 @@ status: complete
 module: rslib-builder
 category: architecture
 created: 2026-02-03
-updated: 2026-02-03
-last-synced: 2026-02-03
+updated: 2026-02-26
+last-synced: 2026-02-26
 completeness: 100
 related:
   - rslib-builder/architecture.md
@@ -39,7 +39,7 @@ The `virtualEntries` feature allows bundling additional entry points with custom
 
 - Uses same bundling machinery as regular entries
 - Exact key names become output filenames (e.g., `pnpmfile.cjs`)
-- Output location: `dist/{target}/` alongside other outputs
+- Output location: `dist/{mode}/` alongside other outputs
 - Configurable format per-entry (defaults to `"esm"`)
 - **No type generation** - `.d.ts` files are not created
 - **No package.json exports** - these are internal/special files
@@ -462,7 +462,7 @@ processAssets: optimize-inline
 ### NodeLibraryBuilder Changes
 
 ```typescript
-// In NodeLibraryBuilder.createSingleTarget()
+// In NodeLibraryBuilder.createSingleMode()
 
 // Get top-level format (affects main entries and package.json type)
 const libraryFormat = options.format ?? "esm";
@@ -497,7 +497,7 @@ const libConfigs: LibConfig[] = [];
 // Main lib config (only if there are regular entries)
 if (hasRegularEntries) {
   libConfigs.push({
-    id: target,
+    id: mode,
     format: libraryFormat,
     // ... rest of main config with AutoEntryPlugin, DtsPlugin, etc.
   });
@@ -506,12 +506,12 @@ if (hasRegularEntries) {
 // Additional lib configs for virtual entries (grouped by format)
 for (const [format, entries] of virtualByFormat) {
   libConfigs.push({
-    id: `${target}-virtual-${format}`,
+    id: `${mode}-virtual-${format}`,
     format,
     bundle: true,
     output: {
       target: "node",
-      distPath: { root: `dist/${target}` },
+      distPath: { root: `dist/${mode}` },
       // No source maps for virtual entries (typically)
       sourceMap: false,
     },
@@ -521,7 +521,7 @@ for (const [format, entries] of virtualByFormat) {
     plugins: [
       // Minimal plugins - just what's needed for bundling
       VirtualEntryPlugin({ virtualEntryNames }),
-      FilesArrayPlugin({ target }),
+      FilesArrayPlugin({ mode }),
     ],
   });
 }

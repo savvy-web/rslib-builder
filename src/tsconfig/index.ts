@@ -227,10 +227,10 @@ export class LibraryTSConfigFile extends TSConfigFile {
 	 *
 	 * The temporary file will be automatically cleaned up when the process exits.
 	 *
-	 * @param target - Build target (dev, npm)
+	 * @param mode - Build mode (dev, npm)
 	 * @returns Absolute path to the temporary file
 	 */
-	writeBundleTempConfig(_target: "dev" | "npm"): string {
+	writeBundleTempConfig(_mode: "dev" | "npm"): string {
 		const cwd = process.cwd();
 		const baseConfig = this.config;
 

@@ -476,7 +476,7 @@ describe("FilesArrayPlugin", () => {
 	});
 
 	it("should add formatDirs to files array in additional stage", async () => {
-		const plugin = FilesArrayPlugin({ target: "npm", formatDirs: ["esm", "cjs"] });
+		const plugin = FilesArrayPlugin({ mode: "npm", formatDirs: ["esm", "cjs"] });
 
 		const mockApi = {
 			processAssets: vi.fn(),
@@ -512,7 +512,7 @@ describe("FilesArrayPlugin", () => {
 	});
 
 	it("should filter individual files under formatDirs in optimize-inline stage", async () => {
-		const plugin = FilesArrayPlugin({ target: "npm", formatDirs: ["esm", "cjs"] });
+		const plugin = FilesArrayPlugin({ mode: "npm", formatDirs: ["esm", "cjs"] });
 
 		const mockFilesArray = new Set([
 			"package.json",

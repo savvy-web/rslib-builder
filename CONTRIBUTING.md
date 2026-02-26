@@ -165,7 +165,7 @@ See `.claude/design/rslib-builder/architecture.md` for detailed plugin architect
 
 **Problem**: Plugin not running
 
-**Solution**: Verify plugin added to correct target
+**Solution**: Verify plugin added to correct build mode
 
 **Problem**: Assets not processed
 

@@ -1,5 +1,5 @@
 import { existsSync, readFileSync } from "node:fs";
-import { join, relative } from "node:path";
+import { join, relative, resolve } from "node:path";
 import type { RsbuildPlugin, SourceConfig } from "@rsbuild/core";
 import type { ConfigParams, LibConfig, RslibConfig } from "@rslib/core";
 import { defineConfig } from "@rslib/core";
@@ -23,15 +23,15 @@ import { VirtualEntryPlugin } from "../plugins/virtual-entry-plugin.js";
 export type RslibConfigAsyncFn = (env: ConfigParams) => Promise<RslibConfig>;
 
 /**
- * Build target environment for library output.
+ * Build mode environment for library output.
  *
  * @remarks
- * Each target produces different output optimizations:
+ * Each mode produces different output optimizations:
  * - `"dev"`: Development build with source maps for debugging
  * - `"npm"`: Production build optimized for npm publishing
  *
  * @example
- * Specifying targets via CLI:
+ * Specifying modes via CLI:
  * ```bash
  * rslib build --env-mode dev
  * rslib build --env-mode npm
@@ -39,7 +39,42 @@ export type RslibConfigAsyncFn = (env: ConfigParams) => Promise<RslibConfig>;
  *
  * @public
  */
-export type BuildTarget = "dev" | "npm";
+export type BuildMode = "dev" | "npm";
+
+/**
+ * Publishing protocol for a publish target.
+ *
+ * @remarks
+ * - `"npm"` - npm-compatible registries (npmjs, GitHub Packages, Verdaccio, etc.)
+ * - `"jsr"` - JavaScript Registry (jsr.io)
+ *
+ * @public
+ */
+export type PublishProtocol = "npm" | "jsr";
+
+/**
+ * A resolved publish target from `publishConfig.targets`.
+ *
+ * @remarks
+ * Aligns with `ResolvedTarget` from workflow-release-action,
+ * minus authentication-specific fields.
+ *
+ * @public
+ */
+export interface PublishTarget {
+	/** The publishing protocol. */
+	protocol: PublishProtocol;
+	/** The registry URL, or `null` for JSR targets. */
+	registry: string | null;
+	/** The absolute path to the output directory for this target. */
+	directory: string;
+	/** Package access level for scoped packages. */
+	access: "public" | "restricted";
+	/** Whether provenance attestations are configured. */
+	provenance: boolean;
+	/** The publish tag (e.g., "latest", "next", "beta"). */
+	tag: string;
+}
 
 // Re-export LibraryFormat from types for public API
 export type { LibraryFormat } from "../../types/package-json.js";
@@ -84,7 +119,8 @@ export interface VirtualEntryConfig {
  * Mutations to the `pkg` object are also supported.
  *
  * @param context - Transform context containing:
- *   - `target`: The current build target ("dev" or "npm")
+ *   - `mode`: The current build mode ("dev" or "npm")
+ *   - `target`: The current publish target, or `undefined` when no targets are configured
  *   - `pkg`: The package.json object to transform
  * @returns The modified package.json object
  *
@@ -92,8 +128,8 @@ export interface VirtualEntryConfig {
  * ```typescript
  * import type { TransformPackageJsonFn } from '@savvy-web/rslib-builder';
  *
- * const transform: TransformPackageJsonFn = ({ target, pkg }) => {
- *   if (target === 'npm') {
+ * const transform: TransformPackageJsonFn = ({ mode, target, pkg }) => {
+ *   if (mode === 'npm') {
  *     delete pkg.devDependencies;
  *     delete pkg.scripts;
  *   }
@@ -102,7 +138,11 @@ export interface VirtualEntryConfig {
  * ```
  * @public
  */
-export type TransformPackageJsonFn = (context: { target: BuildTarget; pkg: PackageJson }) => PackageJson;
+export type TransformPackageJsonFn = (context: {
+	mode: BuildMode;
+	target: PublishTarget | undefined;
+	pkg: PackageJson;
+}) => PackageJson;
 
 /**
  * Configuration for copying files during the build process.
@@ -335,8 +375,8 @@ export interface NodeLibraryBuilderOptions {
 	 * @defaultValue `undefined` (auto-detected)
 	 */
 	tsconfigPath: string | undefined;
-	/** Build targets to include (default: ["dev", "npm"]) */
-	targets?: BuildTarget[];
+	/** Build modes to include (default: ["dev", "npm"]) */
+	targets?: BuildMode[];
 	/**
 	 * External dependencies that should not be bundled.
 	 * These modules will be imported at runtime instead of being included in the bundle.
@@ -382,7 +422,7 @@ export interface NodeLibraryBuilderOptions {
 	 * @param context - Transform context with properties:
 	 *   - `compilation`: Rspack compilation object with assets
 	 *   - `filesArray`: Set of files that will be included in package.json files field
-	 *   - `target`: Current build target (dev/npm/jsr)
+	 *   - `mode`: Current build mode (dev/npm)
 	 *
 	 * @example
 	 * ```typescript
@@ -406,7 +446,8 @@ export interface NodeLibraryBuilderOptions {
 			assets: Record<string, unknown>;
 		};
 		filesArray: Set<string>;
-		target: BuildTarget;
+		/** Current build mode */
+		mode: BuildMode;
 	}) => void | Promise<void>;
 	/**
 	 * Optional transform function to modify package.json before it's saved.
@@ -420,8 +461,8 @@ export interface NodeLibraryBuilderOptions {
 	 * import { NodeLibraryBuilder } from '@savvy-web/rslib-builder';
 	 *
 	 * export default NodeLibraryBuilder.create({
-	 *   transform({ target, pkg }) {
-	 *     if (target === 'npm') {
+	 *   transform({ mode, pkg }) {
+	 *     if (mode === 'npm') {
 	 *       delete pkg.devDependencies;
 	 *       delete pkg.scripts;
 	 *     }
@@ -434,7 +475,7 @@ export interface NodeLibraryBuilderOptions {
 	/**
 	 * Options for API model generation.
 	 * Generates an `<unscopedPackageName>.api.json` file in the dist directory.
-	 * Only applies when target is "npm".
+	 * Only applies when mode is "npm".
 	 *
 	 * @remarks
 	 * API model generation is **enabled by default**. The generated file contains
@@ -545,8 +586,8 @@ if (module.exports && module.exports.__esModule && 'default' in module.exports) 
  * export default NodeLibraryBuilder.create({
  *   externals: ['@rslib/core', '@rsbuild/core'],
  *   dtsBundledPackages: ['picocolors'],
- *   transform({ target, pkg }) {
- *     if (target === 'npm') {
+ *   transform({ mode, pkg }) {
+ *     if (mode === 'npm') {
  *       delete pkg.devDependencies;
  *     }
  *     return pkg;
@@ -569,8 +610,8 @@ if (module.exports && module.exports.__esModule && 'default' in module.exports) 
 /* v8 ignore next -- @preserve */
 // biome-ignore lint/complexity/noStaticOnlyClass: <This is a nicety for the API>
 export class NodeLibraryBuilder {
-	/** Valid build targets for validation. */
-	private static readonly VALID_TARGETS: readonly BuildTarget[] = ["dev", "npm"];
+	/** Valid build modes for validation. */
+	private static readonly VALID_MODES: readonly BuildMode[] = ["dev", "npm"];
 
 	/**
 	 * Default configuration options for NodeLibraryBuilder.
@@ -637,7 +678,7 @@ export class NodeLibraryBuilder {
 	}
 
 	/**
-	 * Creates an async RSLib configuration function that determines build target from envMode.
+	 * Creates an async RSLib configuration function that determines build mode from envMode.
 	 *
 	 * @remarks
 	 * This is the primary entry point for using NodeLibraryBuilder. The returned function
@@ -650,39 +691,39 @@ export class NodeLibraryBuilder {
 		const mergedOptions = NodeLibraryBuilder.mergeOptions(options);
 
 		return async ({ envMode }: { envMode?: string }): Promise<RslibConfig> => {
-			// Use envMode to determine build target, default to "dev"
-			const target = (envMode as BuildTarget) || "dev";
+			// Use envMode to determine build mode, default to "dev"
+			const mode = (envMode as BuildMode) || "dev";
 
-			// Validate target
-			if (!NodeLibraryBuilder.VALID_TARGETS.includes(target)) {
+			// Validate mode
+			if (!NodeLibraryBuilder.VALID_MODES.includes(mode)) {
 				throw new Error(
-					`Invalid env-mode: "${target}". Must be one of: ${NodeLibraryBuilder.VALID_TARGETS.join(", ")}\n` +
+					`Invalid env-mode: "${mode}". Must be one of: ${NodeLibraryBuilder.VALID_MODES.join(", ")}\n` +
 						`Example: rslib build --env-mode npm`,
 				);
 			}
 
-			return NodeLibraryBuilder.createSingleTarget(target, mergedOptions);
+			return NodeLibraryBuilder.createSingleMode(mode, mergedOptions);
 		};
 	}
 
 	/**
-	 * Creates a single-target build configuration.
+	 * Creates a single-mode build configuration.
 	 *
 	 * @remarks
-	 * This method is called internally by {@link NodeLibraryBuilder.create} for each build target.
-	 * It configures all plugins and RSLib options based on the target and user options.
+	 * This method is called internally by {@link NodeLibraryBuilder.create} for each build mode.
+	 * It configures all plugins and RSLib options based on the mode and user options.
 	 *
-	 * @param target - The build target ("dev" or "npm")
+	 * @param mode - The build mode ("dev" or "npm")
 	 * @param opts - Configuration options (will be merged with defaults)
 	 * @returns Promise resolving to the RSLib configuration
 	 */
-	static async createSingleTarget(target: BuildTarget, opts: NodeLibraryBuilderOptions): Promise<RslibConfig> {
+	static async createSingleMode(mode: BuildMode, opts: NodeLibraryBuilderOptions): Promise<RslibConfig> {
 		const options = NodeLibraryBuilder.mergeOptions(opts);
 		const bundle = options.bundle ?? true;
 
 		const VERSION = await packageJsonVersion();
 
-		// Create target-specific plugins
+		// Create mode-specific plugins
 		const plugins: RsbuildPlugin[] = [];
 
 		// Add TSDoc lint plugin if enabled (runs before build via onBeforeBuild)
@@ -723,9 +764,11 @@ export class NodeLibraryBuilder {
 		}
 
 		// Process package.json with pnpm + RSLib transformations
-		// Wrap user's transform to provide target context
+		// Wrap user's transform to provide mode context
 		const userTransform = options.transform;
-		const transformFn = userTransform ? (pkg: PackageJson): PackageJson => userTransform({ target, pkg }) : undefined;
+		const transformFn = userTransform
+			? (pkg: PackageJson): PackageJson => userTransform({ mode, target: undefined, pkg })
+			: undefined;
 
 		// Normalize format: accept single or array, determine primary format
 		const formatOption = options.format ?? "esm";
@@ -743,13 +786,13 @@ export class NodeLibraryBuilder {
 		const collapseIndex = bundle || !(options.exportsAsIndexes ?? false);
 
 		// Build output configuration
-		const baseOutputDir = `dist/${target}`;
+		const baseOutputDir = `dist/${mode}`;
 
-		// Only enable API model generation for npm target (not dev)
-		const apiModelForTarget = target === "npm" ? options.apiModel : undefined;
+		// Only enable API model generation for npm mode (not dev)
+		const apiModelForMode = mode === "npm" ? options.apiModel : undefined;
 
 		// Shared config fragments for lib configs
-		const sourceMap = target === "dev";
+		const sourceMap = mode === "dev";
 		const externalsConfig = options.externals && options.externals.length > 0 ? { externals: options.externals } : {};
 		const bundlelessOutput = !bundle ? { legalComments: "inline" as const } : {};
 		const sourceDefine = {
@@ -778,9 +821,9 @@ export class NodeLibraryBuilder {
 
 		plugins.push(
 			PackageJsonTransformPlugin({
-				forcePrivate: target === "dev",
+				forcePrivate: mode === "dev",
 				bundle: collapseIndex,
-				target,
+				mode,
 				format: primaryFormat,
 				...(transformFn && { transform: transformFn }),
 				...(hasFormatOverrides && { entryFormats }),
@@ -791,7 +834,7 @@ export class NodeLibraryBuilder {
 		// Add files array plugin to manage package.json files array
 		plugins.push(
 			FilesArrayPlugin({
-				target,
+				mode,
 				...(options.transformFiles && { transformFiles: options.transformFiles }),
 				...(isDualFormat && { formatDirs: formats }),
 			}),
@@ -808,15 +851,15 @@ export class NodeLibraryBuilder {
 				abortOnError: true,
 				bundle,
 				...(options.dtsBundledPackages && { bundledPackages: options.dtsBundledPackages }),
-				buildTarget: target,
+				buildMode: mode,
 				format: primaryFormat,
-				...(apiModelForTarget !== undefined && { apiModel: apiModelForTarget }),
+				...(apiModelForMode !== undefined && { apiModel: apiModelForMode }),
 				...(isDualFormat && { dtsPathPrefix: primaryFormat }),
 			}),
 		);
 
 		const lib: LibConfig = {
-			id: isDualFormat ? `${target}-${primaryFormat}` : target,
+			id: isDualFormat ? `${mode}-${primaryFormat}` : mode,
 			outBase: !bundle ? "src" : baseOutputDir,
 			output: {
 				target: "node",
@@ -902,7 +945,7 @@ export class NodeLibraryBuilder {
 							name: "strip-bin-entries",
 							setup(api) {
 								api.modifyRsbuildConfig((config) => {
-									const envKey = `${target}-${secondaryFormat}`;
+									const envKey = `${mode}-${secondaryFormat}`;
 									const envConfig = config.environments?.[envKey];
 									if (envConfig?.source?.entry) {
 										const filtered: typeof envConfig.source.entry = {};
@@ -922,7 +965,7 @@ export class NodeLibraryBuilder {
 							abortOnError: true,
 							bundle,
 							...(options.dtsBundledPackages && { bundledPackages: options.dtsBundledPackages }),
-							buildTarget: target,
+							buildMode: mode,
 							format: secondaryFormat,
 							dtsPathPrefix: secondaryFormat,
 						}),
@@ -938,7 +981,7 @@ export class NodeLibraryBuilder {
 						: undefined;
 
 					const secondaryLib: LibConfig = {
-						id: `${target}-${secondaryFormat}`,
+						id: `${mode}-${secondaryFormat}`,
 						outBase: !bundle ? "src" : baseOutputDir,
 						output: {
 							target: "node",
@@ -998,19 +1041,19 @@ export class NodeLibraryBuilder {
 				// Create LibConfig for each override format group
 				for (const [overrideFormat, overrideEntries] of overridesByFormat) {
 					const overridePlugins: RsbuildPlugin[] = [
-						FilesArrayPlugin({ target }),
+						FilesArrayPlugin({ mode }),
 						DtsPlugin({
 							...(options.tsconfigPath && { tsconfigPath: options.tsconfigPath }),
 							abortOnError: true,
 							bundle,
 							...(options.dtsBundledPackages && { bundledPackages: options.dtsBundledPackages }),
-							buildTarget: target,
+							buildMode: mode,
 							format: overrideFormat,
 						}),
 					];
 
 					const overrideLib: LibConfig = {
-						id: `${target}-${overrideFormat}`,
+						id: `${mode}-${overrideFormat}`,
 						outBase: !bundle ? "src" : baseOutputDir,
 						output: {
 							target: "node",
@@ -1067,7 +1110,7 @@ export class NodeLibraryBuilder {
 				const entryMap = Object.fromEntries(entries);
 
 				const virtualLib: LibConfig = {
-					id: `${target}-virtual-${format}`,
+					id: `${mode}-virtual-${format}`,
 					format,
 					bundle: true,
 					output: {
@@ -1085,7 +1128,7 @@ export class NodeLibraryBuilder {
 					plugins: [
 						VirtualEntryPlugin({ virtualEntryNames }),
 						// Minimal plugins for virtual entries - no DtsPlugin, no AutoEntryPlugin
-						FilesArrayPlugin({ target }),
+						FilesArrayPlugin({ mode }),
 					],
 				};
 
@@ -1121,7 +1164,7 @@ export class NodeLibraryBuilder {
 			...(options.tsconfigPath && { source: { tsconfigPath: options.tsconfigPath } }),
 			performance: {
 				buildCache: {
-					cacheDirectory: `.rslib/cache/${target}`,
+					cacheDirectory: `.rslib/cache/${mode}`,
 				},
 			},
 		});
@@ -1141,4 +1184,82 @@ export class NodeLibraryBuilder {
 			return false;
 		}
 	}
+}
+
+/**
+ * Known shorthand expansions for publish target strings.
+ * Aligns with KNOWN_SHORTHANDS in workflow-release-action's resolve-targets.ts.
+ * @internal
+ */
+const KNOWN_TARGET_SHORTHANDS: Record<
+	string,
+	{ protocol: PublishProtocol; registry: string | null; provenance: boolean }
+> = {
+	npm: { protocol: "npm", registry: "https://registry.npmjs.org/", provenance: true },
+	github: { protocol: "npm", registry: "https://npm.pkg.github.com/", provenance: true },
+	jsr: { protocol: "jsr", registry: null, provenance: false },
+};
+
+/**
+ * Resolve publish targets from package.json's `publishConfig.targets`.
+ *
+ * @remarks
+ * Expands shorthand strings (`"npm"`, `"github"`, `"jsr"`, or a URL) into
+ * fully resolved {@link PublishTarget} objects. Mirrors the resolution logic
+ * in workflow-release-action, but only produces the subset of fields
+ * relevant to the build process.
+ *
+ * @param packageJson - The parsed package.json
+ * @param cwd - The package root directory (for resolving relative directories)
+ * @param outdir - The default output directory (used when no target directory is specified)
+ * @returns Array of resolved publish targets (empty if none configured)
+ *
+ * @public
+ */
+export function resolvePublishTargets(packageJson: PackageJson, cwd: string, outdir: string): PublishTarget[] {
+	const publishConfig = packageJson.publishConfig;
+	const raw = publishConfig?.targets;
+	if (!Array.isArray(raw) || raw.length === 0) return [];
+
+	const defaultAccess = (publishConfig?.access as "public" | "restricted" | undefined) ?? "restricted";
+	const defaultDirectory = publishConfig?.directory ? resolve(cwd, String(publishConfig.directory)) : outdir;
+
+	return raw.map((entry): PublishTarget => {
+		// Expand shorthand strings
+		if (typeof entry === "string") {
+			const shorthand = KNOWN_TARGET_SHORTHANDS[entry];
+			if (shorthand) {
+				return {
+					protocol: shorthand.protocol,
+					registry: shorthand.registry,
+					directory: defaultDirectory,
+					access: defaultAccess,
+					provenance: shorthand.provenance,
+					tag: "latest",
+				};
+			}
+			// URL shorthand — treat as custom npm-compatible registry
+			if (entry.startsWith("https://") || entry.startsWith("http://")) {
+				return {
+					protocol: "npm",
+					registry: entry,
+					directory: defaultDirectory,
+					access: defaultAccess,
+					provenance: false,
+					tag: "latest",
+				};
+			}
+			throw new Error(`Unknown publish target shorthand: ${entry}`);
+		}
+
+		// Full object target
+		const protocol = entry.protocol === "jsr" ? "jsr" : "npm";
+		const registry = protocol === "jsr" ? null : String(entry.registry ?? "https://registry.npmjs.org/");
+		const directory = entry.directory ? resolve(cwd, String(entry.directory)) : defaultDirectory;
+		const access = entry.access === "public" || entry.access === "restricted" ? entry.access : defaultAccess;
+		const provenance = typeof entry.provenance === "boolean" ? entry.provenance : false;
+		const tag = typeof entry.tag === "string" ? entry.tag : "latest";
+
+		return { protocol, registry, directory, access, provenance, tag };
+	});
 }

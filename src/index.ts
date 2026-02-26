@@ -43,15 +43,17 @@
 
 // Core builder
 export type {
-	BuildTarget,
+	BuildMode,
 	CopyPatternConfig,
 	LibraryFormat,
 	NodeLibraryBuilderOptions,
+	PublishProtocol,
+	PublishTarget,
 	RslibConfigAsyncFn,
 	TransformPackageJsonFn,
 	VirtualEntryConfig,
 } from "./rslib/builders/node-library-builder.js";
-export { NodeLibraryBuilder } from "./rslib/builders/node-library-builder.js";
+export { NodeLibraryBuilder, resolvePublishTargets } from "./rslib/builders/node-library-builder.js";
 
 // Plugins
 export type { AutoEntryPluginOptions } from "./rslib/plugins/auto-entry-plugin.js";

@@ -3,8 +3,8 @@ status: current
 module: rslib-builder
 category: testing
 created: 2026-01-18
-updated: 2026-02-13
-last-synced: 2026-02-13
+updated: 2026-02-26
+last-synced: 2026-02-26
 completeness: 95
 related:
   - rslib-builder/architecture.md
@@ -654,7 +654,7 @@ Located in `test/e2e/utils/`:
 
 ```typescript
 export interface BuildFixtureOptions {
-  target?: "dev" | "npm";      // Default: "npm"
+  mode?: "dev" | "npm";        // Default: "npm"
   config?: ConfigOptions;       // NodeLibraryBuilder options
   env?: Record<string, string>; // Additional env vars
   timeout?: number;             // Default: 60000
@@ -673,7 +673,7 @@ export async function buildFixture(
 - Copies fixture to isolated temp directory with unique UUID
 - Generates `rslib.config.ts` from provided `config.builderOptions`
 - Symlinks `node_modules` from source fixture for fast resolution
-- Runs `pnpm exec rslib build --env-mode <target>` in isolated directory
+- Runs `pnpm exec rslib build --env-mode <mode>` in isolated directory
 - Collects all output files into a `Map<string, string>`
 - Returns cleanup function that removes the isolated copy
 

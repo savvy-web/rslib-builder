@@ -330,6 +330,12 @@ export namespace PackageJson {
 		 * @defaultValue `'latest'`
 		 */
 		tag?: string;
+		/**
+		 * Publish targets for multi-registry publishing.
+		 * Supports shorthand strings (`"npm"`, `"github"`, `"jsr"`, or a URL)
+		 * and full target objects.
+		 */
+		targets?: Array<Record<string, JsonValue> | string>;
 	}
 
 	/**
