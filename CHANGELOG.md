@@ -1,5 +1,30 @@
 # @savvy-web/rslib-builder
 
+## 0.15.0
+
+### Features
+
+* [`716087f`](https://github.com/savvy-web/rslib-builder/commit/716087f7f617806f666804fdb0fa05c1a895ddb2) Add `PublishTargetPlugin` for per-target output directories in multi-registry builds
+* Add `PublishProtocol` and `PublishTarget` types for multi-registry publishing
+* Add `resolvePublishTargets()` function to resolve `publishConfig.targets`
+* Wire publish target resolution into build pipeline: primary target passed to `transform` and `transformFiles`
+* `PackageJsonTransformPlugin` now exposes `base-package-json` state for per-target copies
+* `FilesArrayPlugin` now accepts and passes `target` to `transformFiles` callback
+* Add `targets` field to `PublishConfig` interface
+
+### Refactoring
+
+* [`716087f`](https://github.com/savvy-web/rslib-builder/commit/716087f7f617806f666804fdb0fa05c1a895ddb2) Rename `BuildTarget` type to `BuildMode` for API alignment with bun-builder
+* Rename `createSingleTarget()` to `createSingleMode()`
+* Update `TransformPackageJsonFn` context from `{ target, pkg }` to `{ mode, target, pkg }`
+* Rename plugin options: `buildTarget` → `buildMode`, `target` → `mode`
+
+### Dependencies
+
+* [`8eb663f`](https://github.com/savvy-web/rslib-builder/commit/8eb663ff76f1bcb8e6108a0b73bcbeb2cc9c0c59) Upgrade `eslint` from `^9.39.2` to `^10.0.0`
+* Upgrade `eslint-plugin-tsdoc` from `^0.5.0` to `^0.5.2`
+* Upgrade `@typescript-eslint/parser` from `^8.53.1` to `^8.56.0`
+
 ## 0.14.5
 
 ### Bug Fixes
