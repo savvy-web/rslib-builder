@@ -98,11 +98,11 @@ type PublishProtocol = "npm" | "jsr";
 
 interface PublishTarget {
   protocol: PublishProtocol;
-  registry?: string;
-  directory?: string;
-  access?: "public" | "restricted";
-  provenance?: boolean;
-  tag?: string;
+  registry: string | null;    // null for JSR targets
+  directory: string;           // Absolute path to output directory
+  access: "public" | "restricted";
+  provenance: boolean;
+  tag: string;
 }
 
 // Resolve publish targets from package.json publishConfig.targets
@@ -163,8 +163,15 @@ NodeLibraryBuilder.create(options): RslibConfigAsyncFn
   - Format-aware: generates `import`/`require` conditions based on format
   - Supports `entryFormats` for per-entry format overrides
   - Supports `dualFormat` for combined ESM + CJS export conditions
+  - Exposes `base-package-json` via `api.expose()` after standard transforms but before user transform, enabling PublishTargetPlugin to create per-target copies from the same base state
 - **FilesArrayPlugin** - Build package.json files array, exclude source maps
   - Stages: additional, optimize-inline
+  - Accepts optional `target?: PublishTarget` passed to `transformFiles` callback context
+- **PublishTargetPlugin** - Produce per-target output directories for multi-registry publishing
+  - Stage: onCloseBuild (runs after all other plugins complete)
+  - For each additional publish target (beyond primary): creates directory, copies primary output, deep-copies base-package-json, applies per-target user transform, writes package.json
+  - Consumes `base-package-json` exposed by PackageJsonTransformPlugin via `api.useExposed()`
+  - Options: `additionalTargets`, `primaryOutdir`, `mode`, `transform?`, `name?`
 
 #### Component 3: Utility Modules
 
@@ -273,6 +280,7 @@ lib: [
 | FilesArrayPlugin | Yes | Yes |
 | cleanDistPath | true | false |
 | User plugins | Yes | No |
+| PublishTargetPlugin | Yes (if additional targets) | No |
 | cjsInterop footer | If format is CJS | If format is CJS |
 
 **Format Condition Utilities:**
@@ -305,6 +313,67 @@ Post-processing step that transforms standard `{ types, import }` conditions int
 
 **Use case:** Tools like `markdownlint-cli2` that expect `require()` to return the default export directly.
 
+#### Component 6: Multi-Registry Publishing
+
+**Location:** `src/rslib/plugins/publish-target-plugin.ts`, `src/rslib/builders/node-library-builder.ts`
+
+**Purpose:** Enable publishing a single package to multiple registries (e.g., npm + GitHub Packages, npm + JSR) with per-target package.json transformations.
+
+**How it works:**
+
+1. `createSingleMode()` reads `package.json` once at the top and reuses it throughout the method (consolidated from 3 separate reads)
+2. `resolvePublishTargets()` is called in npm mode only; dev mode always gets empty targets
+3. The primary target (index 0) is passed to `TransformPackageJsonFn` and `FilesArrayPlugin.transformFiles` callback
+4. Additional targets (index > 0) are handled by `PublishTargetPlugin` in `onCloseBuild`
+
+**Target resolution flow:**
+
+```text
+package.json publishConfig.targets
+         |
+         v
+resolvePublishTargets(packageJson, cwd, outdir)
+         |
+         v
+Expand shorthands ("npm", "github", "jsr", URL)
+         |
+         v
+PublishTarget[] with resolved fields:
+  - protocol, registry, directory, access, provenance, tag
+         |
+         v
+targets[0] = primaryTarget (passed to transform/transformFiles)
+targets[1..n] = additionalTargets (handled by PublishTargetPlugin)
+```
+
+**Known shorthands:**
+
+| Shorthand | Protocol | Registry | Provenance |
+| --- | --- | --- | --- |
+| `"npm"` | npm | `https://registry.npmjs.org/` | true |
+| `"github"` | npm | `https://npm.pkg.github.com/` | true |
+| `"jsr"` | jsr | null | false |
+| URL string | npm | the URL itself | false |
+
+**Cross-plugin data flow for multi-registry publishing:**
+
+```text
+PackageJsonTransformPlugin (optimize stage)
+  1. Run buildPackageJson() - standard transforms only
+  2. api.expose("base-package-json", deepCopy) ----+
+  3. Apply user transform                          |
+                                                   |
+PublishTargetPlugin (onCloseBuild)  <--------------+
+  For each additional target:                      |
+  1. Copy primary output directory                 |
+  2. basePackageJson = api.useExposed() -----------+
+  3. targetPkg = deepCopy(basePackageJson)
+  4. Apply user transform({ mode, target, pkg: targetPkg })
+  5. Apply optional name override
+  6. Copy files array from primary package.json
+  7. Write targetPkg to target directory
+```
+
 ### Architecture Diagram
 
 ```text
@@ -327,7 +396,7 @@ Post-processing step that transforms standard `{ types, import }` conditions int
                               v
 +-------------------------------------------------------------+
 |              Plugin Orchestration Layer                     |
-|    - 4 specialized plugins                                  |
+|    - 5 specialized plugins + PublishTargetPlugin            |
 |    - Sequential execution across build stages               |
 |    - Shared state via api.expose/api.useExposed             |
 +-------------------------------------------------------------+
@@ -338,6 +407,7 @@ Post-processing step that transforms standard `{ types, import }` conditions int
 |    - modifyRsbuildConfig (configuration)                    |
 |    - processAssets: pre-process, optimize, additional,      |
 |                     optimize-inline, summarize              |
+|    - onCloseBuild (post-build target publishing)            |
 +-------------------------------------------------------------+
                               |
                               v
@@ -580,8 +650,8 @@ Post-processing step that transforms standard `{ types, import }` conditions int
 
 **Components:**
 
-- All 4 plugins
-- Shared state keys (files-array, entrypoints, etc.)
+- All 5 core plugins + PublishTargetPlugin (conditional)
+- Shared state keys (files-array, entrypoints, base-package-json, etc.)
 
 **Communication:** Plugins use api.expose/useExposed for data sharing
 
@@ -620,6 +690,7 @@ Post-processing step that transforms standard `{ types, import }` conditions int
 
 3. processAssets: optimize (Sequential)
    +-- PackageJsonTransformPlugin - Transform exports, resolve pnpm refs
+                                  - Expose base-package-json (before user transform)
 
 4. processAssets: additional (Sequential)
    +-- FilesArrayPlugin       - Accumulate distributable files
@@ -634,6 +705,13 @@ Post-processing step that transforms standard `{ types, import }` conditions int
 
 7. onCloseBuild (Post-compilation)
    +-- TsDocLintPlugin      - Cleanup temporary tsdoc.json if not persisted
+   +-- PublishTargetPlugin   - For each additional publish target:
+                              1. Create target directory
+                              2. Copy primary build output
+                              3. Deep-copy base-package-json
+                              4. Apply per-target user transform
+                              5. Copy files array from primary package.json
+                              6. Write target-specific package.json
 ```
 
 ### Shared State Keys
@@ -672,6 +750,11 @@ Post-processing step that transforms standard `{ types, import }` conditions int
 
 - Producer: (reserved for API reports)
 - Consumers: PackageJsonTransformPlugin
+
+**`base-package-json`** - `PackageJson`
+
+- Producer: PackageJsonTransformPlugin (deep copy after standard transforms, before user transform)
+- Consumers: PublishTargetPlugin (creates per-target copies from this base state)
 
 ### ImportGraph Architecture
 
@@ -906,7 +989,17 @@ User Options (NodeLibraryBuilder.create)
     createSingleMode(mode, opts)
          |
          v
+    Read package.json once (consolidated)
+         |
+         v
+    resolvePublishTargets() (npm mode only)
+         |   - dev mode always gets empty targets
+         |   - Primary target = first resolved target
+         |
+         v
     Plugin instantiation
+         |   - Plugins receive primaryTarget/mode context
+         |   - PublishTargetPlugin added for additional targets
          |
          v
     defineConfig({ lib: [libConfig] })
@@ -987,6 +1080,16 @@ Source package.json
 +----------------------------------------+
          |
          v
++----------------------------------------+
+| Expose base-package-json               |
+|   - Deep copy of package.json after    |
+|     all standard transforms            |
+|   - Before user transform is applied   |
+|   - api.expose("base-package-json")    |
+|   - Consumed by PublishTargetPlugin    |
++----------------------------------------+
+         |
+         v
     Custom transform function (if provided)
          |
          v
@@ -994,6 +1097,19 @@ Source package.json
          |
          v
     Output transformed package.json to dist
+         |
+         v (onCloseBuild, if additional publish targets)
++----------------------------------------+
+| PublishTargetPlugin                    |
+|   For each additional target:          |
+|   1. Create target directory           |
+|   2. Copy primary build output         |
+|   3. Deep-copy base-package-json       |
+|   4. Apply user transform with target  |
+|   5. Apply optional name override      |
+|   6. Copy files array from primary     |
+|   7. Write package.json to target dir  |
++----------------------------------------+
 ```
 
 ### Declaration Generation Flow
@@ -1285,6 +1401,7 @@ ImportGraph.traceFromPackageExports()
 - `api.context.rootPath` - Get project root
 - `api.getRsbuildConfig()` - Read current configuration
 - `api.onBeforeBuild()` - Hook before build starts
+- `api.onCloseBuild()` - Hook after build completes (used by PublishTargetPlugin)
 - `api.logger` - Rsbuild logger instance
 
 ### External Dependencies
@@ -1352,6 +1469,8 @@ src/
 │       ├── files-array-plugin.test.ts
 │       ├── package-json-transform-plugin.ts
 │       ├── package-json-transform-plugin.test.ts
+│       ├── publish-target-plugin.ts
+│       ├── publish-target-plugin.test.ts
 │       ├── tsdoc-lint-plugin.ts
 │       ├── tsdoc-lint-plugin.test.ts       # 15 tests for TSDoc linting
 │       └── utils/
@@ -1465,7 +1584,7 @@ For comprehensive testing strategy details, see [testing-strategy.md](./testing-
 
 - **Watch mode support**: Rebuild on file changes
 - **Source map preservation**: Optional .map file distribution
-- **JSR target support**: Publish to JavaScript Registry
+- **JSR target package.json transforms**: JSR-specific package.json transformations (protocol resolved, directory output working via PublishTargetPlugin)
 
 ### Phase 3: Long-term
 
@@ -1497,6 +1616,6 @@ For comprehensive testing strategy details, see [testing-strategy.md](./testing-
 
 ---
 
-**Document Status:** Current - Core architecture documented with all components including ImportGraph analysis, TsDocLintPlugin file discovery, multi-entry API model generation with per-entry API Extractor runs and merge, multi-package-manager workspace catalog resolution (pnpm, yarn) with factory pattern for dependency injection, multi-format build system (dual format, per-entry format overrides, format-aware DTS and export conditions), and CJS interop footer injection for default export compatibility
+**Document Status:** Current - Core architecture documented with all components including ImportGraph analysis, TsDocLintPlugin file discovery, multi-entry API model generation with per-entry API Extractor runs and merge, multi-package-manager workspace catalog resolution (pnpm, yarn) with factory pattern for dependency injection, multi-format build system (dual format, per-entry format overrides, format-aware DTS and export conditions), CJS interop footer injection for default export compatibility, and multi-registry publishing via PublishTargetPlugin with cross-plugin base-package-json data flow
 
 **Next Steps:** Add sequence diagrams for complex flows, document edge cases in transformation pipeline

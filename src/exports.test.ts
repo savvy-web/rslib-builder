@@ -5,6 +5,7 @@ import {
 	FilesArrayPlugin,
 	NodeLibraryBuilder,
 	PackageJsonTransformPlugin,
+	PublishTargetPlugin,
 	TsDocConfigBuilder,
 } from "./index.js";
 
@@ -35,6 +36,11 @@ describe("@savvy-web/rslib-builder public API", () => {
 		it("should export PackageJsonTransformPlugin", () => {
 			expect(PackageJsonTransformPlugin).toBeDefined();
 			expect(typeof PackageJsonTransformPlugin).toBe("function");
+		});
+
+		it("should export PublishTargetPlugin", () => {
+			expect(PublishTargetPlugin).toBeDefined();
+			expect(typeof PublishTargetPlugin).toBe("function");
 		});
 	});
 

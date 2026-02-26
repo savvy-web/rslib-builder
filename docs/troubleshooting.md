@@ -8,6 +8,7 @@ Common issues and solutions when using rslib-builder.
 - [Type Generation Issues](#type-generation-issues)
 - [Package.json Problems](#packagejson-problems)
 - [Performance Issues](#performance-issues)
+- [Publish Target Issues](#publish-target-issues)
 - [Format Issues](#format-issues)
 - [Plugin Issues](#plugin-issues)
 
@@ -451,6 +452,75 @@ wraps the default export.
    The interop snippet is a no-op when there is no default
    export. Verify your entry file has `export default`.
 
+## Publish Target Issues
+
+### Additional target directories not created
+
+**Symptom:** Only the primary `dist/npm/` directory is created, no per-target
+directories.
+
+**Common causes:**
+
+1. **Only one target configured**
+
+   PublishTargetPlugin only runs when there are two or more targets. A single
+   target uses the primary output directory directly:
+
+   ```json
+   {
+     "publishConfig": {
+       "targets": ["npm", "github"]
+     }
+   }
+   ```
+
+2. **Dev mode build**
+
+   Publish targets are only resolved for npm mode. Dev mode always gets
+   empty targets:
+
+   ```bash
+   rslib build --env-mode npm   # Targets resolved
+   rslib build --env-mode dev   # Targets always empty
+   ```
+
+### Per-target package.json not customized
+
+**Symptom:** All target directories have identical package.json files.
+
+**Solution:** Use the `transform` function with the `target` parameter:
+
+```typescript
+NodeLibraryBuilder.create({
+  transform({ mode, target, pkg }) {
+    if (target?.registry?.includes('github')) {
+      // GitHub Packages requires scoped names
+      pkg.name = '@myorg/my-package';
+    }
+    return pkg;
+  },
+});
+```
+
+The `target` parameter is `undefined` for dev mode and for single-registry
+npm builds. For multi-registry builds, each target receives its resolved
+`PublishTarget` object.
+
+### Unknown publish target shorthand
+
+**Symptom:** Error `Unknown publish target shorthand: <value>`.
+
+**Solution:** Use a valid shorthand (`"npm"`, `"github"`, `"jsr"`) or a full
+registry URL starting with `https://`:
+
+```json
+{
+  "publishConfig": {
+    "targets": ["npm", "https://my-registry.example.com/"]
+  }
+}
+```
+
 ## Bundleless Mode Issues
 
 ### Unexpected file structure in output
@@ -538,6 +608,7 @@ api.processAssets({ stage: 'additional' }, async () => {
 - `files-array` - Available after FilesArrayPlugin initializes
 - `entrypoints` - Available after AutoEntryPlugin runs
 - `exportToOutputMap` - Available after AutoEntryPlugin runs
+- `base-package-json` - Available after PackageJsonTransformPlugin optimize stage
 
 ## Getting Help
 

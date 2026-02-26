@@ -7,6 +7,7 @@ RSlib-based build system for modern ESM Node.js libraries. Provides `NodeLibrary
 - Bundled ESM builds with rolled-up types
 - Multiple build modes (dev and npm) with different optimizations
 - Automatic package.json transformation and pnpm catalog resolution
+- Multi-registry publishing via `publishConfig.targets` with per-target transforms
 - TypeScript declarations via tsgo + API Extractor
 - Multi-entry API model generation with per-entry canonical references
 - Self-building (uses NodeLibraryBuilder for its own build)
@@ -82,6 +83,7 @@ rslib-builder/
 │   │       ├── dts-plugin.ts
 │   │       ├── files-array-plugin.ts
 │   │       ├── package-json-transform-plugin.ts
+│   │       ├── publish-target-plugin.ts
 │   │       ├── tsdoc-lint-plugin.ts
 │   │       ├── virtual-entry-plugin.ts
 │   │       └── utils/           # Plugin utilities (with co-located tests)
@@ -127,11 +129,17 @@ Custom RSlib plugins handle complex build scenarios:
    - Enabled by default when apiModel is enabled (configured via `apiModel.tsdoc.lint`)
 2. **AutoEntryPlugin** - Automatically extracts entry points from package.json exports
 3. **PackageJsonTransformPlugin** - Transforms package.json for different build modes
+   - Exposes `base-package-json` state via `api.expose()` for cross-plugin data flow
 4. **DtsPlugin** - Generates TypeScript declarations using tsgo and API Extractor
    - Runs API Extractor per entry, merges into single `.api.json` with multiple EntryPoints
    - When `apiModel` is enabled, also emits resolved `tsconfig.json` for virtual TS environments
 5. **FilesArrayPlugin** - Generates files array, excludes source maps
+   - Accepts optional `target?: PublishTarget` for target-specific file transforms
 6. **VirtualEntryPlugin** - Injects non-TypeScript virtual entries (JSON, static files)
+7. **PublishTargetPlugin** - Produces per-target output directories for multi-registry publishing
+   - Runs in `onCloseBuild` after the primary build completes
+   - Copies primary build output and applies per-target package.json transforms
+   - Consumes `base-package-json` exposed by PackageJsonTransformPlugin
 
 ### Build Modes
 
@@ -206,6 +214,10 @@ Plugins execute in this order during the build:
 5. User plugins (if provided)
 
 VirtualEntryPlugin runs in a separate Rslib environment for non-TypeScript entries.
+
+**Post-Build Hooks:**
+
+- PublishTargetPlugin (`onCloseBuild` - copies output and applies per-target transforms for multi-registry publishing)
 
 ## Development
 

@@ -47,6 +47,9 @@ vi.mock("../plugins/tsdoc-lint-plugin.js", () => ({
 vi.mock("../plugins/virtual-entry-plugin.js", () => ({
 	VirtualEntryPlugin: vi.fn(() => ({ name: "virtual-entry-plugin" })),
 }));
+vi.mock("../plugins/publish-target-plugin.js", () => ({
+	PublishTargetPlugin: vi.fn(() => ({ name: "publish-target-plugin" })),
+}));
 vi.mock("../plugins/utils/file-utils.js", () => ({
 	packageJsonVersion: vi.fn().mockResolvedValue("1.0.0"),
 }));
@@ -74,6 +77,8 @@ vi.mock("../plugins/utils/entry-extractor.js", () => ({
 import { AutoEntryPlugin } from "../plugins/auto-entry-plugin.js";
 import { DtsPlugin } from "../plugins/dts-plugin.js";
 import { FilesArrayPlugin } from "../plugins/files-array-plugin.js";
+import { PackageJsonTransformPlugin } from "../plugins/package-json-transform-plugin.js";
+import { PublishTargetPlugin } from "../plugins/publish-target-plugin.js";
 
 describe("NodeLibraryBuilder", () => {
 	beforeEach(() => {
@@ -434,6 +439,180 @@ describe("NodeLibraryBuilder", () => {
 
 				const lib = capturedConfig?.lib?.[0];
 				expect(lib?.footer).toBeUndefined();
+			});
+		});
+
+		describe("publish targets", () => {
+			it("should pass primaryTarget to PackageJsonTransformPlugin transform in npm mode", async () => {
+				const mockPkgWithTargets = JSON.stringify({
+					name: "test-pkg",
+					version: "1.0.0",
+					exports: { ".": "./src/index.ts" },
+					publishConfig: {
+						access: "public",
+						targets: ["npm", "github"],
+					},
+				});
+				vi.mocked(readFileSync).mockReturnValue(mockPkgWithTargets);
+
+				const userTransform = vi.fn(((ctx) => ctx.pkg) as import("./node-library-builder.js").TransformPackageJsonFn);
+				const options = NodeLibraryBuilder.mergeOptions({
+					transform: userTransform,
+				});
+				await NodeLibraryBuilder.createSingleMode("npm", options);
+
+				// The transform wrapper should pass primary target to PackageJsonTransformPlugin
+				const pkgTransformCall = vi.mocked(PackageJsonTransformPlugin).mock.calls[0][0];
+				expect(pkgTransformCall?.transform).toBeDefined();
+
+				// Invoke the wrapper to verify target is passed through
+				// biome-ignore lint/suspicious/noExplicitAny: Test mock
+				const wrappedFn = pkgTransformCall?.transform as any;
+				const fakePkg = { name: "test" };
+				wrappedFn(fakePkg);
+
+				// userTransform should have been called with primary target
+				expect(userTransform).toHaveBeenCalledWith(
+					expect.objectContaining({
+						mode: "npm",
+						target: expect.objectContaining({
+							protocol: "npm",
+							registry: "https://registry.npmjs.org/",
+						}),
+					}),
+				);
+			});
+
+			it("should pass undefined target in dev mode", async () => {
+				const mockPkgWithTargets = JSON.stringify({
+					name: "test-pkg",
+					version: "1.0.0",
+					exports: { ".": "./src/index.ts" },
+					publishConfig: {
+						access: "public",
+						targets: ["npm", "github"],
+					},
+				});
+				vi.mocked(readFileSync).mockReturnValue(mockPkgWithTargets);
+
+				const userTransform = vi.fn(((ctx) => ctx.pkg) as import("./node-library-builder.js").TransformPackageJsonFn);
+				const options = NodeLibraryBuilder.mergeOptions({
+					transform: userTransform,
+				});
+				await NodeLibraryBuilder.createSingleMode("dev", options);
+
+				// The transform wrapper should pass undefined target for dev mode
+				const pkgTransformCall = vi.mocked(PackageJsonTransformPlugin).mock.calls[0][0];
+				// biome-ignore lint/suspicious/noExplicitAny: Test mock
+				const wrappedFn = pkgTransformCall?.transform as any;
+				const fakePkg = { name: "test" };
+				wrappedFn(fakePkg);
+
+				expect(userTransform).toHaveBeenCalledWith(
+					expect.objectContaining({
+						mode: "dev",
+						target: undefined,
+					}),
+				);
+			});
+
+			it("should register PublishTargetPlugin when multiple targets exist", async () => {
+				const mockPkgWithTargets = JSON.stringify({
+					name: "test-pkg",
+					version: "1.0.0",
+					exports: { ".": "./src/index.ts" },
+					publishConfig: {
+						access: "public",
+						targets: ["npm", "github"],
+					},
+				});
+				vi.mocked(readFileSync).mockReturnValue(mockPkgWithTargets);
+
+				const options = NodeLibraryBuilder.mergeOptions();
+				await NodeLibraryBuilder.createSingleMode("npm", options);
+
+				expect(PublishTargetPlugin).toHaveBeenCalledWith(
+					expect.objectContaining({
+						additionalTargets: expect.arrayContaining([
+							expect.objectContaining({
+								protocol: "npm",
+								registry: "https://npm.pkg.github.com/",
+							}),
+						]),
+						mode: "npm",
+					}),
+				);
+			});
+
+			it("should not register PublishTargetPlugin for single target", async () => {
+				const mockPkgWithSingleTarget = JSON.stringify({
+					name: "test-pkg",
+					version: "1.0.0",
+					exports: { ".": "./src/index.ts" },
+					publishConfig: {
+						access: "public",
+						targets: ["npm"],
+					},
+				});
+				vi.mocked(readFileSync).mockReturnValue(mockPkgWithSingleTarget);
+
+				const options = NodeLibraryBuilder.mergeOptions();
+				await NodeLibraryBuilder.createSingleMode("npm", options);
+
+				expect(PublishTargetPlugin).not.toHaveBeenCalled();
+			});
+
+			it("should not register PublishTargetPlugin for dev mode", async () => {
+				const mockPkgWithTargets = JSON.stringify({
+					name: "test-pkg",
+					version: "1.0.0",
+					exports: { ".": "./src/index.ts" },
+					publishConfig: {
+						access: "public",
+						targets: ["npm", "github"],
+					},
+				});
+				vi.mocked(readFileSync).mockReturnValue(mockPkgWithTargets);
+
+				const options = NodeLibraryBuilder.mergeOptions();
+				await NodeLibraryBuilder.createSingleMode("dev", options);
+
+				expect(PublishTargetPlugin).not.toHaveBeenCalled();
+			});
+
+			it("should pass primaryTarget to FilesArrayPlugin in npm mode", async () => {
+				const mockPkgWithTargets = JSON.stringify({
+					name: "test-pkg",
+					version: "1.0.0",
+					exports: { ".": "./src/index.ts" },
+					publishConfig: {
+						access: "public",
+						targets: ["npm"],
+					},
+				});
+				vi.mocked(readFileSync).mockReturnValue(mockPkgWithTargets);
+
+				const options = NodeLibraryBuilder.mergeOptions();
+				await NodeLibraryBuilder.createSingleMode("npm", options);
+
+				expect(FilesArrayPlugin).toHaveBeenCalledWith(
+					expect.objectContaining({
+						target: expect.objectContaining({
+							protocol: "npm",
+							registry: "https://registry.npmjs.org/",
+						}),
+					}),
+				);
+			});
+
+			it("should not pass target to FilesArrayPlugin in dev mode", async () => {
+				vi.mocked(readFileSync).mockReturnValue(mockPackageJson);
+
+				const options = NodeLibraryBuilder.mergeOptions();
+				await NodeLibraryBuilder.createSingleMode("dev", options);
+
+				const filesArrayCall = vi.mocked(FilesArrayPlugin).mock.calls[0][0];
+				expect(filesArrayCall).not.toHaveProperty("target");
 			});
 		});
 	});

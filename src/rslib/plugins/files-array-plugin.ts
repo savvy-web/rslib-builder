@@ -1,5 +1,6 @@
 import type { RsbuildPlugin, RsbuildPluginAPI } from "@rsbuild/core";
 import type { PackageJson } from "../../types/package-json.js";
+import type { PublishTarget } from "../builders/node-library-builder.js";
 import { JsonAsset, TextAsset } from "./utils/asset-utils.js";
 import { createEnvLogger } from "./utils/build-logger.js";
 
@@ -45,6 +46,8 @@ export interface FilesArrayPluginOptions<TMode extends string = string> {
 		filesArray: Set<string>;
 		/** Current build mode */
 		mode: TMode;
+		/** The publish target for this build output, if configured */
+		target: PublishTarget | undefined;
 	}) => void | Promise<void>;
 
 	/**
@@ -54,6 +57,14 @@ export interface FilesArrayPluginOptions<TMode extends string = string> {
 	 * Passed to the `transformFiles` callback to allow mode-specific transformations.
 	 */
 	mode: TMode;
+
+	/**
+	 * The publish target for this build output, if configured.
+	 *
+	 * @remarks
+	 * Passed to the `transformFiles` callback to allow target-specific transformations.
+	 */
+	target?: PublishTarget;
 
 	/**
 	 * Format directories to include in the files array.
@@ -186,6 +197,7 @@ export const FilesArrayPlugin = <TMode extends string = string>(
 							compilation: context.compilation,
 							filesArray,
 							mode: options.mode,
+							target: options.target,
 						});
 					}
 				},

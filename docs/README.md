@@ -28,7 +28,8 @@ that simplifies building TypeScript packages for npm distribution.
 | TSDoc Validation | Pre-build TSDoc comment validation (enabled by default) |
 | Package Transform | Resolves PNPM references, updates export paths |
 | Bundleless Mode | Preserve source file structure with hybrid DTS bundling |
-| Multi-Target | Separate dev (debugging) and npm (production) builds |
+| Multi-Target | Separate dev (debugging) and npm (production) build modes |
+| Multi-Registry Publish | Publish to npm, GitHub Packages, JSR from one build |
 | Virtual Entries | Bundle additional files with custom names (no types) |
 | Flexible Format | ESM, CJS, or dual format with per-entry overrides |
 | Utility Classes | Reusable TsconfigResolver, EntryExtractor, ImportGraph |
@@ -41,7 +42,8 @@ that simplifies building TypeScript packages for npm distribution.
 | Type bundling | Built-in | Manual | Manual |
 | PNPM catalog support | Automatic | No | No |
 | Package.json transform | Automatic | Manual | Manual |
-| Build targets | Built-in | Manual | Manual |
+| Build modes | Built-in | Manual | Manual |
+| Multi-registry publish | Built-in | No | No |
 
 ## Documentation Structure
 

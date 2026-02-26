@@ -9,6 +9,7 @@ import type { ApiModelOptions } from "../plugins/dts-plugin.js";
 import { DtsPlugin } from "../plugins/dts-plugin.js";
 import { FilesArrayPlugin } from "../plugins/files-array-plugin.js";
 import { PackageJsonTransformPlugin } from "../plugins/package-json-transform-plugin.js";
+import { PublishTargetPlugin } from "../plugins/publish-target-plugin.js";
 import type { TsDocLintPluginOptions } from "../plugins/tsdoc-lint-plugin.js";
 import { TsDocLintPlugin } from "../plugins/tsdoc-lint-plugin.js";
 import { EntryExtractor } from "../plugins/utils/entry-extractor.js";
@@ -120,7 +121,10 @@ export interface VirtualEntryConfig {
  *
  * @param context - Transform context containing:
  *   - `mode`: The current build mode ("dev" or "npm")
- *   - `target`: The current publish target, or `undefined` when no targets are configured
+ *   - `target`: The publish target for the current output. For single-registry builds
+ *     or dev mode, this is `undefined`. For multi-registry builds (`publishConfig.targets`),
+ *     the primary target receives the first resolved target and additional targets receive
+ *     their respective target via `PublishTargetPlugin`
  *   - `pkg`: The package.json object to transform
  * @returns The modified package.json object
  *
@@ -448,6 +452,8 @@ export interface NodeLibraryBuilderOptions {
 		filesArray: Set<string>;
 		/** Current build mode */
 		mode: BuildMode;
+		/** The publish target for this build output, if configured */
+		target: PublishTarget | undefined;
 	}) => void | Promise<void>;
 	/**
 	 * Optional transform function to modify package.json before it's saved.
@@ -723,6 +729,11 @@ export class NodeLibraryBuilder {
 
 		const VERSION = await packageJsonVersion();
 
+		// Read package.json once and reuse throughout the method
+		const cwd = process.cwd();
+		const packageJsonPath = join(cwd, "package.json");
+		const packageJson = JSON.parse(readFileSync(packageJsonPath, "utf-8")) as PackageJson;
+
 		// Create mode-specific plugins
 		const plugins: RsbuildPlugin[] = [];
 
@@ -767,7 +778,7 @@ export class NodeLibraryBuilder {
 		// Wrap user's transform to provide mode context
 		const userTransform = options.transform;
 		const transformFn = userTransform
-			? (pkg: PackageJson): PackageJson => userTransform({ mode, target: undefined, pkg })
+			? (pkg: PackageJson): PackageJson => userTransform({ mode, target: primaryTarget, pkg })
 			: undefined;
 
 		// Normalize format: accept single or array, determine primary format
@@ -788,6 +799,10 @@ export class NodeLibraryBuilder {
 		// Build output configuration
 		const baseOutputDir = `dist/${mode}`;
 
+		// Resolve publish targets (npm mode only — dev builds must never write to publish-target directories)
+		const publishTargets = mode === "npm" ? resolvePublishTargets(packageJson, cwd, resolve(cwd, baseOutputDir)) : [];
+		const primaryTarget = publishTargets[0] as PublishTarget | undefined;
+
 		// Only enable API model generation for npm mode (not dev)
 		const apiModelForMode = mode === "npm" ? options.apiModel : undefined;
 
@@ -805,9 +820,6 @@ export class NodeLibraryBuilder {
 		// RSlib resolves entries before plugin hooks run)
 		let entry = options.entry;
 		if (!bundle && !entry) {
-			const cwd = process.cwd();
-			const packageJsonPath = join(cwd, "package.json");
-			const packageJson = JSON.parse(readFileSync(packageJsonPath, "utf-8")) as PackageJson;
 			const { entries } = new EntryExtractor().extract(packageJson);
 			const graph = new ImportGraph({ rootDir: cwd });
 			const result = graph.traceFromEntries(Object.values(entries));
@@ -835,6 +847,7 @@ export class NodeLibraryBuilder {
 		plugins.push(
 			FilesArrayPlugin({
 				mode,
+				...(primaryTarget && { target: primaryTarget }),
 				...(options.transformFiles && { transformFiles: options.transformFiles }),
 				...(isDualFormat && { formatDirs: formats }),
 			}),
@@ -894,7 +907,10 @@ export class NodeLibraryBuilder {
 		};
 
 		// Check if we have regular entries (from package.json exports or explicit entry option)
-		const hasRegularEntries = options.entry !== undefined || NodeLibraryBuilder.packageHasExports();
+		const pkgExports = packageJson.exports;
+		const hasRegularEntries =
+			options.entry !== undefined ||
+			(pkgExports != null && typeof pkgExports === "object" && Object.keys(pkgExports).length > 0);
 
 		// Process virtual entries
 		const virtualEntries = options.virtualEntries ?? {};
@@ -1017,10 +1033,6 @@ export class NodeLibraryBuilder {
 
 			// Create additional LibConfigs for per-entry format overrides
 			if (hasFormatOverrides && !isDualFormat) {
-				// Read package.json to determine which entries need override format
-				const cwd = process.cwd();
-				const packageJsonPath = join(cwd, "package.json");
-				const packageJson = JSON.parse(readFileSync(packageJsonPath, "utf-8")) as PackageJson;
 				const { entries: extractedEntries, exportPaths } = new EntryExtractor().extract(packageJson);
 
 				// Group overridden entries by their override format (only formats different from primary)
@@ -1157,6 +1169,21 @@ export class NodeLibraryBuilder {
 			}
 		}
 
+		// Register PublishTargetPlugin for additional targets (beyond primary)
+		if (publishTargets.length > 1) {
+			plugins.push(
+				PublishTargetPlugin({
+					additionalTargets: publishTargets.slice(1),
+					primaryOutdir: resolve(cwd, baseOutputDir),
+					mode,
+					...(userTransform && { transform: userTransform }),
+				}),
+			);
+
+			// Update the main lib config with the new plugin
+			lib.plugins = plugins;
+		}
+
 		return defineConfig({
 			lib: libConfigs,
 			// RSLib will use its default tsconfig resolution for JS compilation
@@ -1168,21 +1195,6 @@ export class NodeLibraryBuilder {
 				},
 			},
 		});
-	}
-
-	/**
-	 * Checks if the current package has exports defined in package.json.
-	 * @internal
-	 */
-	private static packageHasExports(): boolean {
-		try {
-			const packageJsonPath = join(process.cwd(), "package.json");
-			const packageJson = JSON.parse(readFileSync(packageJsonPath, "utf-8")) as PackageJson;
-			const { exports } = packageJson;
-			return exports != null && typeof exports === "object" && Object.keys(exports).length > 0;
-		} catch {
-			return false;
-		}
 	}
 }
 

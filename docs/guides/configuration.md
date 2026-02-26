@@ -10,7 +10,8 @@ Complete reference for all `NodeLibraryBuilder` configuration options.
 - [Type Generation](#type-generation)
 - [Package.json Transform](#packagejson-transform)
 - [File Handling](#file-handling)
-- [Build Targets](#build-targets)
+- [Build Modes](#build-modes)
+- [Publish Targets](#publish-targets)
 - [API Model Generation](#api-model-generation)
 - [TSDoc Linting](#tsdoc-linting)
 - [ImportGraph Utility](#importgraph-utility)
@@ -32,7 +33,7 @@ interface NodeLibraryBuilderOptions {
   plugins?: RsbuildPlugin[];
   define?: Record<string, string>;
   tsconfigPath?: string;
-  targets?: BuildTarget[];
+  targets?: BuildMode[];
   externals?: (string | RegExp)[];
   dtsBundledPackages?: string[];
   transformFiles?: TransformFilesCallback;
@@ -52,7 +53,8 @@ interface VirtualEntryConfig {
   format?: 'esm' | 'cjs';  // Override format for this entry
 }
 
-type BuildTarget = 'dev' | 'npm';
+type BuildMode = 'dev' | 'npm';
+type PublishProtocol = 'npm' | 'jsr';
 ```
 
 ### Minimal Configuration
@@ -205,12 +207,17 @@ Modify the output package.json before it's written:
 
 ```typescript
 NodeLibraryBuilder.create({
-  transform({ pkg, target }) {
+  transform({ mode, target, pkg }) {
     // Remove fields not needed for distribution
-    if (target === 'npm') {
+    if (mode === 'npm') {
       delete pkg.devDependencies;
       delete pkg.scripts;
       delete pkg.private;
+    }
+
+    // Per-registry customization
+    if (target?.protocol === 'jsr') {
+      delete pkg.dependencies;
     }
 
     // Add custom fields
@@ -225,8 +232,14 @@ NodeLibraryBuilder.create({
 
 | Property | Type | Description |
 | :------- | :--- | :---------- |
+| `mode` | `BuildMode` | Current build mode (`'dev'` or `'npm'`) |
+| `target` | `PublishTarget \| undefined` | The publish target for this output |
 | `pkg` | `PackageJson` | The package.json being transformed |
-| `target` | `'dev' \| 'npm'` | Current build target |
+
+The `target` is `undefined` for dev mode builds and for single-registry npm
+builds that do not configure `publishConfig.targets`. For multi-registry
+builds, the primary target receives the first resolved target and additional
+targets receive their respective target via PublishTargetPlugin.
 
 ### Automatic Transformations
 
@@ -272,12 +285,17 @@ Modify files after the build but before the files array is finalized:
 
 ```typescript
 NodeLibraryBuilder.create({
-  transformFiles({ compilation, filesArray, target }) {
+  transformFiles({ compilation, filesArray, mode, target }) {
     // Copy a file with a new name
     const indexAsset = compilation.assets['index.js'];
     if (indexAsset) {
       compilation.assets['.pnpmfile.cjs'] = indexAsset;
       filesArray.add('.pnpmfile.cjs');
+    }
+
+    // Per-registry file customization
+    if (target?.protocol === 'jsr') {
+      filesArray.delete('some-npm-only-file.js');
     }
   },
 });
@@ -289,13 +307,14 @@ NodeLibraryBuilder.create({
 | :------- | :--- | :---------- |
 | `compilation` | `{ assets }` | Rspack compilation with assets |
 | `filesArray` | `Set<string>` | Files to include in package.json |
-| `target` | `BuildTarget` | Current build target |
+| `mode` | `BuildMode` | Current build mode |
+| `target` | `PublishTarget \| undefined` | The publish target, if configured |
 
-## Build Targets
+## Build Modes
 
 ### targets
 
-Specify which build targets to enable:
+Specify which build modes to enable:
 
 ```typescript
 NodeLibraryBuilder.create({
@@ -303,20 +322,118 @@ NodeLibraryBuilder.create({
 });
 ```
 
-Available targets:
+Available modes:
 
-| Target | Source Maps | Use Case |
-| :----- | :---------: | :------- |
+| Mode | Source Maps | Use Case |
+| :--- | :---------: | :------- |
 | `dev` | Yes | Local development, debugging |
 | `npm` | No | npm publishing |
 
-### Selecting Target at Build Time
+`BuildMode` controls optimization level. Dev mode produces unminified output
+with source maps. Npm mode produces optimized output for publishing. Dev mode
+always gets empty publish targets.
 
-The target is selected via `--env-mode`:
+### Selecting Mode at Build Time
+
+The mode is selected via `--env-mode`:
 
 ```bash
-rslib build --env-mode dev   # Build dev target
-rslib build --env-mode npm   # Build npm target
+rslib build --env-mode dev   # Development build
+rslib build --env-mode npm   # Production build
+```
+
+## Publish Targets
+
+Publish targets control where build output goes for multi-registry publishing.
+They are orthogonal to build modes: a single `npm` mode build can produce
+output directories for multiple registries.
+
+### How It Works
+
+Configure `publishConfig.targets` in your package.json:
+
+```json
+{
+  "publishConfig": {
+    "access": "public",
+    "targets": ["npm", "github"]
+  }
+}
+```
+
+When the `npm` mode build runs, rslib-builder:
+
+1. Builds the primary output to `dist/npm/` (the first target)
+2. For each additional target, copies the primary output to a separate
+   directory and writes a per-target package.json
+
+The user `transform` function receives the resolved `PublishTarget` so you
+can customize each target's package.json:
+
+```typescript
+NodeLibraryBuilder.create({
+  transform({ mode, target, pkg }) {
+    if (target?.protocol === 'jsr') {
+      // JSR-specific transforms
+      delete pkg.dependencies;
+    }
+    return pkg;
+  },
+});
+```
+
+### Supported Shorthands
+
+| Shorthand | Protocol | Registry |
+| :-------- | :------- | :------- |
+| `"npm"` | npm | `https://registry.npmjs.org/` |
+| `"github"` | npm | `https://npm.pkg.github.com/` |
+| `"jsr"` | jsr | (none) |
+| URL string | npm | The provided URL |
+
+### Full Object Targets
+
+For advanced configuration, use full target objects:
+
+```json
+{
+  "publishConfig": {
+    "targets": [
+      "npm",
+      {
+        "protocol": "npm",
+        "registry": "https://npm.pkg.github.com/",
+        "directory": "./dist/github",
+        "access": "public",
+        "tag": "latest"
+      }
+    ]
+  }
+}
+```
+
+### PublishTarget Type
+
+```typescript
+interface PublishTarget {
+  protocol: 'npm' | 'jsr';
+  registry: string | null;
+  directory: string;
+  access: 'public' | 'restricted';
+  provenance: boolean;
+  tag: string;
+}
+```
+
+### resolvePublishTargets()
+
+The `resolvePublishTargets()` function is exported for advanced use cases.
+It expands shorthand strings into fully resolved `PublishTarget` objects:
+
+```typescript
+import { resolvePublishTargets } from '@savvy-web/rslib-builder';
+
+const targets = resolvePublishTargets(packageJson, cwd, outdir);
 ```
 
 ## API Model Generation
@@ -1277,8 +1394,8 @@ export default NodeLibraryBuilder.create({
   ],
 
   // Package.json customization
-  transform({ pkg, target }) {
-    if (target === 'npm') {
+  transform({ mode, pkg }) {
+    if (mode === 'npm') {
       delete pkg.devDependencies;
       delete pkg.scripts;
     }

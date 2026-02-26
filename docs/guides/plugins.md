@@ -13,7 +13,7 @@ This guide covers the built-in plugins and how to extend the build process.
 
 ## Built-in Plugins
 
-rslib-builder includes six specialized plugins that handle different aspects
+rslib-builder includes seven specialized plugins that handle different aspects
 of the build process.
 
 ### TsDocLintPlugin
@@ -296,13 +296,28 @@ Output package.json
 1. Scans compiled assets (JS, declarations)
 2. Excludes source maps (`.js.map`, `.d.ts.map`)
 3. Includes copied files (LICENSE, README)
-4. Calls user's `transformFiles` callback
+4. Calls user's `transformFiles` callback with target context
 5. Sets final `files` array in package.json
 
 **Stages:**
 
 - `additional` - Collect files from compilation
 - `optimize-inline` - Write final package.json with files array
+
+**Target-Aware Callbacks:**
+
+The `transformFiles` callback receives the current `PublishTarget` (if
+configured) so you can customize file handling per publish registry:
+
+```typescript
+NodeLibraryBuilder.create({
+  transformFiles({ filesArray, target }) {
+    if (target?.protocol === 'jsr') {
+      filesArray.delete('some-npm-only-file.js');
+    }
+  },
+});
+```
 
 **Example output:**
 
@@ -318,6 +333,65 @@ Output package.json
     "package.json"
   ]
 }
+```
+
+### PublishTargetPlugin
+
+**Purpose:** Produces per-target output directories for multi-registry publishing.
+
+**What it does:**
+
+1. Runs after the primary build completes (`onCloseBuild`)
+2. For each additional publish target (beyond the primary):
+   - Creates the target output directory
+   - Copies all build output from the primary output directory
+   - Reads the `base-package-json` state exposed by PackageJsonTransformPlugin
+   - Applies the user `transform` function with the target-specific context
+   - Copies the `files` array from the primary output's package.json
+   - Writes the final package.json to the target directory
+
+**Stage:** `onCloseBuild` (post-compilation)
+
+**Configuration:**
+
+Publish targets are configured via `publishConfig.targets` in your
+package.json:
+
+```json
+{
+  "publishConfig": {
+    "access": "public",
+    "targets": ["npm", "github"]
+  }
+}
+```
+
+Supported shorthand values: `"npm"` (npmjs.org), `"github"` (GitHub
+Packages), `"jsr"` (jsr.io), or a full registry URL.
+
+**Cross-Plugin Data Flow:**
+
+PublishTargetPlugin consumes the `base-package-json` key exposed by
+PackageJsonTransformPlugin. This represents the package.json after all
+standard transforms (PNPM resolution, path updates, type conditions) but
+before the user `transform` function runs. Each additional target receives
+a deep copy of this base state, then has the user transform applied with
+target-specific context.
+
+**Output Structure:**
+
+With two targets (`npm` and `github`), the output looks like:
+
+```text
+dist/npm/                    # Primary target (built normally)
+  index.js
+  index.d.ts
+  package.json
+
+dist/npm-github/             # Additional target (copied + re-transformed)
+  index.js
+  index.d.ts
+  package.json               # Per-target package.json
 ```
 
 ## Plugin Execution Order
@@ -354,7 +428,8 @@ Plugins execute in a specific order across Rsbuild's processing stages:
    └── DtsPlugin → Clean up .d.ts files
 
 7. onCloseBuild (Post-compilation)
-   └── TsDocLintPlugin      → Cleanup temp tsdoc.json
+   ├── TsDocLintPlugin      → Cleanup temp tsdoc.json
+   └── PublishTargetPlugin   → Copy output + per-target package.json
 ```
 
 ## Adding Custom Plugins
@@ -478,14 +553,22 @@ Built-in plugins share state via these exposed keys:
 | `exportToOutputMap` | `Map<string, string>` | AutoEntryPlugin |
 | `virtual-entry-names` | `Set<string>` | VirtualEntryPlugin |
 | `library-format` | `'esm' \| 'cjs'` | NodeLibraryBuilder |
+| `base-package-json` | `PackageJson` | PkgJsonTransformPlugin |
 
 **Key descriptions:**
 
-- `files-array` - Files to include in package.json files field
-- `entrypoints` - Map of entry names to source file paths
-- `exportToOutputMap` - Map of export paths to output file paths
-- `virtual-entry-names` - Entry names to exclude from type generation
-- `library-format` - Output format for package.json type field
+- `files-array` - Files for package.json files field
+- `entrypoints` - Entry names to source file paths
+  (consumed by DtsPlugin, PackageJsonTransformPlugin)
+- `exportToOutputMap` - Export paths to output paths
+  (consumed by PackageJsonTransformPlugin)
+- `virtual-entry-names` - Entries to exclude from
+  type generation (consumed by DtsPlugin)
+- `library-format` - Output format for package.json
+  type field
+- `base-package-json` - Package.json after standard
+  transforms but before user transform; consumed by
+  PublishTargetPlugin to create per-target copies
 
 ### Accessing Shared State
 
