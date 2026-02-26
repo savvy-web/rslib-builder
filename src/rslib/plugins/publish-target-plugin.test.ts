@@ -413,6 +413,89 @@ describe("PublishTargetPlugin", () => {
 		expect(jsrContent.description).toBe("jsr version");
 	});
 
+	it("should skip directory creation and copy when target directory matches primary outdir", async () => {
+		const basePackageJson: PackageJson = {
+			name: "test-package",
+			version: "1.0.0",
+			type: "module",
+		};
+		const primaryPkg: PackageJson = {
+			name: "test-package",
+			version: "1.0.0",
+			files: ["index.js", "index.d.ts"],
+		};
+
+		// Target directory is the same as primary outdir (e.g. multiple registries sharing dist/npm)
+		const target = createMockTarget({ directory: "/output/primary" });
+
+		const plugin = PublishTargetPlugin({
+			additionalTargets: [target],
+			primaryOutdir: "/output/primary",
+			mode: "npm",
+		});
+		const mockApi = createMockApi(basePackageJson);
+
+		mockReadFileSync.mockReturnValue(JSON.stringify(primaryPkg));
+
+		plugin.setup(mockApi as unknown as Parameters<typeof plugin.setup>[0]);
+
+		const callback = mockApi.onCloseBuild.mock.calls[0][0];
+		await callback();
+
+		// Should NOT create directory or copy (src === dest)
+		expect(mockMkdirSync).not.toHaveBeenCalled();
+		expect(mockCpSync).not.toHaveBeenCalled();
+
+		// Should still write the per-target package.json
+		expect(mockWriteFileSync).toHaveBeenCalledTimes(1);
+		const writtenPath = mockWriteFileSync.mock.calls[0][0];
+		expect(writtenPath).toBe("/output/primary/package.json");
+
+		const writtenContent = JSON.parse((mockWriteFileSync.mock.calls[0][1] as string).trim()) as PackageJson;
+		expect(writtenContent.files).toEqual(["index.js", "index.d.ts"]);
+	});
+
+	it("should only copy for targets with different directories in mixed scenarios", async () => {
+		const basePackageJson: PackageJson = {
+			name: "test-package",
+			version: "1.0.0",
+		};
+		const primaryPkg: PackageJson = {
+			name: "test-package",
+			version: "1.0.0",
+			files: ["index.js"],
+		};
+
+		// One target shares primary directory, another has a different directory
+		const sameDir = createMockTarget({ directory: "/output/primary", registry: "https://npm.pkg.github.com/" });
+		const diffDir = createMockTarget({ directory: "/output/jsr-target", protocol: "jsr", registry: null });
+
+		const plugin = PublishTargetPlugin({
+			additionalTargets: [sameDir, diffDir],
+			primaryOutdir: "/output/primary",
+			mode: "npm",
+		});
+		const mockApi = createMockApi(basePackageJson);
+
+		mockReadFileSync.mockReturnValue(JSON.stringify(primaryPkg));
+
+		plugin.setup(mockApi as unknown as Parameters<typeof plugin.setup>[0]);
+
+		const callback = mockApi.onCloseBuild.mock.calls[0][0];
+		await callback();
+
+		// Only the different-directory target should get mkdir + cpSync
+		expect(mockMkdirSync).toHaveBeenCalledTimes(1);
+		expect(mockMkdirSync).toHaveBeenCalledWith("/output/jsr-target", { recursive: true });
+		expect(mockCpSync).toHaveBeenCalledTimes(1);
+		expect(mockCpSync).toHaveBeenCalledWith("/output/primary", "/output/jsr-target", { recursive: true });
+
+		// Both targets should still get package.json written
+		expect(mockWriteFileSync).toHaveBeenCalledTimes(2);
+		expect(mockWriteFileSync.mock.calls[0][0]).toBe("/output/primary/package.json");
+		expect(mockWriteFileSync.mock.calls[1][0]).toBe("/output/jsr-target/package.json");
+	});
+
 	it("should write package.json with trailing newline", async () => {
 		const basePackageJson: PackageJson = {
 			name: "test-package",
