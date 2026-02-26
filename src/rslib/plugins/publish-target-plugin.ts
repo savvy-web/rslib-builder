@@ -91,11 +91,14 @@ export const PublishTargetPlugin = (options: PublishTargetPluginOptions): Rsbuil
 				const primaryPkg = JSON.parse(readFileSync(primaryPkgPath, "utf-8")) as PackageJson;
 
 				for (const target of additionalTargets) {
-					// 1. Create target directory
-					mkdirSync(target.directory, { recursive: true });
-
-					// 2. Copy all build output from primary
-					cpSync(primaryOutdir, target.directory, { recursive: true });
+					// When the target directory differs from the primary output, copy
+					// all build artifacts so each target gets its own independent set.
+					// Skip when they share a directory (e.g. multiple registries
+					// publishing from the same dist/npm).
+					if (target.directory !== primaryOutdir) {
+						mkdirSync(target.directory, { recursive: true });
+						cpSync(primaryOutdir, target.directory, { recursive: true });
+					}
 
 					// 3. Deep-copy the base package.json state
 					let targetPkg = JSON.parse(JSON.stringify(basePackageJson)) as PackageJson;
