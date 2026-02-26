@@ -19,10 +19,10 @@ export interface ConfigOptions {
  */
 export interface BuildFixtureOptions {
 	/**
-	 * Build target: "dev" or "npm".
+	 * Build mode: "dev" or "npm".
 	 * @defaultValue "npm"
 	 */
-	target?: "dev" | "npm";
+	mode?: "dev" | "npm";
 
 	/**
 	 * Configuration options for NodeLibraryBuilder.
@@ -192,11 +192,11 @@ export async function buildFixture(
 	fixtureName: string,
 	options: BuildFixtureOptions = {},
 ): Promise<BuildFixtureResult> {
-	const { target = "npm", config, sourceFiles, env = {}, timeout = 60000 } = options;
+	const { mode = "npm", config, sourceFiles, env = {}, timeout = 60000 } = options;
 
 	// Copy fixture to isolated temp directory
 	const fixturePath = await copyFixtureToTemp(fixtureName);
-	const distPath = join(fixturePath, "dist", target);
+	const distPath = join(fixturePath, "dist", mode);
 
 	// Write config to isolated fixture if provided
 	if (config) {
@@ -218,7 +218,7 @@ export async function buildFixture(
 	// Run the build using spawn with piped stdio to fully capture and suppress output
 	const { exitCode, stdout, stderr } = await new Promise<{ exitCode: number; stdout: string; stderr: string }>(
 		(resolve) => {
-			const child = spawn("pnpm", ["exec", "rslib", "build", "--env-mode", target], {
+			const child = spawn("pnpm", ["exec", "rslib", "build", "--env-mode", mode], {
 				cwd: fixturePath,
 				env: { ...process.env, ...env },
 				stdio: ["ignore", "pipe", "pipe"],

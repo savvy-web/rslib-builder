@@ -1,16 +1,17 @@
 import type { RsbuildPlugin, RsbuildPluginAPI } from "@rsbuild/core";
 import type { PackageJson } from "../../types/package-json.js";
+import type { PublishTarget } from "../builders/node-library-builder.js";
 import { JsonAsset, TextAsset } from "./utils/asset-utils.js";
 import { createEnvLogger } from "./utils/build-logger.js";
 
 /**
  * Options for the FilesArrayPlugin.
  *
- * @typeParam TTarget - The build target type, defaults to string
+ * @typeParam TMode - The build mode type, defaults to string
  *
  * @public
  */
-export interface FilesArrayPluginOptions<TTarget extends string = string> {
+export interface FilesArrayPluginOptions<TMode extends string = string> {
 	/**
 	 * Optional callback to transform files after they're built but before the files array is finalized.
 	 *
@@ -21,14 +22,14 @@ export interface FilesArrayPluginOptions<TTarget extends string = string> {
 	 * @param context - Transform context containing:
 	 *   - `compilation`: Rspack compilation object with assets
 	 *   - `filesArray`: Set of files to be included in package.json `files` field
-	 *   - `target`: Current build target
+	 *   - `mode`: Current build mode
 	 *
 	 * @example
 	 * ```typescript
 	 * import type { FilesArrayPluginOptions } from '@savvy-web/rslib-builder';
 	 *
 	 * const options: FilesArrayPluginOptions = {
-	 *   target: 'npm',
+	 *   mode: 'npm',
 	 *   transformFiles({ compilation, filesArray }) {
 	 *     // Add a custom file to the output
 	 *     filesArray.add('custom-file.txt');
@@ -43,17 +44,27 @@ export interface FilesArrayPluginOptions<TTarget extends string = string> {
 		};
 		/** Set of files to include in package.json files array */
 		filesArray: Set<string>;
-		/** Current build target */
-		target: TTarget;
+		/** Current build mode */
+		mode: TMode;
+		/** The publish target for this build output, if configured */
+		target: PublishTarget | undefined;
 	}) => void | Promise<void>;
 
 	/**
-	 * Build target identifier (e.g., "dev", "npm").
+	 * Build mode identifier (e.g., "dev", "npm").
+	 *
+	 * @remarks
+	 * Passed to the `transformFiles` callback to allow mode-specific transformations.
+	 */
+	mode: TMode;
+
+	/**
+	 * The publish target for this build output, if configured.
 	 *
 	 * @remarks
 	 * Passed to the `transformFiles` callback to allow target-specific transformations.
 	 */
-	target: TTarget;
+	target?: PublishTarget;
 
 	/**
 	 * Format directories to include in the files array.
@@ -102,7 +113,7 @@ export interface FilesArrayPluginOptions<TTarget extends string = string> {
  *
  * export default {
  *   plugins: [
- *     FilesArrayPlugin({ target: 'npm' }),
+ *     FilesArrayPlugin({ mode: 'npm' }),
  *   ],
  * };
  * ```
@@ -115,7 +126,7 @@ export interface FilesArrayPluginOptions<TTarget extends string = string> {
  * export default {
  *   plugins: [
  *     FilesArrayPlugin({
- *       target: 'npm',
+ *       mode: 'npm',
  *       transformFiles({ filesArray }) {
  *         filesArray.add('CHANGELOG.md');
  *       },
@@ -126,8 +137,8 @@ export interface FilesArrayPluginOptions<TTarget extends string = string> {
  *
  * @public
  */
-export const FilesArrayPlugin = <TTarget extends string = string>(
-	options?: FilesArrayPluginOptions<TTarget>,
+export const FilesArrayPlugin = <TMode extends string = string>(
+	options?: FilesArrayPluginOptions<TMode>,
 ): RsbuildPlugin => {
 	return {
 		name: "files-array-plugin",
@@ -185,6 +196,7 @@ export const FilesArrayPlugin = <TTarget extends string = string>(
 						await options.transformFiles({
 							compilation: context.compilation,
 							filesArray,
+							mode: options.mode,
 							target: options.target,
 						});
 					}

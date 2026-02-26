@@ -43,15 +43,17 @@
 
 // Core builder
 export type {
-	BuildTarget,
+	BuildMode,
 	CopyPatternConfig,
 	LibraryFormat,
 	NodeLibraryBuilderOptions,
+	PublishProtocol,
+	PublishTarget,
 	RslibConfigAsyncFn,
 	TransformPackageJsonFn,
 	VirtualEntryConfig,
 } from "./rslib/builders/node-library-builder.js";
-export { NodeLibraryBuilder } from "./rslib/builders/node-library-builder.js";
+export { NodeLibraryBuilder, resolvePublishTargets } from "./rslib/builders/node-library-builder.js";
 
 // Plugins
 export type { AutoEntryPluginOptions } from "./rslib/plugins/auto-entry-plugin.js";
@@ -74,6 +76,9 @@ export { FilesArrayPlugin } from "./rslib/plugins/files-array-plugin.js";
 
 export type { PackageJsonTransformPluginOptions } from "./rslib/plugins/package-json-transform-plugin.js";
 export { PackageJsonTransformPlugin } from "./rslib/plugins/package-json-transform-plugin.js";
+
+export type { PublishTargetPluginOptions } from "./rslib/plugins/publish-target-plugin.js";
+export { PublishTargetPlugin } from "./rslib/plugins/publish-target-plugin.js";
 
 export type { TsDocLintPluginOptions } from "./rslib/plugins/tsdoc-lint-plugin.js";
 export { TsDocLintPlugin } from "./rslib/plugins/tsdoc-lint-plugin.js";

@@ -2,7 +2,7 @@ import { NodeLibraryBuilder } from "./src/index.js";
 
 // Use our own builder - self-building example
 export default NodeLibraryBuilder.create({
-	// Generate API model for npm target (used by documentation tooling)
+	// Generate API model for npm mode (used by documentation tooling)
 	// Set RSLIB_BUILDER_LOCAL_PATH env var for local API model path resolution
 	apiModel: {
 		...(process.env.RSLIB_BUILDER_LOCAL_PATH && { localPaths: [process.env.RSLIB_BUILDER_LOCAL_PATH] }),

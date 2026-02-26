@@ -47,6 +47,9 @@ vi.mock("../plugins/tsdoc-lint-plugin.js", () => ({
 vi.mock("../plugins/virtual-entry-plugin.js", () => ({
 	VirtualEntryPlugin: vi.fn(() => ({ name: "virtual-entry-plugin" })),
 }));
+vi.mock("../plugins/publish-target-plugin.js", () => ({
+	PublishTargetPlugin: vi.fn(() => ({ name: "publish-target-plugin" })),
+}));
 vi.mock("../plugins/utils/file-utils.js", () => ({
 	packageJsonVersion: vi.fn().mockResolvedValue("1.0.0"),
 }));
@@ -74,6 +77,8 @@ vi.mock("../plugins/utils/entry-extractor.js", () => ({
 import { AutoEntryPlugin } from "../plugins/auto-entry-plugin.js";
 import { DtsPlugin } from "../plugins/dts-plugin.js";
 import { FilesArrayPlugin } from "../plugins/files-array-plugin.js";
+import { PackageJsonTransformPlugin } from "../plugins/package-json-transform-plugin.js";
+import { PublishTargetPlugin } from "../plugins/publish-target-plugin.js";
 
 describe("NodeLibraryBuilder", () => {
 	beforeEach(() => {
@@ -226,7 +231,7 @@ describe("NodeLibraryBuilder", () => {
 		});
 	});
 
-	describe("createSingleTarget", () => {
+	describe("createSingleMode", () => {
 		const mockPackageJson = JSON.stringify({
 			name: "test-pkg",
 			version: "1.0.0",
@@ -240,7 +245,7 @@ describe("NodeLibraryBuilder", () => {
 
 		it("should set outBase to outputDir when bundle is true", async () => {
 			const options = NodeLibraryBuilder.mergeOptions({ bundle: true });
-			await NodeLibraryBuilder.createSingleTarget("npm", options);
+			await NodeLibraryBuilder.createSingleMode("npm", options);
 
 			const lib = capturedConfig?.lib?.[0];
 			expect(lib).toBeDefined();
@@ -249,7 +254,7 @@ describe("NodeLibraryBuilder", () => {
 
 		it("should set outBase to 'src' when bundle is false", async () => {
 			const options = NodeLibraryBuilder.mergeOptions({ bundle: false });
-			await NodeLibraryBuilder.createSingleTarget("npm", options);
+			await NodeLibraryBuilder.createSingleMode("npm", options);
 
 			const lib = capturedConfig?.lib?.[0];
 			expect(lib).toBeDefined();
@@ -258,14 +263,14 @@ describe("NodeLibraryBuilder", () => {
 
 		it("should pass bundleless: true to AutoEntryPlugin when bundle is false", async () => {
 			const options = NodeLibraryBuilder.mergeOptions({ bundle: false });
-			await NodeLibraryBuilder.createSingleTarget("npm", options);
+			await NodeLibraryBuilder.createSingleMode("npm", options);
 
 			expect(AutoEntryPlugin).toHaveBeenCalledWith(expect.objectContaining({ bundleless: true }));
 		});
 
 		it("should not pass bundleless to AutoEntryPlugin when bundle is true", async () => {
 			const options = NodeLibraryBuilder.mergeOptions({ bundle: true });
-			await NodeLibraryBuilder.createSingleTarget("npm", options);
+			await NodeLibraryBuilder.createSingleMode("npm", options);
 
 			// Should be called with empty object (no bundleless key)
 			const callArgs = vi.mocked(AutoEntryPlugin).mock.calls[0][0];
@@ -275,7 +280,7 @@ describe("NodeLibraryBuilder", () => {
 
 		it("should pass both bundleless and exportsAsIndexes when both are set", async () => {
 			const options = NodeLibraryBuilder.mergeOptions({ bundle: false, exportsAsIndexes: true });
-			await NodeLibraryBuilder.createSingleTarget("npm", options);
+			await NodeLibraryBuilder.createSingleMode("npm", options);
 
 			expect(AutoEntryPlugin).toHaveBeenCalledWith(
 				expect.objectContaining({ bundleless: true, exportsAsIndexes: true }),
@@ -284,7 +289,7 @@ describe("NodeLibraryBuilder", () => {
 
 		it("should set bundle: false on lib config when bundle option is false", async () => {
 			const options = NodeLibraryBuilder.mergeOptions({ bundle: false });
-			await NodeLibraryBuilder.createSingleTarget("npm", options);
+			await NodeLibraryBuilder.createSingleMode("npm", options);
 
 			const lib = capturedConfig?.lib?.[0];
 			expect(lib?.bundle).toBe(false);
@@ -292,7 +297,7 @@ describe("NodeLibraryBuilder", () => {
 
 		it("should set legalComments to 'inline' when bundle is false", async () => {
 			const options = NodeLibraryBuilder.mergeOptions({ bundle: false });
-			await NodeLibraryBuilder.createSingleTarget("npm", options);
+			await NodeLibraryBuilder.createSingleMode("npm", options);
 
 			const lib = capturedConfig?.lib?.[0];
 			expect(lib?.output?.legalComments).toBe("inline");
@@ -300,7 +305,7 @@ describe("NodeLibraryBuilder", () => {
 
 		it("should not set legalComments when bundle is true", async () => {
 			const options = NodeLibraryBuilder.mergeOptions({ bundle: true });
-			await NodeLibraryBuilder.createSingleTarget("npm", options);
+			await NodeLibraryBuilder.createSingleMode("npm", options);
 
 			const lib = capturedConfig?.lib?.[0];
 			expect(lib?.output?.legalComments).toBeUndefined();
@@ -309,7 +314,7 @@ describe("NodeLibraryBuilder", () => {
 		describe("dual format", () => {
 			it("should set distPath.root to baseOutputDir and distPath.js to primary format", async () => {
 				const options = NodeLibraryBuilder.mergeOptions({ format: ["esm", "cjs"] });
-				await NodeLibraryBuilder.createSingleTarget("npm", options);
+				await NodeLibraryBuilder.createSingleMode("npm", options);
 
 				const primaryLib = capturedConfig?.lib?.[0];
 				expect(primaryLib?.output?.distPath).toEqual({ root: "dist/npm", js: "esm" });
@@ -317,7 +322,7 @@ describe("NodeLibraryBuilder", () => {
 
 			it("should set distPath.js to secondary format on secondary lib config", async () => {
 				const options = NodeLibraryBuilder.mergeOptions({ format: ["esm", "cjs"] });
-				await NodeLibraryBuilder.createSingleTarget("npm", options);
+				await NodeLibraryBuilder.createSingleMode("npm", options);
 
 				const secondaryLib = capturedConfig?.lib?.[1];
 				expect(secondaryLib?.output?.distPath).toEqual({ root: "dist/npm", js: "cjs" });
@@ -325,7 +330,7 @@ describe("NodeLibraryBuilder", () => {
 
 			it("should set outBase to baseOutputDir for both primary and secondary in bundle mode", async () => {
 				const options = NodeLibraryBuilder.mergeOptions({ format: ["esm", "cjs"], bundle: true });
-				await NodeLibraryBuilder.createSingleTarget("npm", options);
+				await NodeLibraryBuilder.createSingleMode("npm", options);
 
 				const primaryLib = capturedConfig?.lib?.[0];
 				const secondaryLib = capturedConfig?.lib?.[1];
@@ -335,7 +340,7 @@ describe("NodeLibraryBuilder", () => {
 
 			it("should pass dtsPathPrefix to primary DtsPlugin", async () => {
 				const options = NodeLibraryBuilder.mergeOptions({ format: ["esm", "cjs"] });
-				await NodeLibraryBuilder.createSingleTarget("npm", options);
+				await NodeLibraryBuilder.createSingleMode("npm", options);
 
 				// Primary DtsPlugin is the last call (called after secondary)
 				const dtsCalls = vi.mocked(DtsPlugin).mock.calls;
@@ -345,7 +350,7 @@ describe("NodeLibraryBuilder", () => {
 
 			it("should pass dtsPathPrefix to secondary DtsPlugin", async () => {
 				const options = NodeLibraryBuilder.mergeOptions({ format: ["esm", "cjs"] });
-				await NodeLibraryBuilder.createSingleTarget("npm", options);
+				await NodeLibraryBuilder.createSingleMode("npm", options);
 
 				const dtsCalls = vi.mocked(DtsPlugin).mock.calls;
 				const secondaryCall = dtsCalls[1][0];
@@ -354,7 +359,7 @@ describe("NodeLibraryBuilder", () => {
 
 			it("should not set distPath.js for single format builds", async () => {
 				const options = NodeLibraryBuilder.mergeOptions({ format: "esm" });
-				await NodeLibraryBuilder.createSingleTarget("npm", options);
+				await NodeLibraryBuilder.createSingleMode("npm", options);
 
 				const lib = capturedConfig?.lib?.[0];
 				expect(lib?.output?.distPath).toEqual({ root: "dist/npm" });
@@ -362,7 +367,7 @@ describe("NodeLibraryBuilder", () => {
 
 			it("should not pass dtsPathPrefix to DtsPlugin for single format", async () => {
 				const options = NodeLibraryBuilder.mergeOptions({ format: "esm" });
-				await NodeLibraryBuilder.createSingleTarget("npm", options);
+				await NodeLibraryBuilder.createSingleMode("npm", options);
 
 				const dtsCalls = vi.mocked(DtsPlugin).mock.calls;
 				expect(dtsCalls[0][0]).not.toHaveProperty("dtsPathPrefix");
@@ -370,7 +375,7 @@ describe("NodeLibraryBuilder", () => {
 
 			it("should pass formatDirs with all formats to primary FilesArrayPlugin", async () => {
 				const options = NodeLibraryBuilder.mergeOptions({ format: ["esm", "cjs"] });
-				await NodeLibraryBuilder.createSingleTarget("npm", options);
+				await NodeLibraryBuilder.createSingleMode("npm", options);
 
 				// Primary FilesArrayPlugin is the first call
 				const filesCalls = vi.mocked(FilesArrayPlugin).mock.calls;
@@ -380,7 +385,7 @@ describe("NodeLibraryBuilder", () => {
 
 			it("should not pass formatDirs for single format", async () => {
 				const options = NodeLibraryBuilder.mergeOptions({ format: "esm" });
-				await NodeLibraryBuilder.createSingleTarget("npm", options);
+				await NodeLibraryBuilder.createSingleMode("npm", options);
 
 				const filesCalls = vi.mocked(FilesArrayPlugin).mock.calls;
 				expect(filesCalls[0][0]).not.toHaveProperty("formatDirs");
@@ -398,7 +403,7 @@ describe("NodeLibraryBuilder", () => {
 
 			it("should add footer to CJS primary lib when cjsInterop is true", async () => {
 				const options = NodeLibraryBuilder.mergeOptions({ format: "cjs", cjsInterop: true });
-				await NodeLibraryBuilder.createSingleTarget("npm", options);
+				await NodeLibraryBuilder.createSingleMode("npm", options);
 
 				const lib = capturedConfig?.lib?.[0];
 				expect(lib?.footer).toBeDefined();
@@ -408,7 +413,7 @@ describe("NodeLibraryBuilder", () => {
 
 			it("should add footer to CJS secondary lib in dual format when cjsInterop is true", async () => {
 				const options = NodeLibraryBuilder.mergeOptions({ format: ["esm", "cjs"], cjsInterop: true });
-				await NodeLibraryBuilder.createSingleTarget("npm", options);
+				await NodeLibraryBuilder.createSingleMode("npm", options);
 
 				// Primary lib (ESM) should NOT have footer
 				const primaryLib = capturedConfig?.lib?.[0];
@@ -422,7 +427,7 @@ describe("NodeLibraryBuilder", () => {
 
 			it("should not add footer to ESM lib when cjsInterop is true", async () => {
 				const options = NodeLibraryBuilder.mergeOptions({ format: "esm", cjsInterop: true });
-				await NodeLibraryBuilder.createSingleTarget("npm", options);
+				await NodeLibraryBuilder.createSingleMode("npm", options);
 
 				const lib = capturedConfig?.lib?.[0];
 				expect(lib?.footer).toBeUndefined();
@@ -430,10 +435,184 @@ describe("NodeLibraryBuilder", () => {
 
 			it("should not add footer when cjsInterop is false", async () => {
 				const options = NodeLibraryBuilder.mergeOptions({ format: "cjs", cjsInterop: false });
-				await NodeLibraryBuilder.createSingleTarget("npm", options);
+				await NodeLibraryBuilder.createSingleMode("npm", options);
 
 				const lib = capturedConfig?.lib?.[0];
 				expect(lib?.footer).toBeUndefined();
+			});
+		});
+
+		describe("publish targets", () => {
+			it("should pass primaryTarget to PackageJsonTransformPlugin transform in npm mode", async () => {
+				const mockPkgWithTargets = JSON.stringify({
+					name: "test-pkg",
+					version: "1.0.0",
+					exports: { ".": "./src/index.ts" },
+					publishConfig: {
+						access: "public",
+						targets: ["npm", "github"],
+					},
+				});
+				vi.mocked(readFileSync).mockReturnValue(mockPkgWithTargets);
+
+				const userTransform = vi.fn(((ctx) => ctx.pkg) as import("./node-library-builder.js").TransformPackageJsonFn);
+				const options = NodeLibraryBuilder.mergeOptions({
+					transform: userTransform,
+				});
+				await NodeLibraryBuilder.createSingleMode("npm", options);
+
+				// The transform wrapper should pass primary target to PackageJsonTransformPlugin
+				const pkgTransformCall = vi.mocked(PackageJsonTransformPlugin).mock.calls[0][0];
+				expect(pkgTransformCall?.transform).toBeDefined();
+
+				// Invoke the wrapper to verify target is passed through
+				// biome-ignore lint/suspicious/noExplicitAny: Test mock
+				const wrappedFn = pkgTransformCall?.transform as any;
+				const fakePkg = { name: "test" };
+				wrappedFn(fakePkg);
+
+				// userTransform should have been called with primary target
+				expect(userTransform).toHaveBeenCalledWith(
+					expect.objectContaining({
+						mode: "npm",
+						target: expect.objectContaining({
+							protocol: "npm",
+							registry: "https://registry.npmjs.org/",
+						}),
+					}),
+				);
+			});
+
+			it("should pass undefined target in dev mode", async () => {
+				const mockPkgWithTargets = JSON.stringify({
+					name: "test-pkg",
+					version: "1.0.0",
+					exports: { ".": "./src/index.ts" },
+					publishConfig: {
+						access: "public",
+						targets: ["npm", "github"],
+					},
+				});
+				vi.mocked(readFileSync).mockReturnValue(mockPkgWithTargets);
+
+				const userTransform = vi.fn(((ctx) => ctx.pkg) as import("./node-library-builder.js").TransformPackageJsonFn);
+				const options = NodeLibraryBuilder.mergeOptions({
+					transform: userTransform,
+				});
+				await NodeLibraryBuilder.createSingleMode("dev", options);
+
+				// The transform wrapper should pass undefined target for dev mode
+				const pkgTransformCall = vi.mocked(PackageJsonTransformPlugin).mock.calls[0][0];
+				// biome-ignore lint/suspicious/noExplicitAny: Test mock
+				const wrappedFn = pkgTransformCall?.transform as any;
+				const fakePkg = { name: "test" };
+				wrappedFn(fakePkg);
+
+				expect(userTransform).toHaveBeenCalledWith(
+					expect.objectContaining({
+						mode: "dev",
+						target: undefined,
+					}),
+				);
+			});
+
+			it("should register PublishTargetPlugin when multiple targets exist", async () => {
+				const mockPkgWithTargets = JSON.stringify({
+					name: "test-pkg",
+					version: "1.0.0",
+					exports: { ".": "./src/index.ts" },
+					publishConfig: {
+						access: "public",
+						targets: ["npm", "github"],
+					},
+				});
+				vi.mocked(readFileSync).mockReturnValue(mockPkgWithTargets);
+
+				const options = NodeLibraryBuilder.mergeOptions();
+				await NodeLibraryBuilder.createSingleMode("npm", options);
+
+				expect(PublishTargetPlugin).toHaveBeenCalledWith(
+					expect.objectContaining({
+						additionalTargets: expect.arrayContaining([
+							expect.objectContaining({
+								protocol: "npm",
+								registry: "https://npm.pkg.github.com/",
+							}),
+						]),
+						mode: "npm",
+					}),
+				);
+			});
+
+			it("should not register PublishTargetPlugin for single target", async () => {
+				const mockPkgWithSingleTarget = JSON.stringify({
+					name: "test-pkg",
+					version: "1.0.0",
+					exports: { ".": "./src/index.ts" },
+					publishConfig: {
+						access: "public",
+						targets: ["npm"],
+					},
+				});
+				vi.mocked(readFileSync).mockReturnValue(mockPkgWithSingleTarget);
+
+				const options = NodeLibraryBuilder.mergeOptions();
+				await NodeLibraryBuilder.createSingleMode("npm", options);
+
+				expect(PublishTargetPlugin).not.toHaveBeenCalled();
+			});
+
+			it("should not register PublishTargetPlugin for dev mode", async () => {
+				const mockPkgWithTargets = JSON.stringify({
+					name: "test-pkg",
+					version: "1.0.0",
+					exports: { ".": "./src/index.ts" },
+					publishConfig: {
+						access: "public",
+						targets: ["npm", "github"],
+					},
+				});
+				vi.mocked(readFileSync).mockReturnValue(mockPkgWithTargets);
+
+				const options = NodeLibraryBuilder.mergeOptions();
+				await NodeLibraryBuilder.createSingleMode("dev", options);
+
+				expect(PublishTargetPlugin).not.toHaveBeenCalled();
+			});
+
+			it("should pass primaryTarget to FilesArrayPlugin in npm mode", async () => {
+				const mockPkgWithTargets = JSON.stringify({
+					name: "test-pkg",
+					version: "1.0.0",
+					exports: { ".": "./src/index.ts" },
+					publishConfig: {
+						access: "public",
+						targets: ["npm"],
+					},
+				});
+				vi.mocked(readFileSync).mockReturnValue(mockPkgWithTargets);
+
+				const options = NodeLibraryBuilder.mergeOptions();
+				await NodeLibraryBuilder.createSingleMode("npm", options);
+
+				expect(FilesArrayPlugin).toHaveBeenCalledWith(
+					expect.objectContaining({
+						target: expect.objectContaining({
+							protocol: "npm",
+							registry: "https://registry.npmjs.org/",
+						}),
+					}),
+				);
+			});
+
+			it("should not pass target to FilesArrayPlugin in dev mode", async () => {
+				vi.mocked(readFileSync).mockReturnValue(mockPackageJson);
+
+				const options = NodeLibraryBuilder.mergeOptions();
+				await NodeLibraryBuilder.createSingleMode("dev", options);
+
+				const filesArrayCall = vi.mocked(FilesArrayPlugin).mock.calls[0][0];
+				expect(filesArrayCall).not.toHaveProperty("target");
 			});
 		});
 	});

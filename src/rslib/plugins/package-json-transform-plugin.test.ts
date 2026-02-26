@@ -803,4 +803,121 @@ describe("PackageJsonTransformPlugin", () => {
 		expect(mockPackageJsonAsset.data.exports["."].types).toBeUndefined();
 		expect(mockPackageJsonAsset.data.exports["./data"]).toBe("./data.json");
 	});
+
+	it("should expose base-package-json before applying user transform", async () => {
+		const userTransform = vi.fn((pkg: PackageJson) => {
+			pkg.description = "user-modified";
+			return pkg;
+		});
+		const plugin = PackageJsonTransformPlugin({ transform: userTransform });
+		let exposedBasePackageJson: PackageJson | undefined;
+		const mockApi = {
+			processAssets: vi.fn(),
+			expose: vi.fn().mockImplementation((key: string, value: unknown) => {
+				if (key === "base-package-json") exposedBasePackageJson = value as PackageJson;
+			}),
+			useExposed: vi.fn().mockReturnValue(undefined),
+		};
+
+		plugin.setup(mockApi as unknown as Parameters<ReturnType<typeof PackageJsonTransformPlugin>["setup"]>[0]);
+
+		const optimizeCallback = mockApi.processAssets.mock.calls[1][1];
+
+		const originalPackageJson: PackageJson = { name: "test-package", version: "1.0.0" };
+		const transformedPackageJson: PackageJson = { name: "test-package", version: "1.0.0", private: false };
+
+		const mockPackageJsonAsset = {
+			data: { ...originalPackageJson },
+			update: vi.fn(),
+		};
+		// biome-ignore lint/suspicious/noExplicitAny: Mock object for testing
+		mockJsonAssetCreate.mockResolvedValue(mockPackageJsonAsset as any);
+		mockBuildPackageJson.mockResolvedValue(transformedPackageJson);
+
+		const mockContext = createMockContext();
+		await optimizeCallback(mockContext);
+
+		// base-package-json should be exposed with a deep copy (without user transform applied)
+		expect(mockApi.expose).toHaveBeenCalledWith("base-package-json", expect.any(Object));
+		expect(exposedBasePackageJson).toBeDefined();
+		expect(exposedBasePackageJson?.description).toBeUndefined();
+
+		// User transform should have been called
+		expect(userTransform).toHaveBeenCalledWith(transformedPackageJson);
+
+		// Final asset should have user transform applied
+		expect(mockPackageJsonAsset.data.description).toBe("user-modified");
+	});
+
+	it("should pass undefined transform to buildPackageJson (not user transform)", async () => {
+		const userTransform = vi.fn((pkg: PackageJson) => pkg);
+		const plugin = PackageJsonTransformPlugin({ transform: userTransform });
+		const mockApi = {
+			processAssets: vi.fn(),
+			expose: vi.fn(),
+			useExposed: vi.fn().mockReturnValue(undefined),
+		};
+
+		plugin.setup(mockApi as unknown as Parameters<ReturnType<typeof PackageJsonTransformPlugin>["setup"]>[0]);
+
+		const optimizeCallback = mockApi.processAssets.mock.calls[1][1];
+
+		const originalPackageJson: PackageJson = { name: "test", version: "1.0.0" };
+		const mockPackageJsonAsset = {
+			data: { ...originalPackageJson },
+			update: vi.fn(),
+		};
+		// biome-ignore lint/suspicious/noExplicitAny: Mock object for testing
+		mockJsonAssetCreate.mockResolvedValue(mockPackageJsonAsset as any);
+		mockBuildPackageJson.mockResolvedValue({ ...originalPackageJson });
+
+		const mockContext = createMockContext();
+		await optimizeCallback(mockContext);
+
+		// buildPackageJson should receive undefined for the transform parameter (7th arg)
+		expect(mockBuildPackageJson).toHaveBeenCalledWith(
+			originalPackageJson,
+			true,
+			undefined,
+			undefined,
+			undefined,
+			undefined,
+			undefined,
+			undefined,
+		);
+	});
+
+	it("should expose base-package-json as a deep copy independent of further mutations", async () => {
+		const plugin = PackageJsonTransformPlugin();
+		let exposedBasePackageJson: PackageJson | undefined;
+		const mockApi = {
+			processAssets: vi.fn(),
+			expose: vi.fn().mockImplementation((key: string, value: unknown) => {
+				if (key === "base-package-json") exposedBasePackageJson = value as PackageJson;
+			}),
+			useExposed: vi.fn().mockReturnValue(undefined),
+		};
+
+		plugin.setup(mockApi as unknown as Parameters<ReturnType<typeof PackageJsonTransformPlugin>["setup"]>[0]);
+
+		const optimizeCallback = mockApi.processAssets.mock.calls[1][1];
+
+		const originalPackageJson: PackageJson = { name: "test", version: "1.0.0" };
+		const mockPackageJsonAsset = {
+			data: { ...originalPackageJson },
+			update: vi.fn(),
+		};
+		// biome-ignore lint/suspicious/noExplicitAny: Mock object for testing
+		mockJsonAssetCreate.mockResolvedValue(mockPackageJsonAsset as any);
+		mockBuildPackageJson.mockResolvedValue({ ...originalPackageJson });
+
+		const mockContext = createMockContext();
+		await optimizeCallback(mockContext);
+
+		// Mutate the asset data after expose
+		mockPackageJsonAsset.data.name = "mutated";
+
+		// The exposed base should not be affected
+		expect(exposedBasePackageJson?.name).toBe("test");
+	});
 });

@@ -140,7 +140,7 @@ describe("NodeLibraryBuilder apiModel Options E2E", () => {
 	describe("dev target should not generate API model", () => {
 		test("should not generate API model for dev target", async ({ result }) => {
 			result.value = await buildFixture("options-testing", {
-				target: "dev",
+				mode: "dev",
 				config: {
 					builderOptions: {
 						apiModel: true,

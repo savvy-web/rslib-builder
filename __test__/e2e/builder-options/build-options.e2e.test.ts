@@ -81,7 +81,7 @@ describe("NodeLibraryBuilder Build Options E2E", () => {
 	describe("dev target", () => {
 		test("should generate source maps for dev target", async ({ result }) => {
 			result.value = await buildFixture("options-testing", {
-				target: "dev",
+				mode: "dev",
 				config: { builderOptions: {} },
 			});
 
@@ -97,7 +97,7 @@ describe("NodeLibraryBuilder Build Options E2E", () => {
 
 		beforeAll(async () => {
 			result = await buildFixture("options-testing", {
-				target: "npm",
+				mode: "npm",
 				config: { builderOptions: {} },
 			});
 		});
@@ -134,11 +134,11 @@ describe("NodeLibraryBuilder Build Options E2E", () => {
 	describe("transform callback", () => {
 		test("should call transform function to modify package.json", async ({ result }) => {
 			result.value = await buildFixture("options-testing", {
-				target: "npm",
+				mode: "npm",
 				config: {
 					builderOptions: {
-						transform: ({ target, pkg }) => {
-							pkg.customField = `built-for-${target}`;
+						transform: ({ mode, pkg }) => {
+							pkg.customField = `built-for-${mode}`;
 							return pkg;
 						},
 					},
@@ -153,7 +153,7 @@ describe("NodeLibraryBuilder Build Options E2E", () => {
 
 		test("should support removing fields via transform", async ({ result }) => {
 			result.value = await buildFixture("options-testing", {
-				target: "npm",
+				mode: "npm",
 				config: {
 					builderOptions: {
 						transform: ({ pkg }) => {

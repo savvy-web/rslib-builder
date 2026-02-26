@@ -75,13 +75,13 @@ export interface PackageJsonTransformPluginOptions {
 	bundle?: boolean;
 
 	/**
-	 * Build target identifier for custom transformations.
+	 * Build mode identifier for custom transformations.
 	 *
 	 * @remarks
-	 * Passed to the transform function to allow target-specific modifications.
+	 * Passed to the transform function to allow mode-specific modifications.
 	 * Common values: "dev", "npm"
 	 */
-	target?: string;
+	mode?: string;
 
 	/**
 	 * Custom transform function to modify package.json after standard transformations.
@@ -143,6 +143,7 @@ export interface PackageJsonTransformPluginOptions {
  * - Consumes `entrypoints` map from AutoEntryPlugin
  * - Consumes `exportToOutputMap` for exportsAsIndexes mode
  * - Consumes `use-rollup-types` flag from DtsPlugin
+ * - Exposes `base-package-json` after standard transforms (before user transform)
  *
  * @param options - Plugin configuration options
  *
@@ -239,6 +240,7 @@ export const PackageJsonTransformPlugin = (options: PackageJsonTransformPluginOp
 						};
 					}
 
+					// Run standard transforms WITHOUT user transform
 					const processedPackageJson = await buildPackageJson(
 						packageJson.data,
 						isProduction,
@@ -246,7 +248,7 @@ export const PackageJsonTransformPlugin = (options: PackageJsonTransformPluginOp
 						entrypoints,
 						exportToOutputMap,
 						options.bundle,
-						options.transform,
+						undefined,
 						formatConditions,
 					);
 					packageJson.data = processedPackageJson;
@@ -273,6 +275,15 @@ export const PackageJsonTransformPlugin = (options: PackageJsonTransformPluginOp
 								(value as Record<string, string>).types = "./index.d.ts";
 							}
 						}
+					}
+
+					// Expose base package.json state (after standard transforms, before user transform)
+					// This is consumed by PublishTargetPlugin to create per-target copies
+					api.expose("base-package-json", JSON.parse(JSON.stringify(packageJson.data)) as PackageJson);
+
+					// Apply user transform (if provided)
+					if (options.transform) {
+						packageJson.data = options.transform(packageJson.data);
 					}
 
 					packageJson.update();

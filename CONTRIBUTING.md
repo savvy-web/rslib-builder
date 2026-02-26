@@ -137,9 +137,22 @@ rslib-builder/
 
 When adding or modifying plugins:
 
-1. Plugins execute in order: TsDocLintPlugin (pre-build) → AutoEntryPlugin → DtsPlugin → PackageJsonTransformPlugin → VirtualEntryPlugin → FilesArrayPlugin
-2. Use `api.expose()` / `api.useExposed()` for cross-plugin state
-3. Understand Rsbuild `processAssets` stages: `pre-process`, `optimize`, `additional`, `optimize-inline`, `summarize`
+1. Plugins execute in order:
+   TsDocLintPlugin (pre-build) then AutoEntryPlugin,
+   DtsPlugin, PackageJsonTransformPlugin,
+   FilesArrayPlugin, VirtualEntryPlugin, and
+   PublishTargetPlugin (post-build)
+2. Use `api.expose()` / `api.useExposed()` for
+   cross-plugin state (e.g., `base-package-json`
+   flows from PackageJsonTransformPlugin to
+   PublishTargetPlugin)
+3. Understand Rsbuild `processAssets` stages:
+   `pre-process`, `optimize`, `additional`,
+   `optimize-inline`, `summarize`
+4. Understand build lifecycle hooks:
+   `onBeforeBuild` (pre-compilation) and
+   `onCloseBuild` (post-compilation, used by
+   PublishTargetPlugin)
 
 See `.claude/design/rslib-builder/architecture.md` for detailed plugin architecture.
 
@@ -165,7 +178,7 @@ See `.claude/design/rslib-builder/architecture.md` for detailed plugin architect
 
 **Problem**: Plugin not running
 
-**Solution**: Verify plugin added to correct target
+**Solution**: Verify plugin added to correct build mode
 
 **Problem**: Assets not processed
 

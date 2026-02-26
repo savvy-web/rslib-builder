@@ -15,7 +15,7 @@ describe("NodeLibraryBuilder format option E2E", () => {
 
 		beforeAll(async () => {
 			result = await buildFixture("options-testing", {
-				target: "npm",
+				mode: "npm",
 				config: {
 					builderOptions: {},
 				},
@@ -59,7 +59,7 @@ describe("NodeLibraryBuilder format option E2E", () => {
 	describe("explicit ESM format", () => {
 		test("should set package.json type to module for esm format", async ({ result }) => {
 			result.value = await buildFixture("options-testing", {
-				target: "npm",
+				mode: "npm",
 				config: {
 					builderOptions: {
 						format: "esm",
@@ -79,7 +79,7 @@ describe("NodeLibraryBuilder format option E2E", () => {
 
 		beforeAll(async () => {
 			result = await buildFixture("options-testing", {
-				target: "npm",
+				mode: "npm",
 				config: {
 					builderOptions: {
 						format: "cjs",
@@ -125,7 +125,7 @@ describe("NodeLibraryBuilder format option E2E", () => {
 	describe("format with dev target", () => {
 		test("should set package.json type to module for dev target with esm format", async ({ result }) => {
 			result.value = await buildFixture("options-testing", {
-				target: "dev",
+				mode: "dev",
 				config: {
 					builderOptions: {
 						format: "esm",
@@ -141,7 +141,7 @@ describe("NodeLibraryBuilder format option E2E", () => {
 
 		test("should set package.json type to commonjs for dev target with cjs format", async ({ result }) => {
 			result.value = await buildFixture("options-testing", {
-				target: "dev",
+				mode: "dev",
 				config: {
 					builderOptions: {
 						format: "cjs",

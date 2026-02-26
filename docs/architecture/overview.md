@@ -10,7 +10,7 @@ components interact.
 - [Plugin Architecture](#plugin-architecture)
 - [Package.json Transformation](#packagejson-transformation)
 - [Type Generation](#type-generation)
-- [Build Targets](#build-targets)
+- [Build Modes and Publish Targets](#build-modes-and-publish-targets)
 
 ## System Layers
 
@@ -35,7 +35,7 @@ rslib-builder is organized into four conceptual layers:
                            ▼
 ┌─────────────────────────────────────────────────────────┐
 │              Plugin Orchestration Layer                 │
-│   - 6 specialized plugins                               │
+│   - 7 specialized plugins                               │
 │   - Sequential execution across build stages            │
 │   - Shared state via api.expose/api.useExposed          │
 └─────────────────────────────────────────────────────────┘
@@ -83,14 +83,18 @@ minimal plugin sets.
 
 ### Layer 3: Plugin Orchestration
 
-Six plugins handle specific build concerns:
+Seven plugins handle specific build concerns:
 
 1. **TsDocLintPlugin** - Pre-build TSDoc validation
 2. **AutoEntryPlugin** - Entry point discovery
 3. **DtsPlugin** - TypeScript declarations
-4. **PackageJsonTransformPlugin** - Package.json processing
+4. **PackageJsonTransformPlugin** - Package.json
+   processing (exposes `base-package-json`)
 5. **FilesArrayPlugin** - Files array generation
+   (target-aware callbacks)
 6. **VirtualEntryPlugin** - Virtual entry management
+7. **PublishTargetPlugin** - Multi-registry publish
+   output (post-build)
 
 ### Layer 4: RSlib/Rspack
 
@@ -172,7 +176,15 @@ rslib build --env-mode npm
 └─────────────────────────────────┘
         │
         ▼
-     dist/npm/
+┌─────────────────────────────────┐
+│ 9. onCloseBuild                 │
+│    - PublishTargetPlugin copies  │
+│      output for additional      │
+│      publish targets            │
+└─────────────────────────────────┘
+        │
+        ▼
+     dist/npm/ (+ per-target dirs)
 ```
 
 ## Plugin Architecture
@@ -200,13 +212,14 @@ Plugins communicate through Rsbuild's expose/useExposed mechanism:
 | `files-array` | `Set<string>` | Files for package.json |
 | `entrypoints` | `Map<string, string>` | Entry name to path |
 | `exportToOutputMap` | `Map<string, string>` | Export to output |
+| `base-package-json` | `PackageJson` | Post-transform, pre-user package.json |
 
 ## Package.json Transformation
 
 The transformation pipeline processes package.json in stages:
 
 ```text
-Source package.json
+Source package.json (read once at top of createSingleMode)
         │
         ▼
 ┌─────────────────────────────────┐
@@ -226,8 +239,16 @@ Source package.json
         │
         ▼
 ┌─────────────────────────────────┐
+│ Expose base-package-json        │
+│ - Snapshot for PublishTarget-   │
+│   Plugin (cross-plugin flow)    │
+└─────────────────────────────────┘
+        │
+        ▼
+┌─────────────────────────────────┐
 │ User Transform (optional)       │
 │ - Custom modifications          │
+│ - Receives {mode, target, pkg}  │
 └─────────────────────────────────┘
         │
         ▼
@@ -237,7 +258,16 @@ Source package.json
 └─────────────────────────────────┘
         │
         ▼
-Output package.json
+Output package.json (primary target)
+        │
+        ▼  (if additional publish targets)
+┌─────────────────────────────────┐
+│ PublishTargetPlugin (onClose)   │
+│ - Copy primary output           │
+│ - Apply user transform per      │
+│   target from base-package-json │
+│ - Write per-target package.json │
+└─────────────────────────────────┘
 ```
 
 ### Example Transformation
@@ -408,9 +438,16 @@ bundled per entry point via API Extractor. The builder uses `ImportGraph`
 to trace all files reachable from package.json exports and creates individual
 RSlib entries for each traced file.
 
-## Build Targets
+## Build Modes and Publish Targets
 
-Two build targets serve different purposes:
+rslib-builder separates two concepts:
+
+- **BuildMode** (`dev` | `npm`) controls optimization level
+- **PublishTarget** controls where output goes for multi-registry publishing
+
+### Build Modes
+
+Two build modes serve different purposes:
 
 | Aspect | dev | npm |
 | :----- | :-- | :-- |
@@ -418,23 +455,58 @@ Two build targets serve different purposes:
 | private field | true | false |
 | Use case | Development | Publishing |
 | Output | dist/dev/ | dist/npm/ |
+| Publish targets | Always empty | Resolved from package.json |
 
-### Target Selection
-
-Targets are selected at build time via `--env-mode`:
+Modes are selected at build time via `--env-mode`:
 
 ```bash
 rslib build --env-mode dev   # Development build
 rslib build --env-mode npm   # Production build
 ```
 
-### Target-Specific Plugin Behavior
+### Mode-Specific Plugin Behavior
 
-Some plugins behave differently per target:
+Some plugins behave differently per mode:
 
-- **PackageJsonTransformPlugin** sets `private: true` for dev target
-- **DtsPlugin** only generates `api.model.json` for npm target
-- Source maps are only generated for dev target
+- **PackageJsonTransformPlugin** sets `private: true` for dev mode
+- **DtsPlugin** only generates `api.model.json` for npm mode
+- Source maps are only generated for dev mode
+- **PublishTargetPlugin** only runs for npm mode with multiple targets
+
+### Publish Targets
+
+When `publishConfig.targets` is configured in package.json, the npm mode
+build produces output for multiple registries:
+
+```text
+rslib build --env-mode npm
+        │
+        ▼
+┌──────────────────────────────┐
+│ Primary build to dist/npm/   │
+│ (first target in array)      │
+└──────────────────────────────┘
+        │
+        ▼
+┌──────────────────────────────┐
+│ PublishTargetPlugin           │
+│ (onCloseBuild)               │
+│                              │
+│ For each additional target:  │
+│ 1. Copy dist/npm/ output     │
+│ 2. Read base-package-json    │
+│ 3. Apply user transform      │
+│ 4. Write per-target pkg.json │
+└──────────────────────────────┘
+        │
+        ▼
+dist/npm/          (primary: npmjs.org)
+dist/npm-github/   (additional: GitHub Packages)
+```
+
+Dev mode always gets empty targets regardless of `publishConfig.targets`
+configuration, ensuring development builds never write to publish-target
+directories.
 
 ## Further Reading
 

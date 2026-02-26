@@ -729,10 +729,10 @@ export interface DtsPluginOptions {
 	footer?: string;
 
 	/**
-	 * Build target (dev, npm).
+	 * Build mode (dev, npm).
 	 * Used to generate the correct temp tsconfig when tsconfigPath is not provided.
 	 */
-	buildTarget?: "dev" | "npm";
+	buildMode?: "dev" | "npm";
 
 	/**
 	 * Output format for the library.
@@ -1493,7 +1493,7 @@ export const DtsPlugin = (options: DtsPluginOptions = {}): RsbuildPlugin => {
 				const cwd = api.context.rootPath;
 
 				try {
-					// Always generate a temp config when buildTarget is provided
+					// Always generate a temp config when buildMode is provided
 					// This ensures consistent declaration generation regardless of the user's tsconfig setup:
 					// 1. The temp config uses absolute paths that work from /tmp
 					// 2. It handles packages extending our templates (which use ${configDir})
@@ -1503,18 +1503,18 @@ export const DtsPlugin = (options: DtsPluginOptions = {}): RsbuildPlugin => {
 					// is only for the declaration generation step
 					let configTsconfigPath = options.tsconfigPath;
 
-					if (options.buildTarget) {
+					if (options.buildMode) {
 						// Change working directory temporarily to package root so process.cwd() works correctly
 						const originalCwd = process.cwd();
 						try {
 							process.chdir(cwd);
-							configTsconfigPath = TSConfigs.node.ecma.lib.writeBundleTempConfig(options.buildTarget);
+							configTsconfigPath = TSConfigs.node.ecma.lib.writeBundleTempConfig(options.buildMode);
 						} finally {
 							// Restore original working directory
 							process.chdir(originalCwd);
 						}
 					} else if (!configTsconfigPath) {
-						// Fall back to RSLib's detected tsconfig if no buildTarget
+						// Fall back to RSLib's detected tsconfig if no buildMode
 						configTsconfigPath = config.source?.tsconfigPath;
 					}
 
@@ -1880,7 +1880,7 @@ export const DtsPlugin = (options: DtsPluginOptions = {}): RsbuildPlugin => {
 												hasTsdocMetadata: !!tsdocMetadataPath,
 												hasTsconfig: !!state.parsedConfig && !!state.tsconfigPath,
 												cwd,
-												distPath: `dist/${options.buildTarget ?? envId}`,
+												distPath: `dist/${options.buildMode ?? envId}`,
 											});
 										}
 									}
