@@ -774,13 +774,6 @@ export class NodeLibraryBuilder {
 			);
 		}
 
-		// Process package.json with pnpm + RSLib transformations
-		// Wrap user's transform to provide mode context
-		const userTransform = options.transform;
-		const transformFn = userTransform
-			? (pkg: PackageJson): PackageJson => userTransform({ mode, target: primaryTarget, pkg })
-			: undefined;
-
 		// Normalize format: accept single or array, determine primary format
 		const formatOption = options.format ?? "esm";
 		const formats: LibraryFormat[] = Array.isArray(formatOption) ? formatOption : [formatOption];
@@ -802,6 +795,13 @@ export class NodeLibraryBuilder {
 		// Resolve publish targets (npm mode only — dev builds must never write to publish-target directories)
 		const publishTargets = mode === "npm" ? resolvePublishTargets(packageJson, cwd, resolve(cwd, baseOutputDir)) : [];
 		const primaryTarget = publishTargets[0] as PublishTarget | undefined;
+
+		// Process package.json with pnpm + RSLib transformations
+		// Wrap user's transform to provide mode context
+		const userTransform = options.transform;
+		const transformFn = userTransform
+			? (pkg: PackageJson): PackageJson => userTransform({ mode, target: primaryTarget, pkg })
+			: undefined;
 
 		// Only enable API model generation for npm mode (not dev)
 		const apiModelForMode = mode === "npm" ? options.apiModel : undefined;
@@ -1163,9 +1163,6 @@ export class NodeLibraryBuilder {
 						api.expose("virtual-entry-names", allVirtualEntryNames);
 					},
 				});
-
-				// Update the main lib config with the new plugin
-				lib.plugins = plugins;
 			}
 		}
 
@@ -1179,9 +1176,6 @@ export class NodeLibraryBuilder {
 					...(userTransform && { transform: userTransform }),
 				}),
 			);
-
-			// Update the main lib config with the new plugin
-			lib.plugins = plugins;
 		}
 
 		return defineConfig({
