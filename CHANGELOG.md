@@ -1,5 +1,11 @@
 # @savvy-web/rslib-builder
 
+## 0.16.0
+
+### Features
+
+* [`24e5aa1`](https://github.com/savvy-web/rslib-builder/commit/24e5aa1b753e63ad5743c6212258460dda11427e) Reverts control of peerDependencies to module
+
 ## 0.15.0
 
 ### Features
