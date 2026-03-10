@@ -2,7 +2,7 @@ import { cpSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import type { RsbuildPlugin, RsbuildPluginAPI } from "@rsbuild/core";
 import type { PackageJson } from "../../types/package-json.js";
-import type { PublishTarget, TransformPackageJsonFn } from "../builders/node-library-builder.js";
+import type { BuildMode, PublishTarget, TransformPackageJsonFn } from "../builders/node-library-builder.js";
 
 /**
  * Options for the PublishTargetPlugin.
@@ -29,9 +29,9 @@ export interface PublishTargetPluginOptions {
 	stagingDir: string;
 
 	/**
-	 * Current build mode (e.g., "npm").
+	 * Current build mode.
 	 */
-	mode: string;
+	mode: BuildMode;
 
 	/**
 	 * Optional user transform function applied to each target's package.json.
@@ -105,7 +105,7 @@ export const PublishTargetPlugin = (options: PublishTargetPluginOptions): Rsbuil
 
 					// 4. Apply user transform with target context
 					if (transform) {
-						targetPkg = transform({ mode: mode as "dev" | "npm", target, pkg: targetPkg });
+						targetPkg = transform({ mode, target, pkg: targetPkg });
 					}
 
 					// 5. Apply name override if configured
