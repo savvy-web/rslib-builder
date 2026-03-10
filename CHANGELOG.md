@@ -1,5 +1,15 @@
 # @savvy-web/rslib-builder
 
+## 0.17.0
+
+### Breaking Changes
+
+* [`491710e`](https://github.com/savvy-web/rslib-builder/commit/491710e2f57364e859fcf251b6964830f6664235) The `transformFiles` callback no longer receives a `target` property in its context object. If your `transformFiles` callback referenced `target`, remove that usage — target-specific transforms should be handled via the `transform` callback instead, which receives `{ mode, target, pkg }` per target.
+
+### Features
+
+* [`491710e`](https://github.com/savvy-web/rslib-builder/commit/491710e2f57364e859fcf251b6964830f6664235) Separate mode from targets in multi-target building. All publish targets from `publishConfig.targets` are now processed uniformly by `PublishTargetPlugin`, producing independent output directories (e.g., `dist/npm`, `dist/github`) with per-target package.json transforms. Previously the first target was treated as "primary" and shared the build staging directory, which prevented correct multi-directory output.
+
 ## 0.16.0
 
 ### Features
