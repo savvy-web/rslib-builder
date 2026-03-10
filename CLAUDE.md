@@ -134,11 +134,10 @@ Custom RSlib plugins handle complex build scenarios:
    - Runs API Extractor per entry, merges into single `.api.json` with multiple EntryPoints
    - When `apiModel` is enabled, also emits resolved `tsconfig.json` for virtual TS environments
 5. **FilesArrayPlugin** - Generates files array, excludes source maps
-   - Accepts optional `target?: PublishTarget` for target-specific file transforms
 6. **VirtualEntryPlugin** - Injects non-TypeScript virtual entries (JSON, static files)
 7. **PublishTargetPlugin** - Produces per-target output directories for multi-registry publishing
-   - Runs in `onCloseBuild` after the primary build completes
-   - Copies primary build output and applies per-target package.json transforms
+   - Runs in `onCloseBuild` after the build completes
+   - Copies staging output (`dist/<mode>`) to each target's directory and applies per-target package.json transforms
    - Consumes `base-package-json` exposed by PackageJsonTransformPlugin
 
 ### Build Modes
@@ -155,8 +154,10 @@ rslib build --env-mode dev
 rslib build --env-mode npm
 ```
 
+**Mode vs Targets:** Mode controls *how* to build (source maps, minification). Targets control *where* to publish. The build always outputs to `dist/<mode>` as a staging area. In npm mode, `PublishTargetPlugin` copies staging output to each target's directory and applies per-target package.json transforms. Dev mode has no targets.
+
 **Key types:** `BuildMode` (dev/npm), `PublishTarget`, `PublishProtocol` (npm/jsr), `resolvePublishTargets()`.
-`TransformPackageJsonFn` receives `{ mode, target, pkg }` where `mode` is the `BuildMode` and `target` is the `PublishTarget`.
+`TransformPackageJsonFn` receives `{ mode, target, pkg }` where `mode` is the `BuildMode` and `target` is the `PublishTarget`. When targets exist, transform is called once per target by `PublishTargetPlugin`. When no targets, transform is called with `target: undefined` by `PackageJsonTransformPlugin`.
 
 ### Build Output
 
@@ -217,7 +218,7 @@ VirtualEntryPlugin runs in a separate Rslib environment for non-TypeScript entri
 
 **Post-Build Hooks:**
 
-- PublishTargetPlugin (`onCloseBuild` - copies output and applies per-target transforms for multi-registry publishing)
+- PublishTargetPlugin (`onCloseBuild` - copies staging output to each target directory and applies per-target package.json transforms)
 
 ## Development
 

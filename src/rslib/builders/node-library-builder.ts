@@ -452,8 +452,6 @@ export interface NodeLibraryBuilderOptions {
 		filesArray: Set<string>;
 		/** Current build mode */
 		mode: BuildMode;
-		/** The publish target for this build output, if configured */
-		target: PublishTarget | undefined;
 	}) => void | Promise<void>;
 	/**
 	 * Optional transform function to modify package.json before it's saved.
@@ -794,14 +792,15 @@ export class NodeLibraryBuilder {
 
 		// Resolve publish targets (npm mode only — dev builds must never write to publish-target directories)
 		const publishTargets = mode === "npm" ? resolvePublishTargets(packageJson, cwd, resolve(cwd, baseOutputDir)) : [];
-		const primaryTarget = publishTargets[0] as PublishTarget | undefined;
+		const hasTargets = publishTargets.length > 0;
 
-		// Process package.json with pnpm + RSLib transformations
-		// Wrap user's transform to provide mode context
+		// When targets exist, user transform is applied per-target by PublishTargetPlugin.
+		// When no targets, user transform is applied here with target: undefined.
 		const userTransform = options.transform;
-		const transformFn = userTransform
-			? (pkg: PackageJson): PackageJson => userTransform({ mode, target: primaryTarget, pkg })
-			: undefined;
+		const transformFn =
+			!hasTargets && userTransform
+				? (pkg: PackageJson): PackageJson => userTransform({ mode, target: undefined, pkg })
+				: undefined;
 
 		// Only enable API model generation for npm mode (not dev)
 		const apiModelForMode = mode === "npm" ? options.apiModel : undefined;
@@ -847,7 +846,6 @@ export class NodeLibraryBuilder {
 		plugins.push(
 			FilesArrayPlugin({
 				mode,
-				...(primaryTarget && { target: primaryTarget }),
 				...(options.transformFiles && { transformFiles: options.transformFiles }),
 				...(isDualFormat && { formatDirs: formats }),
 			}),
@@ -1166,12 +1164,12 @@ export class NodeLibraryBuilder {
 			}
 		}
 
-		// Register PublishTargetPlugin for additional targets (beyond primary)
-		if (publishTargets.length > 1) {
+		// Register PublishTargetPlugin for all publish targets
+		if (hasTargets) {
 			plugins.push(
 				PublishTargetPlugin({
-					additionalTargets: publishTargets.slice(1),
-					primaryOutdir: resolve(cwd, baseOutputDir),
+					targets: publishTargets,
+					stagingDir: resolve(cwd, baseOutputDir),
 					mode,
 					...(userTransform && { transform: userTransform }),
 				}),

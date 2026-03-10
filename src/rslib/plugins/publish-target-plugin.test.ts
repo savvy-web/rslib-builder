@@ -53,8 +53,8 @@ describe("PublishTargetPlugin", () => {
 
 	it("should create plugin with correct name", () => {
 		const plugin = PublishTargetPlugin({
-			additionalTargets: [],
-			primaryOutdir: "/output/primary",
+			targets: [],
+			stagingDir: "/output/primary",
 			mode: "npm",
 		});
 		expect(plugin.name).toBe("publish-target-plugin");
@@ -63,8 +63,8 @@ describe("PublishTargetPlugin", () => {
 
 	it("should register an onCloseBuild hook", () => {
 		const plugin = PublishTargetPlugin({
-			additionalTargets: [],
-			primaryOutdir: "/output/primary",
+			targets: [],
+			stagingDir: "/output/primary",
 			mode: "npm",
 		});
 		const mockApi = createMockApi();
@@ -75,10 +75,10 @@ describe("PublishTargetPlugin", () => {
 		expect(typeof mockApi.onCloseBuild.mock.calls[0][0]).toBe("function");
 	});
 
-	it("should no-op when additionalTargets is empty", async () => {
+	it("should no-op when targets is empty", async () => {
 		const plugin = PublishTargetPlugin({
-			additionalTargets: [],
-			primaryOutdir: "/output/primary",
+			targets: [],
+			stagingDir: "/output/primary",
 			mode: "npm",
 		});
 		const mockApi = createMockApi({ name: "test-pkg", version: "1.0.0" });
@@ -98,8 +98,8 @@ describe("PublishTargetPlugin", () => {
 	it("should no-op when base-package-json is not exposed", async () => {
 		const target = createMockTarget();
 		const plugin = PublishTargetPlugin({
-			additionalTargets: [target],
-			primaryOutdir: "/output/primary",
+			targets: [target],
+			stagingDir: "/output/primary",
 			mode: "npm",
 		});
 		const mockApi = createMockApi(undefined);
@@ -130,8 +130,8 @@ describe("PublishTargetPlugin", () => {
 		const target = createMockTarget({ directory: "/output/npm-target" });
 
 		const plugin = PublishTargetPlugin({
-			additionalTargets: [target],
-			primaryOutdir: "/output/primary",
+			targets: [target],
+			stagingDir: "/output/primary",
 			mode: "npm",
 		});
 		const mockApi = createMockApi(basePackageJson);
@@ -178,8 +178,8 @@ describe("PublishTargetPlugin", () => {
 		});
 
 		const plugin = PublishTargetPlugin({
-			additionalTargets: [target],
-			primaryOutdir: "/output/primary",
+			targets: [target],
+			stagingDir: "/output/primary",
 			mode: "npm",
 			transform,
 		});
@@ -217,8 +217,8 @@ describe("PublishTargetPlugin", () => {
 		const target = createMockTarget();
 
 		const plugin = PublishTargetPlugin({
-			additionalTargets: [target],
-			primaryOutdir: "/output/primary",
+			targets: [target],
+			stagingDir: "/output/primary",
 			mode: "npm",
 			name: "@scope/override-name",
 		});
@@ -248,8 +248,8 @@ describe("PublishTargetPlugin", () => {
 		const target = createMockTarget();
 
 		const plugin = PublishTargetPlugin({
-			additionalTargets: [target],
-			primaryOutdir: "/output/primary",
+			targets: [target],
+			stagingDir: "/output/primary",
 			mode: "npm",
 		});
 		const mockApi = createMockApi(basePackageJson);
@@ -278,8 +278,8 @@ describe("PublishTargetPlugin", () => {
 		const target = createMockTarget();
 
 		const plugin = PublishTargetPlugin({
-			additionalTargets: [target],
-			primaryOutdir: "/output/primary",
+			targets: [target],
+			stagingDir: "/output/primary",
 			mode: "npm",
 		});
 		const mockApi = createMockApi(basePackageJson);
@@ -319,8 +319,8 @@ describe("PublishTargetPlugin", () => {
 		});
 
 		const plugin = PublishTargetPlugin({
-			additionalTargets: [npmTarget, jsrTarget],
-			primaryOutdir: "/output/primary",
+			targets: [npmTarget, jsrTarget],
+			stagingDir: "/output/primary",
 			mode: "npm",
 		});
 		const mockApi = createMockApi(basePackageJson);
@@ -388,8 +388,8 @@ describe("PublishTargetPlugin", () => {
 		});
 
 		const plugin = PublishTargetPlugin({
-			additionalTargets: [npmTarget, jsrTarget],
-			primaryOutdir: "/output/primary",
+			targets: [npmTarget, jsrTarget],
+			stagingDir: "/output/primary",
 			mode: "npm",
 			transform,
 		});
@@ -429,8 +429,8 @@ describe("PublishTargetPlugin", () => {
 		const target = createMockTarget({ directory: "/output/primary" });
 
 		const plugin = PublishTargetPlugin({
-			additionalTargets: [target],
-			primaryOutdir: "/output/primary",
+			targets: [target],
+			stagingDir: "/output/primary",
 			mode: "npm",
 		});
 		const mockApi = createMockApi(basePackageJson);
@@ -471,8 +471,8 @@ describe("PublishTargetPlugin", () => {
 		const diffDir = createMockTarget({ directory: "/output/jsr-target", protocol: "jsr", registry: null });
 
 		const plugin = PublishTargetPlugin({
-			additionalTargets: [sameDir, diffDir],
-			primaryOutdir: "/output/primary",
+			targets: [sameDir, diffDir],
+			stagingDir: "/output/primary",
 			mode: "npm",
 		});
 		const mockApi = createMockApi(basePackageJson);
@@ -508,8 +508,8 @@ describe("PublishTargetPlugin", () => {
 		const target = createMockTarget();
 
 		const plugin = PublishTargetPlugin({
-			additionalTargets: [target],
-			primaryOutdir: "/output/primary",
+			targets: [target],
+			stagingDir: "/output/primary",
 			mode: "npm",
 		});
 		const mockApi = createMockApi(basePackageJson);

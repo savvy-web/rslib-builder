@@ -443,7 +443,7 @@ describe("NodeLibraryBuilder", () => {
 		});
 
 		describe("publish targets", () => {
-			it("should pass primaryTarget to PackageJsonTransformPlugin transform in npm mode", async () => {
+			it("should not pass transform to PackageJsonTransformPlugin when targets exist", async () => {
 				const mockPkgWithTargets = JSON.stringify({
 					name: "test-pkg",
 					version: "1.0.0",
@@ -461,26 +461,10 @@ describe("NodeLibraryBuilder", () => {
 				});
 				await NodeLibraryBuilder.createSingleMode("npm", options);
 
-				// The transform wrapper should pass primary target to PackageJsonTransformPlugin
+				// When targets exist, transform should NOT be passed to PackageJsonTransformPlugin
+				// (PublishTargetPlugin handles per-target transforms instead)
 				const pkgTransformCall = vi.mocked(PackageJsonTransformPlugin).mock.calls[0][0];
-				expect(pkgTransformCall?.transform).toBeDefined();
-
-				// Invoke the wrapper to verify target is passed through
-				// biome-ignore lint/suspicious/noExplicitAny: Test mock
-				const wrappedFn = pkgTransformCall?.transform as any;
-				const fakePkg = { name: "test" };
-				wrappedFn(fakePkg);
-
-				// userTransform should have been called with primary target
-				expect(userTransform).toHaveBeenCalledWith(
-					expect.objectContaining({
-						mode: "npm",
-						target: expect.objectContaining({
-							protocol: "npm",
-							registry: "https://registry.npmjs.org/",
-						}),
-					}),
-				);
+				expect(pkgTransformCall?.transform).toBeUndefined();
 			});
 
 			it("should pass undefined target in dev mode", async () => {
@@ -516,7 +500,7 @@ describe("NodeLibraryBuilder", () => {
 				);
 			});
 
-			it("should register PublishTargetPlugin when multiple targets exist", async () => {
+			it("should register PublishTargetPlugin for all targets", async () => {
 				const mockPkgWithTargets = JSON.stringify({
 					name: "test-pkg",
 					version: "1.0.0",
@@ -533,7 +517,11 @@ describe("NodeLibraryBuilder", () => {
 
 				expect(PublishTargetPlugin).toHaveBeenCalledWith(
 					expect.objectContaining({
-						additionalTargets: expect.arrayContaining([
+						targets: expect.arrayContaining([
+							expect.objectContaining({
+								protocol: "npm",
+								registry: "https://registry.npmjs.org/",
+							}),
 							expect.objectContaining({
 								protocol: "npm",
 								registry: "https://npm.pkg.github.com/",
@@ -544,7 +532,7 @@ describe("NodeLibraryBuilder", () => {
 				);
 			});
 
-			it("should not register PublishTargetPlugin for single target", async () => {
+			it("should register PublishTargetPlugin for single target", async () => {
 				const mockPkgWithSingleTarget = JSON.stringify({
 					name: "test-pkg",
 					version: "1.0.0",
@@ -559,7 +547,17 @@ describe("NodeLibraryBuilder", () => {
 				const options = NodeLibraryBuilder.mergeOptions();
 				await NodeLibraryBuilder.createSingleMode("npm", options);
 
-				expect(PublishTargetPlugin).not.toHaveBeenCalled();
+				expect(PublishTargetPlugin).toHaveBeenCalledWith(
+					expect.objectContaining({
+						targets: [
+							expect.objectContaining({
+								protocol: "npm",
+								registry: "https://registry.npmjs.org/",
+							}),
+						],
+						mode: "npm",
+					}),
+				);
 			});
 
 			it("should not register PublishTargetPlugin for dev mode", async () => {
@@ -580,7 +578,7 @@ describe("NodeLibraryBuilder", () => {
 				expect(PublishTargetPlugin).not.toHaveBeenCalled();
 			});
 
-			it("should pass primaryTarget to FilesArrayPlugin in npm mode", async () => {
+			it("should not pass target to FilesArrayPlugin", async () => {
 				const mockPkgWithTargets = JSON.stringify({
 					name: "test-pkg",
 					version: "1.0.0",
@@ -594,22 +592,6 @@ describe("NodeLibraryBuilder", () => {
 
 				const options = NodeLibraryBuilder.mergeOptions();
 				await NodeLibraryBuilder.createSingleMode("npm", options);
-
-				expect(FilesArrayPlugin).toHaveBeenCalledWith(
-					expect.objectContaining({
-						target: expect.objectContaining({
-							protocol: "npm",
-							registry: "https://registry.npmjs.org/",
-						}),
-					}),
-				);
-			});
-
-			it("should not pass target to FilesArrayPlugin in dev mode", async () => {
-				vi.mocked(readFileSync).mockReturnValue(mockPackageJson);
-
-				const options = NodeLibraryBuilder.mergeOptions();
-				await NodeLibraryBuilder.createSingleMode("dev", options);
 
 				const filesArrayCall = vi.mocked(FilesArrayPlugin).mock.calls[0][0];
 				expect(filesArrayCall).not.toHaveProperty("target");
