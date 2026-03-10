@@ -54,7 +54,7 @@ export interface PublishTargetPluginOptions {
  * Plugin to produce per-target output directories for multi-registry publishing.
  *
  * @remarks
- * Runs in `onCloseBuild` after the primary build completes. For each
+ * Runs in `onCloseBuild` after the main RSlib build completes. For each
  * publish target:
  *
  * 1. Creates the target directory
