@@ -1170,8 +1170,8 @@ export class NodeLibraryBuilder {
 		if (publishTargets.length > 1) {
 			plugins.push(
 				PublishTargetPlugin({
-					additionalTargets: publishTargets.slice(1),
-					primaryOutdir: resolve(cwd, baseOutputDir),
+					targets: publishTargets.slice(1),
+					stagingDir: resolve(cwd, baseOutputDir),
 					mode,
 					...(userTransform && { transform: userTransform }),
 				}),

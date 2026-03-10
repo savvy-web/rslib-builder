@@ -11,22 +11,22 @@ import type { PublishTarget, TransformPackageJsonFn } from "../builders/node-lib
  */
 export interface PublishTargetPluginOptions {
 	/**
-	 * Additional publish targets to write output for (targets beyond the primary).
+	 * Publish targets to write output for.
 	 *
 	 * @remarks
-	 * Each target gets a copy of the primary build output with per-target
+	 * Each target gets a copy of the build staging output with per-target
 	 * package.json transformations applied.
 	 */
-	additionalTargets: PublishTarget[];
+	targets: PublishTarget[];
 
 	/**
-	 * Absolute path to the primary output directory.
+	 * Absolute path to the build staging directory (dist/&lt;mode&gt;).
 	 *
 	 * @remarks
-	 * The primary build output is copied from this directory to each
-	 * additional target's directory.
+	 * Build artifacts are copied from this directory to each target's
+	 * directory (when they differ).
 	 */
-	primaryOutdir: string;
+	stagingDir: string;
 
 	/**
 	 * Current build mode (e.g., "npm").
@@ -37,7 +37,7 @@ export interface PublishTargetPluginOptions {
 	 * Optional user transform function applied to each target's package.json.
 	 *
 	 * @remarks
-	 * Called after copying the base package.json state for each additional target.
+	 * Called after copying the base package.json state for each target.
 	 */
 	transform?: TransformPackageJsonFn;
 
@@ -45,7 +45,7 @@ export interface PublishTargetPluginOptions {
 	 * Optional package name override.
 	 *
 	 * @remarks
-	 * When provided, overrides the `name` field in each additional target's package.json.
+	 * When provided, overrides the `name` field in each target's package.json.
 	 */
 	name?: string;
 }
@@ -54,15 +54,15 @@ export interface PublishTargetPluginOptions {
  * Plugin to produce per-target output directories for multi-registry publishing.
  *
  * @remarks
- * Runs in `onCloseBuild` after the primary build completes. For each additional
- * publish target (beyond the primary):
+ * Runs in `onCloseBuild` after the primary build completes. For each
+ * publish target:
  *
  * 1. Creates the target directory
- * 2. Copies all build output from the primary output directory
+ * 2. Copies all build output from the staging directory
  * 3. Reads the exposed `base-package-json` (after standard transforms, before user transform)
  * 4. Applies the user transform with the target-specific context
  * 5. Applies optional name override
- * 6. Copies the `files` array from the primary output's package.json
+ * 6. Copies the `files` array from the staging directory's package.json
  * 7. Writes the final package.json to the target directory
  *
  * @param options - Plugin configuration options
@@ -74,9 +74,9 @@ export const PublishTargetPlugin = (options: PublishTargetPluginOptions): Rsbuil
 		name: "publish-target-plugin",
 		setup(api: RsbuildPluginAPI): void {
 			api.onCloseBuild(async () => {
-				const { additionalTargets, primaryOutdir, mode, transform, name } = options;
+				const { targets, stagingDir, mode, transform, name } = options;
 
-				if (additionalTargets.length === 0) {
+				if (targets.length === 0) {
 					return;
 				}
 
@@ -86,18 +86,18 @@ export const PublishTargetPlugin = (options: PublishTargetPluginOptions): Rsbuil
 					return;
 				}
 
-				// Read the primary output's package.json to get the files array
-				const primaryPkgPath = join(primaryOutdir, "package.json");
-				const primaryPkg = JSON.parse(readFileSync(primaryPkgPath, "utf-8")) as PackageJson;
+				// Read the staging directory's package.json to get the files array
+				const stagingPkgPath = join(stagingDir, "package.json");
+				const stagingPkg = JSON.parse(readFileSync(stagingPkgPath, "utf-8")) as PackageJson;
 
-				for (const target of additionalTargets) {
-					// When the target directory differs from the primary output, copy
+				for (const target of targets) {
+					// When the target directory differs from the staging directory, copy
 					// all build artifacts so each target gets its own independent set.
 					// Skip when they share a directory (e.g. multiple registries
 					// publishing from the same dist/npm).
-					if (target.directory !== primaryOutdir) {
+					if (target.directory !== stagingDir) {
 						mkdirSync(target.directory, { recursive: true });
-						cpSync(primaryOutdir, target.directory, { recursive: true });
+						cpSync(stagingDir, target.directory, { recursive: true });
 					}
 
 					// 3. Deep-copy the base package.json state
@@ -113,9 +113,9 @@ export const PublishTargetPlugin = (options: PublishTargetPluginOptions): Rsbuil
 						targetPkg.name = name;
 					}
 
-					// 6. Copy files array from primary output's package.json
-					if (primaryPkg.files) {
-						targetPkg.files = [...primaryPkg.files];
+					// 6. Copy files array from staging directory's package.json
+					if (stagingPkg.files) {
+						targetPkg.files = [...stagingPkg.files];
 					}
 
 					// 7. Write package.json to target directory
