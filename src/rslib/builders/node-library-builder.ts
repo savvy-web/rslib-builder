@@ -452,8 +452,6 @@ export interface NodeLibraryBuilderOptions {
 		filesArray: Set<string>;
 		/** Current build mode */
 		mode: BuildMode;
-		/** The publish target for this build output, if configured */
-		target: PublishTarget | undefined;
 	}) => void | Promise<void>;
 	/**
 	 * Optional transform function to modify package.json before it's saved.
@@ -847,7 +845,6 @@ export class NodeLibraryBuilder {
 		plugins.push(
 			FilesArrayPlugin({
 				mode,
-				...(primaryTarget && { target: primaryTarget }),
 				...(options.transformFiles && { transformFiles: options.transformFiles }),
 				...(isDualFormat && { formatDirs: formats }),
 			}),

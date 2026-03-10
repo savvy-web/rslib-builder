@@ -596,20 +596,10 @@ describe("FilesArrayPlugin", () => {
 		expect(mockPackageJsonAsset.update).toHaveBeenCalledTimes(1);
 	});
 
-	it("should pass target to transformFiles callback", async () => {
-		const mockTarget = {
-			protocol: "npm" as const,
-			registry: "https://registry.npmjs.org/",
-			directory: "/output/npm",
-			access: "public" as const,
-			provenance: true,
-			tag: "latest",
-		};
-
+	it("should call transformFiles callback with mode but no target", async () => {
 		const transformFilesFn = vi.fn();
 		const plugin = FilesArrayPlugin({
 			mode: "npm",
-			target: mockTarget,
 			transformFiles: transformFilesFn,
 		});
 		const mockApi = {
@@ -638,43 +628,9 @@ describe("FilesArrayPlugin", () => {
 		expect(transformFilesFn).toHaveBeenCalledWith(
 			expect.objectContaining({
 				mode: "npm",
-				target: mockTarget,
 			}),
 		);
-	});
-
-	it("should pass undefined target to transformFiles callback when no target configured", async () => {
-		const transformFilesFn = vi.fn();
-		const plugin = FilesArrayPlugin({
-			mode: "npm",
-			transformFiles: transformFilesFn,
-		});
-		const mockApi = {
-			processAssets: vi.fn(),
-			useExposed: vi.fn().mockReturnValue(undefined),
-			expose: vi.fn(),
-		};
-
-		mockJsonAssetCreate.mockResolvedValue(null);
-		mockTextAssetCreate.mockResolvedValue(null);
-
-		plugin.setup(mockApi as unknown as Parameters<ReturnType<typeof FilesArrayPlugin>["setup"]>[0]);
-
-		const callback = mockApi.processAssets.mock.calls[0][1];
-
-		const mockContext = {
-			compilation: {
-				name: "test-env",
-				assets: {},
-			},
-		};
-
-		await callback(mockContext);
-
-		expect(transformFilesFn).toHaveBeenCalledWith(
-			expect.objectContaining({
-				target: undefined,
-			}),
-		);
+		// target should not be present in the callback context
+		expect(transformFilesFn.mock.calls[0][0]).not.toHaveProperty("target");
 	});
 });
