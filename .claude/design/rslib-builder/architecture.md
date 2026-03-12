@@ -3,8 +3,8 @@ status: current
 module: rslib-builder
 category: architecture
 created: 2026-01-18
-updated: 2026-02-26
-last-synced: 2026-02-26
+updated: 2026-03-12
+last-synced: 2026-03-12
 completeness: 95
 related:
   - rslib-builder/api-extraction.md
@@ -112,6 +112,12 @@ function resolvePublishTargets(
   outdir: string,
 ): PublishTarget[];
 
+// Declarative API Extractor warning suppression
+interface WarningSuppressionRule {
+  messageId?: string;  // e.g., "ae-forgotten-export"
+  pattern?: string;    // Tried as RegExp first, falls back to substring
+}
+
 // Default options
 NodeLibraryBuilder.DEFAULT_OPTIONS = {
   format: "esm",
@@ -177,7 +183,7 @@ NodeLibraryBuilder.create(options): RslibConfigAsyncFn
 
 **Location:** `src/rslib/plugins/utils/`
 
-**Purpose:** Shared utilities for entry extraction, package.json building, and transformations. Consolidated from 14 files to 6 focused modules.
+**Purpose:** Shared utilities for entry extraction, package.json building, transformations, and message suppression. Consolidated from 14 files to 9 focused modules.
 
 **Consolidated structure (6 files):**
 
@@ -238,6 +244,14 @@ NodeLibraryBuilder.create(options): RslibConfigAsyncFn
    - Excludes file selection patterns (include, exclude, files, references)
    - Converts lib references from full paths to canonical names (e.g., "esnext")
    - Used by DtsPlugin to emit resolved tsconfig.json alongside API model
+
+9. **`message-suppressor.ts`** - API Extractor warning suppression
+   - Exports: `matchesSuppression()`, `createMessageSuppressor()`, `MessageSuppressor` interface
+   - Declarative suppression of API Extractor messages via `WarningSuppressionRule[]`
+   - `createMessageSuppressor()` factory pre-compiles patterns for efficient matching
+   - `matchesSuppression()` checks a single rule against messageId + text (AND logic when both fields set)
+   - Pattern matching: tried as RegExp first, falls back to substring match on invalid regex
+   - Used by `bundleDtsFiles()` in DtsPlugin's `messageCallback` before tsdoc/forgottenExports handling
 
 #### Component 4: Multi-Format Build System
 

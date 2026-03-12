@@ -475,6 +475,7 @@ NodeLibraryBuilder.create({
 | `tsdoc` | `TsDocOptions` | All groups | TSDoc configuration |
 | `tsdocMetadata` | `boolean \| object` | `true` | tsdoc-metadata.json |
 | `forgottenExports` | `string` | `'include'` | Forgotten export handling |
+| `suppressWarnings` | `WarningSuppressionRule[]` | `[]` | Granular warning suppression rules |
 
 ### TSDoc Configuration
 
@@ -537,6 +538,40 @@ apiModel: {
   forgottenExports: 'error',  // Fail build on forgotten exports
 }
 ```
+
+**Granular Warning Suppression:**
+
+The `suppressWarnings` option provides fine-grained control over which API
+Extractor warnings to suppress. Unlike `forgottenExports` which is
+all-or-nothing for a category, `suppressWarnings` lets you target specific
+messages by `messageId` and/or text `pattern`.
+
+Each rule can specify:
+
+| Field | Type | Description |
+| :---- | :--- | :---------- |
+| `messageId` | `string` | Exact match on API Extractor message ID |
+| `pattern` | `string` | RegExp pattern (falls back to substring match) |
+
+When both fields are specified, both must match (AND logic).
+
+```typescript
+apiModel: {
+  forgottenExports: 'error',  // Keep strict by default
+  suppressWarnings: [
+    // Suppress forgotten-export warnings for Effect _base symbols
+    { messageId: 'ae-forgotten-export', pattern: '_base' },
+    // Suppress a specific TSDoc warning category
+    { messageId: 'tsdoc-param-tag-missing-hyphen' },
+    // Suppress by text pattern (regex supported)
+    { pattern: 'some-third-party-type' },
+  ],
+}
+```
+
+Suppressions are evaluated before `forgottenExports` and TSDoc warning handling,
+and take priority over both. Suppressed messages are logged at info level with a
+count and list of suppressed messages per entry.
 
 **Note:** API model is only generated for the `npm` target, not `dev`.
 

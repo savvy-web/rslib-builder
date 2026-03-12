@@ -3,8 +3,8 @@ status: current
 module: rslib-builder
 category: reference
 created: 2026-01-20
-updated: 2026-02-05
-last-synced: 2026-02-05
+updated: 2026-03-12
+last-synced: 2026-03-12
 completeness: 95
 related:
   - rslib-builder/architecture.md
@@ -55,6 +55,12 @@ interface ApiModelOptions {
   tsdoc?: TsDocOptions;
   tsdocMetadata?: TsDocMetadataOptions | boolean;
   forgottenExports?: "include" | "error" | "ignore";
+  suppressWarnings?: WarningSuppressionRule[];
+}
+
+interface WarningSuppressionRule {
+  messageId?: string;  // e.g., "ae-forgotten-export"
+  pattern?: string;    // Tried as RegExp first, falls back to substring
 }
 
 interface TsDocOptions {
@@ -224,6 +230,67 @@ apiModel: { enabled: true, forgottenExports: "ignore" }
 apiModel: { enabled: true }
 ```
 
+#### `suppressWarnings`
+
+| Property | Value |
+| -------- | ----- |
+| Type | `WarningSuppressionRule[]` |
+| Default | `[]` (no suppressions) |
+| Required | No |
+
+Declarative rules for suppressing specific API Extractor warning messages. Each rule can match by `messageId`, text `pattern`, or both. When both fields are specified, both must match (AND logic).
+
+**WarningSuppressionRule fields:**
+
+| Field | Type | Description |
+| ----- | ---- | ----------- |
+| `messageId` | `string` | API Extractor message ID (e.g., `"ae-forgotten-export"`) |
+| `pattern` | `string` | Tried as RegExp first; falls back to substring match if invalid regex |
+
+**Priority:** Suppression rules are evaluated first in the `messageCallback`, before `forgottenExports` and `tsdoc.warnings` handling. A matched suppression takes priority regardless of other severity settings.
+
+**Logging:** After API Extractor completes each entry, the count and list of suppressed messages are logged at info level.
+
+**Implementation:** The `createMessageSuppressor()` factory from `src/rslib/plugins/utils/message-suppressor.ts` pre-compiles regex patterns at initialization for efficient matching across many messages.
+
+```typescript
+// Suppress a specific message type
+apiModel: {
+  suppressWarnings: [
+    { messageId: "ae-forgotten-export" }
+  ]
+}
+
+// Suppress by pattern (regex syntax)
+apiModel: {
+  suppressWarnings: [
+    { pattern: "MyInternalType" }
+  ]
+}
+
+// Suppress by pattern (regex with anchors)
+apiModel: {
+  suppressWarnings: [
+    { pattern: "^Analysis will use" }
+  ]
+}
+
+// Both messageId AND pattern must match
+apiModel: {
+  suppressWarnings: [
+    { messageId: "ae-forgotten-export", pattern: "InternalHelper" }
+  ]
+}
+
+// Multiple rules (any rule matching suppresses the message)
+apiModel: {
+  suppressWarnings: [
+    { messageId: "ae-forgotten-export" },
+    { pattern: "^Analysis will use" }
+  ]
+}
+```
+
 ### TsDocOptions
 
 **Integrated Lint Configuration:** TSDoc linting is now controlled via the `apiModel.tsdoc.lint` option. When `apiModel` is enabled (the default), lint is also enabled by default. The lint plugin uses the TSDoc tag configuration from the parent `tsdoc` object (tagDefinitions, groups, etc.).
@@ -387,6 +454,9 @@ export default NodeLibraryBuilder.create({
     filename: "rslib-builder.api.json",
     localPaths: ["../docs-site/lib/packages/rslib-builder"],
     forgottenExports: "error",
+    suppressWarnings: [
+      { pattern: "^Analysis will use" }
+    ],
     tsdoc: {
       groups: ["core", "extended", "discretionary"],
       tagDefinitions: [
@@ -400,6 +470,25 @@ export default NodeLibraryBuilder.create({
       enabled: true,
       filename: "tsdoc-metadata.json"
     }
+  }
+});
+```
+
+### Suppress Specific Warnings
+
+```typescript
+import { NodeLibraryBuilder } from '@savvy-web/rslib-builder';
+
+export default NodeLibraryBuilder.create({
+  apiModel: {
+    suppressWarnings: [
+      // Suppress all forgotten export warnings
+      { messageId: "ae-forgotten-export" },
+      // Suppress messages matching a regex pattern
+      { pattern: "^Analysis will use" },
+      // Suppress only forgotten exports mentioning a specific type
+      { messageId: "ae-forgotten-export", pattern: "InternalHelper" }
+    ]
   }
 });
 ```
@@ -512,4 +601,4 @@ When all tag groups are enabled (the default), the generated `tsdoc.json` uses `
 
 ---
 
-**Document Status:** Current - Comprehensive reference for ApiModelOptions configuration with multi-entry API model generation support.
+**Document Status:** Current - Comprehensive reference for ApiModelOptions configuration with multi-entry API model generation and granular warning suppression support.

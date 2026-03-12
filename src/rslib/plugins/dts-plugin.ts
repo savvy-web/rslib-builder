@@ -23,6 +23,7 @@ import type { PackageJson } from "../../types/package-json.js";
 import { createEnvLogger } from "./utils/build-logger.js";
 import { EntryExtractor } from "./utils/entry-extractor.js";
 import { getApiExtractorPath } from "./utils/file-utils.js";
+import { createMessageSuppressor } from "./utils/message-suppressor.js";
 import { TsconfigResolver } from "./utils/tsconfig-resolver.js";
 
 /**
@@ -576,6 +577,32 @@ export class TsDocConfigBuilder {
 }
 
 /**
+ * A declarative rule for suppressing a specific API Extractor warning message.
+ *
+ * @remarks
+ * Both `messageId` and `pattern` must match when both are specified (AND logic).
+ * Specify at least one field per rule — a rule with neither field matches all messages.
+ *
+ * `pattern` is first tried as a RegExp. If the string is not a valid regular
+ * expression it falls back to substring matching.
+ *
+ * @public
+ */
+export interface WarningSuppressionRule {
+	/**
+	 * Exact match against the message's `messageId` property
+	 * (e.g., `"ae-forgotten-export"`, `"tsdoc-param-tag-missing-hyphen"`).
+	 */
+	messageId?: string;
+
+	/**
+	 * Pattern matched against the message's `text` property.
+	 * Tried as a RegExp first; falls back to case-sensitive substring match.
+	 */
+	pattern?: string;
+}
+
+/**
  * Options for API model generation.
  * Generates an `<unscopedPackageName>.api.json` file using API Extractor.
  *
@@ -660,6 +687,33 @@ export interface ApiModelOptions {
 	 *               `"include"` otherwise
 	 */
 	forgottenExports?: "include" | "error" | "ignore";
+
+	/**
+	 * Declarative rules for suppressing specific API Extractor warning messages.
+	 *
+	 * @remarks
+	 * Each rule matches on `messageId` (exact), `pattern` (RegExp with substring fallback),
+	 * or both (AND logic). Suppression is evaluated before `forgottenExports` and TSDoc
+	 * warning handling and takes priority over both.
+	 *
+	 * After each entry, the number of suppressed messages is logged at info level.
+	 *
+	 * @example
+	 * ```typescript
+	 * import type { ApiModelOptions } from '@savvy-web/rslib-builder';
+	 *
+	 * const apiModel: ApiModelOptions = {
+	 *   forgottenExports: 'error',
+	 *   suppressWarnings: [
+	 *     // Suppress forgotten-export for Effect _base symbols
+	 *     { messageId: 'ae-forgotten-export', pattern: '_base' },
+	 *     // Suppress a specific TSDoc warning category
+	 *     { messageId: 'tsdoc-param-tag-missing-hyphen' },
+	 *   ],
+	 * };
+	 * ```
+	 */
+	suppressWarnings?: WarningSuppressionRule[];
 }
 
 /**
@@ -920,6 +974,8 @@ async function bundleDtsFiles(options: {
 	const forgottenExports =
 		(typeof apiModel === "object" ? apiModel.forgottenExports : undefined) ??
 		(TsDocConfigBuilder.isCI() ? "error" : "include");
+	const suppressWarnings = typeof apiModel === "object" ? (apiModel.suppressWarnings ?? []) : [];
+	const suppressor = createMessageSuppressor(suppressWarnings);
 
 	// tsdocMetadata defaults to enabled when apiModel is enabled
 	const tsdocMetadataEnabled =
@@ -1046,12 +1102,20 @@ async function bundleDtsFiles(options: {
 		}
 		const collectedTsdocWarnings: TsDocWarning[] = [];
 		const collectedForgottenExports: TsDocWarning[] = [];
+		const suppressedMessages: string[] = [];
 
 		// Run API Extractor
 		const extractorResult = Extractor.invoke(extractorConfig, {
 			localBuild: true,
 			showVerboseMessages: false,
 			messageCallback: (message: InstanceType<typeof ExtractorMessage>) => {
+				// User-defined suppression rules — checked first, take priority over all other handling
+				if (suppressor.matches(message.messageId, message.text)) {
+					message.logLevel = ExtractorLogLevel.None;
+					suppressedMessages.push(`[${message.messageId ?? "unknown"}] ${message.text ?? ""}`);
+					return;
+				}
+
 				// Suppress TypeScript version mismatch warnings
 				if (
 					message.text?.includes("Analysis will use the bundled TypeScript version") ||
@@ -1106,6 +1170,14 @@ async function bundleDtsFiles(options: {
 
 		if (!extractorResult.succeeded) {
 			throw new Error(`API Extractor failed for entry "${entryName}"`);
+		}
+
+		// Report suppressed messages
+		if (suppressedMessages.length > 0) {
+			const list = suppressedMessages.map((t) => `  ${color.dim(t)}`).join("\n");
+			logger.info(
+				`Suppressed ${suppressedMessages.length} API Extractor message${suppressedMessages.length === 1 ? "" : "s"} for entry "${entryName}":\n${list}`,
+			);
 		}
 
 		// Format warnings with location info when available
