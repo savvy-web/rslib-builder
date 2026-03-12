@@ -1,5 +1,11 @@
 # @savvy-web/rslib-builder
 
+## 0.18.0
+
+### Features
+
+* [`a63b160`](https://github.com/savvy-web/rslib-builder/commit/a63b160b7da551863949cbafb119c9b33fd2a25b) Add granular API Extractor warning suppression via `suppressWarnings` on `ApiModelOptions`. Allows targeting specific warnings by `messageId` and/or text `pattern` with AND logic, instead of blanket category-level settings. Suppressions are evaluated before `forgottenExports` and TSDoc warning handling and take priority over both. Closes #106.
+
 ## 0.17.0
 
 ### Breaking Changes
