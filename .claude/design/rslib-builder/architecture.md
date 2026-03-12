@@ -185,7 +185,7 @@ NodeLibraryBuilder.create(options): RslibConfigAsyncFn
 
 **Purpose:** Shared utilities for entry extraction, package.json building, transformations, and message suppression. Consolidated from 14 files to 9 focused modules.
 
-**Consolidated structure (6 files):**
+**Consolidated structure (9 files):**
 
 1. **`build-logger.ts`** - Build logging and timing utilities
    - Consolidated from: `time-utils.ts`, `logger-utils.ts`
