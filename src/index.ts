@@ -68,6 +68,7 @@ export type {
 	TsDocOptions,
 	TsDocTagDefinition,
 	TsDocTagGroup,
+	WarningSuppressionRule,
 } from "./rslib/plugins/dts-plugin.js";
 export { DtsPlugin, TsDocConfigBuilder } from "./rslib/plugins/dts-plugin.js";
 

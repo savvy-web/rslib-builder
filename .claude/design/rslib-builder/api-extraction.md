@@ -3,8 +3,8 @@ status: current
 module: rslib-builder
 category: integration
 created: 2026-01-19
-updated: 2026-02-05
-last-synced: 2026-02-05
+updated: 2026-03-12
+last-synced: 2026-03-12
 completeness: 95
 related:
   - rslib-builder/architecture.md
@@ -89,6 +89,10 @@ API extraction is handled by the `DtsPlugin` as part of the declaration bundling
   - Uses parent tsdoc config for tag validation
   - Environment-aware error handling (throw in CI, error locally)
 - Resolved tsconfig.json emission for virtual TS environments
+- **Granular warning suppression** via `suppressWarnings` on `ApiModelOptions`
+  - Declarative `WarningSuppressionRule[]` with `messageId` and/or `pattern` matching
+  - Pre-compiled patterns via `createMessageSuppressor()` factory
+  - Suppression runs first in `messageCallback`, before forgottenExports and tsdoc handling
 
 ### Planned Capabilities
 
@@ -231,6 +235,12 @@ interface ApiModelOptions {
   tsdoc?: TsDocOptions;
   tsdocMetadata?: TsDocMetadataOptions | boolean;
   forgottenExports?: "include" | "error" | "ignore";
+  suppressWarnings?: WarningSuppressionRule[];
+}
+
+interface WarningSuppressionRule {
+  messageId?: string;  // e.g., "ae-forgotten-export"
+  pattern?: string;    // Tried as RegExp first, falls back to substring
 }
 ```
 
@@ -418,6 +428,43 @@ apiModel: {
 
 The `forgottenExports` option uses the same `messageCallback` mechanism as TSDoc warnings. Messages with `messageId === "ae-forgotten-export"` are intercepted and handled according to the setting. For `"include"` and `"error"`, messages are collected and formatted using the shared `formatWarning` helper after `Extractor.invoke()` completes.
 
+**Granular warning suppression:**
+
+For fine-grained control over API Extractor warnings beyond `forgottenExports` and `tsdoc.warnings`, use `suppressWarnings`. This accepts an array of `WarningSuppressionRule` objects that declaratively suppress specific messages by `messageId`, text `pattern`, or both.
+
+```typescript
+// Suppress by messageId
+apiModel: {
+  suppressWarnings: [
+    { messageId: "ae-forgotten-export" }
+  ]
+}
+
+// Suppress by pattern (regex or substring)
+apiModel: {
+  suppressWarnings: [
+    { pattern: "MyInternalType" }
+  ]
+}
+
+// Both must match (AND logic)
+apiModel: {
+  suppressWarnings: [
+    { messageId: "ae-forgotten-export", pattern: "InternalHelper" }
+  ]
+}
+```
+
+**Message callback priority order in `bundleDtsFiles()`:**
+
+1. **suppressWarnings** - Checked first via `createMessageSuppressor()`. If matched, the message is suppressed (handled = true) and logged at info level.
+2. **forgottenExports** - Messages with `messageId === "ae-forgotten-export"` are handled according to the `forgottenExports` setting.
+3. **tsdoc warnings** - TSDoc validation messages (`tsdoc-*` messageIds) are handled according to `tsdoc.warnings`.
+
+Suppression takes priority: if a rule matches, the message is suppressed regardless of forgottenExports or tsdocWarnings severity settings. After API Extractor completes, the count and list of suppressed messages per entry are logged at info level.
+
+The `createMessageSuppressor()` factory (from `src/rslib/plugins/utils/message-suppressor.ts`) pre-compiles regex patterns for efficient matching across many messages. Invalid regex patterns fall back to substring matching.
+
 ### Generated tsdoc.json
 
 The plugin generates a `tsdoc.json` file with smart `noStandardTags` handling. Note: `supportForTags` is always populated because API Extractor requires explicit support declarations for each tag (defining tags isn't sufficient).
@@ -566,7 +613,7 @@ Integration with API Extractor is difficult to unit test. Rely on:
 
 ---
 
-**Document Status:** Current - All features implemented including multi-entry API model generation with per-entry API Extractor runs and model merging.
+**Document Status:** Current - All features implemented including multi-entry API model generation with per-entry API Extractor runs and model merging, and granular warning suppression via `suppressWarnings`.
 
 **Implementation:**
 
