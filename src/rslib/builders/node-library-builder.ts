@@ -802,9 +802,6 @@ export class NodeLibraryBuilder {
 				? (pkg: PackageJson): PackageJson => userTransform({ mode, target: undefined, pkg })
 				: undefined;
 
-		// Only enable API model generation for npm mode (not dev)
-		const apiModelForMode = mode === "npm" ? options.apiModel : undefined;
-
 		// Shared config fragments for lib configs
 		const sourceMap = mode === "dev";
 		const externalsConfig = options.externals && options.externals.length > 0 ? { externals: options.externals } : {};
@@ -864,7 +861,7 @@ export class NodeLibraryBuilder {
 				...(options.dtsBundledPackages && { bundledPackages: options.dtsBundledPackages }),
 				buildMode: mode,
 				format: primaryFormat,
-				...(apiModelForMode !== undefined && { apiModel: apiModelForMode }),
+				...(options.apiModel !== undefined && { apiModel: options.apiModel }),
 				...(isDualFormat && { dtsPathPrefix: primaryFormat }),
 			}),
 		);
