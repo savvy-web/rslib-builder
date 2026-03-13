@@ -954,7 +954,7 @@ async function bundleDtsFiles(options: {
 	footer?: string;
 	apiModel?: ApiModelOptions | boolean;
 	format?: "esm" | "cjs";
-	buildMode?: string;
+	buildMode?: "dev" | "npm";
 }): Promise<BundleDtsResult> {
 	const { cwd, tempDtsDir, tempOutputDir, tsconfigPath, bundledPackages, entryPoints, banner, footer, apiModel } =
 		options;
