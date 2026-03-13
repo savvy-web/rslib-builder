@@ -1,5 +1,11 @@
 # @savvy-web/rslib-builder
 
+## 0.18.1
+
+### Bug Fixes
+
+* [`5ef9100`](https://github.com/savvy-web/rslib-builder/commit/5ef910098e830ae3b9ca11801338bd74b47e2244) Fix `suppressWarnings` and `forgottenExports` options not being applied in dev mode builds. Previously, the `apiModel` config was only passed to `DtsPlugin` in npm mode, causing warning suppression rules to be ignored in dev builds. In CI environments (where `forgottenExports` defaults to `"error"`), this caused dev builds to fail on warnings that were correctly suppressed in npm builds.
+
 ## 0.18.0
 
 ### Features
