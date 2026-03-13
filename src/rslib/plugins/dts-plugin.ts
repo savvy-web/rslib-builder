@@ -954,6 +954,7 @@ async function bundleDtsFiles(options: {
 	footer?: string;
 	apiModel?: ApiModelOptions | boolean;
 	format?: "esm" | "cjs";
+	buildMode?: string;
 }): Promise<BundleDtsResult> {
 	const { cwd, tempDtsDir, tempOutputDir, tsconfigPath, bundledPackages, entryPoints, banner, footer, apiModel } =
 		options;
@@ -963,7 +964,8 @@ async function bundleDtsFiles(options: {
 	let tsdocMetadataPath: string | undefined;
 
 	// apiModel is enabled when it's true or an object (any object implicitly enables)
-	const apiModelEnabled = apiModel === true || typeof apiModel === "object";
+	// API model generation is only performed in npm mode; warning settings apply in all modes
+	const apiModelEnabled = (apiModel === true || typeof apiModel === "object") && options.buildMode !== "dev";
 
 	// TSDoc options from apiModel
 	const tsdocOptions = typeof apiModel === "object" ? apiModel.tsdoc : undefined;
@@ -1854,6 +1856,7 @@ export const DtsPlugin = (options: DtsPluginOptions = {}): RsbuildPlugin => {
 										...(options.footer && { footer: options.footer }),
 										...(options.apiModel !== undefined && { apiModel: options.apiModel }),
 										...(options.format && { format: options.format }),
+										...(options.buildMode && { buildMode: options.buildMode }),
 									});
 
 									// Merge per-entry API models if multiple entries generated models
