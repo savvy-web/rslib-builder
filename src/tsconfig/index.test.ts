@@ -1,5 +1,6 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { transformStringsDeep } from "./index.js";
+import { NodeEcmaLib, transformStringsDeep } from "./index.js";
 
 describe("transformStringsDeep", () => {
 	const toUpper = (s: string): string => s.toUpperCase();
@@ -97,5 +98,32 @@ describe("transformStringsDeep", () => {
 				lib: ["/new/path/lib.d.ts"],
 			},
 		});
+	});
+});
+
+describe("LibraryTSConfigFile.writeBundleTempConfig", () => {
+	function readTempConfig(path: string): Record<string, unknown> {
+		return JSON.parse(readFileSync(path, "utf-8"));
+	}
+
+	it("should default types to ['node'] when no types provided", () => {
+		const tempPath = NodeEcmaLib.writeBundleTempConfig("npm");
+		const config = readTempConfig(tempPath);
+		const compilerOptions = config.compilerOptions as Record<string, unknown>;
+		expect(compilerOptions.types).toEqual(["node"]);
+	});
+
+	it("should forward provided types to the temp config", () => {
+		const tempPath = NodeEcmaLib.writeBundleTempConfig("npm", { types: ["node", "jest"] });
+		const config = readTempConfig(tempPath);
+		const compilerOptions = config.compilerOptions as Record<string, unknown>;
+		expect(compilerOptions.types).toEqual(["node", "jest"]);
+	});
+
+	it("should use default types when options object is provided without types", () => {
+		const tempPath = NodeEcmaLib.writeBundleTempConfig("npm", {});
+		const config = readTempConfig(tempPath);
+		const compilerOptions = config.compilerOptions as Record<string, unknown>;
+		expect(compilerOptions.types).toEqual(["node"]);
 	});
 });
