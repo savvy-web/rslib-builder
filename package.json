@@ -99,8 +99,8 @@
 		"type-fest": "^5.4.3"
 	},
 	"peerDependencies": {
-		"@microsoft/api-extractor": "^7.57.6",
-		"@rslib/core": "^0.19.6",
+		"@microsoft/api-extractor": "^7.57.7",
+		"@rslib/core": "^0.20.0",
 		"@types/node": "catalog:silkPeers",
 		"@typescript/native-preview": "catalog:silkPeers",
 		"typescript": "catalog:silkPeers"
