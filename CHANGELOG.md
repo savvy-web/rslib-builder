@@ -1,5 +1,11 @@
 # @savvy-web/rslib-builder
 
+## 0.18.2
+
+### Bug Fixes
+
+* [`900a87c`](https://github.com/savvy-web/rslib-builder/commit/900a87c8158d7b3e257204de5bee184e07dcd854) Forward `compilerOptions.types` from project tsconfig to temp tsconfig for tsgo declaration generation. Defaults to `["node"]` when not set, fixing tsgo failures resolving `@types/node` with pnpm's symlinked `node_modules`. Fixes #114.
+
 ## 0.18.1
 
 ### Bug Fixes
