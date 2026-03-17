@@ -230,7 +230,7 @@ export class LibraryTSConfigFile extends TSConfigFile {
 	 * @param mode - Build mode (dev, npm)
 	 * @returns Absolute path to the temporary file
 	 */
-	writeBundleTempConfig(_mode: "dev" | "npm"): string {
+	writeBundleTempConfig(_mode: "dev" | "npm", options?: { types?: string[] }): string {
 		const cwd = process.cwd();
 		const baseConfig = this.config;
 
@@ -251,6 +251,9 @@ export class LibraryTSConfigFile extends TSConfigFile {
 				declarationDir: join(cwd, "dist"),
 				// Use default @types resolution from node_modules
 				typeRoots: [join(cwd, "node_modules/@types"), join(cwd, "types")],
+				// Forward types from project tsconfig, default to Node.js types
+				// tsgo requires explicit types when using pnpm's symlinked node_modules
+				types: options?.types ?? ["node"],
 				// Override these settings for declaration generation
 				declarationMap: true,
 				emitDeclarationOnly: false,

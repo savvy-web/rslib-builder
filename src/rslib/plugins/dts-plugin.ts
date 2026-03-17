@@ -1582,7 +1582,14 @@ export const DtsPlugin = (options: DtsPluginOptions = {}): RsbuildPlugin => {
 						const originalCwd = process.cwd();
 						try {
 							process.chdir(cwd);
-							configTsconfigPath = TSConfigs.node.ecma.lib.writeBundleTempConfig(options.buildMode);
+							// Read the project's tsconfig to forward compilerOptions.types
+							// tsgo needs explicit types when using pnpm's symlinked node_modules
+							const projectConfigPath = findTsConfig(cwd);
+							const projectTypes = projectConfigPath ? loadTsConfig(projectConfigPath).options.types : undefined;
+							configTsconfigPath = TSConfigs.node.ecma.lib.writeBundleTempConfig(
+								options.buildMode,
+								projectTypes ? { types: projectTypes } : undefined,
+							);
 						} finally {
 							// Restore original working directory
 							process.chdir(originalCwd);

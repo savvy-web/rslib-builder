@@ -9,6 +9,14 @@ on:
         description: Run without making changes (for testing)
         type: boolean
         default: true
+      auto-merge:
+        description: Automatically merge the PR if checks pass
+        type: choice
+        options:
+          - squash
+          - rebase
+          - merge
+        default: squash
       branch:
         description: Branch name for dependency update PR
         type: string
@@ -49,6 +57,7 @@ jobs:
           branch: ${{ inputs.branch || 'pnpm/config-deps' }}
           dry-run: ${{ inputs.dry-run || false }}
           log-level: ${{ inputs.log-level || 'info' }}
+          auto-merge: "squash"
           config-dependencies: |
             @savvy-web/pnpm-plugin-silk
           dependencies: |
