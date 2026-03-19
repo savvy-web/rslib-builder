@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import { cp, mkdir, readFile, readdir, rm, symlink, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { NodeLibraryBuilderOptions } from "../../../src/rslib/builders/node-library-builder.js";
+import type { RSPressPluginBuilderOptions } from "../../../src/rslib/builders/rspress-plugin-builder.js";
 
 /**
  * Options for generating fixture config.
@@ -12,6 +13,12 @@ export interface ConfigOptions {
 	 * Options to pass to NodeLibraryBuilder.create()
 	 */
 	builderOptions?: Partial<NodeLibraryBuilderOptions>;
+
+	/**
+	 * Options to pass to RSPressPluginBuilder.create()
+	 * When set, generates config using RSPressPluginBuilder instead of NodeLibraryBuilder.
+	 */
+	rspressBuilderOptions?: Partial<RSPressPluginBuilderOptions>;
 }
 
 /**
@@ -126,12 +133,13 @@ function serializeValue(value: unknown, indent: number = 0): string {
  * Generates the content of a rslib.config.ts file with the given options.
  */
 function generateConfigContent(options: ConfigOptions = {}): string {
+	if (options.rspressBuilderOptions) {
+		const serializedOptions = serializeValue(options.rspressBuilderOptions, 0);
+		return `import { RSPressPluginBuilder } from "@savvy-web/rslib-builder";\n\nexport default RSPressPluginBuilder.create(${serializedOptions});\n`;
+	}
 	const { builderOptions = {} } = options;
 	const serializedOptions = serializeValue(builderOptions, 0);
-	return `import { NodeLibraryBuilder } from "@savvy-web/rslib-builder";
-
-export default NodeLibraryBuilder.create(${serializedOptions});
-`;
+	return `import { NodeLibraryBuilder } from "@savvy-web/rslib-builder";\n\nexport default NodeLibraryBuilder.create(${serializedOptions});\n`;
 }
 
 /**

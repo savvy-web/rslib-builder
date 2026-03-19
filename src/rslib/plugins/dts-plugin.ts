@@ -18,6 +18,7 @@ import {
 	sys,
 } from "typescript";
 import { getWorkspaceManagerRoot } from "workspace-tools";
+import type { LibraryTSConfigFile } from "../../tsconfig/index.js";
 import { TSConfigs } from "../../tsconfig/index.js";
 import type { PackageJson } from "../../types/package-json.js";
 import { createEnvLogger } from "./utils/build-logger.js";
@@ -812,6 +813,9 @@ export interface DtsPluginOptions {
 	 * Metadata files (api.json, tsdoc-metadata.json, tsconfig.json) are NOT prefixed.
 	 */
 	dtsPathPrefix?: string;
+
+	/** Override the default LibraryTSConfigFile used for temp tsconfig generation. */
+	tsconfigPreset?: LibraryTSConfigFile;
 }
 
 /**
@@ -1586,7 +1590,8 @@ export const DtsPlugin = (options: DtsPluginOptions = {}): RsbuildPlugin => {
 							// tsgo needs explicit types when using pnpm's symlinked node_modules
 							const projectConfigPath = findTsConfig(cwd);
 							const projectTypes = projectConfigPath ? loadTsConfig(projectConfigPath).options.types : undefined;
-							configTsconfigPath = TSConfigs.node.ecma.lib.writeBundleTempConfig(
+							const preset = options.tsconfigPreset ?? TSConfigs.node.ecma.lib;
+							configTsconfigPath = preset.writeBundleTempConfig(
 								options.buildMode,
 								projectTypes ? { types: projectTypes } : undefined,
 							);

@@ -8,6 +8,7 @@ Comprehensive documentation for `@savvy-web/rslib-builder`.
 - [Architecture Overview](./architecture/overview.md) - How the build system works
 - [Plugin System](./guides/plugins.md) - Built-in plugins and custom extensions
 - [Configuration](./guides/configuration.md) - All configuration options
+- [RSPress Plugin Setup](./guides/rspress-plugins.md) - Build RSPress plugins with dual-bundle architecture
 - [Troubleshooting](./troubleshooting.md) - Common issues and solutions
 
 ## What is rslib-builder?
@@ -28,6 +29,7 @@ that simplifies building TypeScript packages for npm distribution.
 | TSDoc Validation | Pre-build TSDoc comment validation (enabled by default) |
 | Package Transform | Resolves PNPM references, updates export paths |
 | Bundleless Mode | Preserve source file structure with hybrid DTS bundling |
+| RSPress Plugin Builder | Dual-bundle builder for RSPress plugins (plugin + runtime) |
 | Multi-Target | Separate dev (debugging) and npm (production) build modes |
 | Multi-Registry Publish | Publish to npm, GitHub Packages, JSR from one build |
 | Virtual Entries | Bundle additional files with custom names (no types) |
@@ -44,6 +46,7 @@ that simplifies building TypeScript packages for npm distribution.
 | Package.json transform | Automatic | Manual | Manual |
 | Build modes | Built-in | Manual | Manual |
 | Multi-registry publish | Built-in | No | No |
+| RSPress plugin builds | Built-in | Manual | Manual |
 
 ## Documentation Structure
 
@@ -55,7 +58,8 @@ docs/
 ├── guides/
 │   ├── getting-started.md   # Quick start guide
 │   ├── configuration.md     # Configuration reference
-│   └── plugins.md           # Plugin system
+│   ├── plugins.md           # Plugin system
+│   └── rspress-plugins.md   # RSPress plugin setup
 └── troubleshooting.md       # Common issues
 ```
 

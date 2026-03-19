@@ -9,6 +9,7 @@ completeness: 95
 related:
   - rslib-builder/api-extraction.md
   - rslib-builder/testing-strategy.md
+  - rslib-builder/rspress-plugin-builder.md
 dependencies: []
 ---
 
@@ -1587,6 +1588,26 @@ For comprehensive testing strategy details, see [testing-strategy.md](./testing-
 
 ---
 
+## RSPressPluginBuilder
+
+In addition to `NodeLibraryBuilder`, the package provides `RSPressPluginBuilder` — a specialized builder for RSPress plugins with a dual-bundle architecture:
+
+- **Plugin bundle** (always present): Node.js ESM server-side logic with RSPress externals
+- **Runtime bundle** (optional, auto-detected): Web-targeted React components with CSS modules, BannerPlugin for CSS injection, and `pluginReact()` auto-added
+
+`RSPressPluginBuilder` reuses the same plugin primitives (DtsPlugin, PackageJsonTransformPlugin, FilesArrayPlugin, PublishTargetPlugin, TsDocLintPlugin) but composes them differently across two lib entries. The plugin lib owns package.json processing; the runtime lib is lightweight.
+
+Key differences from `NodeLibraryBuilder`:
+
+- No AutoEntryPlugin — entries are fixed (plugin + optional runtime)
+- No bundleless mode or CJS output — always bundled ESM
+- `tsconfigPreset` option on DtsPlugin uses `TSConfigs.rspress.plugin` (module: esnext, moduleResolution: bundler)
+- Runtime auto-detection via `fs.existsSync("src/runtime/index.tsx")`
+
+For full details, see [rspress-plugin-builder.md](./rspress-plugin-builder.md).
+
+---
+
 ## Future Enhancements
 
 ### Phase 1: Short-term
@@ -1613,6 +1634,7 @@ For comprehensive testing strategy details, see [testing-strategy.md](./testing-
 **Internal Design Docs:**
 
 - [API Extraction](./api-extraction.md) - API model generation and TSDoc configuration (TsDocLintPlugin shares tsdoc options with DtsPlugin)
+- [RSPress Plugin Builder](./rspress-plugin-builder.md) - Dual-bundle builder for RSPress plugins with React runtime components
 
 **Package Documentation:**
 

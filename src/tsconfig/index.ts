@@ -5,6 +5,10 @@ import type { InspectOptions } from "node:util";
 import { inspect } from "node:util";
 // biome-ignore lint/correctness/useImportExtensions: we can import JSON files directly
 import nodeEcmaLibJson from "../public/tsconfig/ecma/lib.json" with { type: "json" };
+// biome-ignore lint/correctness/useImportExtensions: we can import JSON files directly
+import rspressPluginJson from "../public/tsconfig/rspress/plugin.json" with { type: "json" };
+// biome-ignore lint/correctness/useImportExtensions: we can import JSON files directly
+import rspressWebsiteJson from "../public/tsconfig/rspress/website.json" with { type: "json" };
 import type { TSConfigJsonWithSchema } from "../types/tsconfig-json.js";
 
 // Create require for CJS dependencies like tmp
@@ -14,6 +18,8 @@ const requireCJS: (id: string) => any = createRequire(import.meta.url);
 // Map of imported JSON files by their file path
 const jsonImports: Map<string, TSConfigJsonWithSchema> = new Map<string, TSConfigJsonWithSchema>([
 	[join(import.meta.dirname, "../public/tsconfig/ecma/lib.json"), nodeEcmaLibJson as TSConfigJsonWithSchema],
+	[join(import.meta.dirname, "../public/tsconfig/rspress/plugin.json"), rspressPluginJson as TSConfigJsonWithSchema],
+	[join(import.meta.dirname, "../public/tsconfig/rspress/website.json"), rspressWebsiteJson as TSConfigJsonWithSchema],
 ]);
 
 /**
@@ -306,6 +312,18 @@ export const NodeEcmaLib: LibraryTSConfigFile = new LibraryTSConfigFile(
 	join(import.meta.dirname, "../public/tsconfig/ecma/lib.json"),
 );
 
+/** @internal */
+export const RSPressPlugin: LibraryTSConfigFile = new LibraryTSConfigFile(
+	"RSPress plugin build configuration",
+	join(import.meta.dirname, "../public/tsconfig/rspress/plugin.json"),
+);
+
+/** @internal */
+export const RSPressWebsite: TSConfigFile = new TSConfigFile(
+	"RSPress website configuration",
+	join(import.meta.dirname, "../public/tsconfig/rspress/website.json"),
+);
+
 /**
  * Collection of all TypeScript configuration files provided by this package.
  *
@@ -331,5 +349,12 @@ export const TSConfigs = {
 			/** Library mode configuration with declaration file generation */
 			lib: NodeEcmaLib,
 		},
+	},
+	/** RSPress environment configurations */
+	rspress: {
+		/** RSPress plugin build configuration */
+		plugin: RSPressPlugin,
+		/** RSPress website configuration */
+		website: RSPressWebsite,
 	},
 } as const;

@@ -432,6 +432,23 @@ Plugins execute in a specific order across Rsbuild's processing stages:
    └── PublishTargetPlugin   → Copy output + per-target package.json
 ```
 
+## RSPressPluginBuilder Plugin Composition
+
+`RSPressPluginBuilder` composes plugins differently from `NodeLibraryBuilder`:
+
+- **No AutoEntryPlugin** - RSPressPluginBuilder uses fixed entry points
+  (`src/index.ts` for plugin, `src/runtime/index.tsx` for runtime) rather
+  than auto-detecting entries from package.json exports.
+- **Dual-lib architecture** - The plugin and runtime each get their own RSlib
+  lib configuration. Plugins like PackageJsonTransformPlugin, FilesArrayPlugin,
+  DtsPlugin, and PublishTargetPlugin run only on the plugin lib. The runtime
+  lib gets its own DtsPlugin (with a `runtime` path prefix) and `pluginReact()`.
+- **TsDocLintPlugin** - Runs on the plugin lib only (same as NodeLibraryBuilder).
+- **User plugins** - `plugin.plugins` are added to the plugin lib;
+  `runtime.plugins` are added to the runtime lib.
+
+For configuration details, see [RSPress Plugin Setup](./rspress-plugins.md).
+
 ## Adding Custom Plugins
 
 Add Rsbuild plugins via the `plugins` option:

@@ -635,6 +635,16 @@ test/fixtures/
 │   │   ├── types.ts       # Additional export
 │   │   └── bad-docs.ts    # Invalid TSDoc for testing lint errors
 │   └── ...
+├── rspress-plugin/        # RSPress plugin with runtime components
+│   ├── package.json       # Exports . and ./runtime, React devDependencies
+│   ├── tsconfig.json      # Extends rspress/plugin.json preset
+│   ├── src/
+│   │   ├── index.ts       # Plugin entry
+│   │   └── runtime/
+│   │       ├── index.tsx   # React runtime component
+│   │       └── styles.module.css
+│   └── types/
+│       └── css.d.ts       # CSS module type declaration
 └── with-bin/              # Library with CLI bin entry
     └── ...
 ```
@@ -662,6 +672,7 @@ export interface BuildFixtureOptions {
 
 export interface ConfigOptions {
   builderOptions?: Partial<NodeLibraryBuilderOptions>;
+  rspressBuilderOptions?: Partial<RSPressPluginBuilderOptions>;
 }
 
 export async function buildFixture(
@@ -893,12 +904,35 @@ Add E2E tests for:
 - Bin entry handling
 - TSDoc lint behavior
 - API model generation options
+- RSPress plugin dual-bundle output (plugin + runtime)
 
 Skip E2E tests for:
 
 - Internal utility functions (unit test instead)
 - Configuration parsing (unit test instead)
 - Error message formatting
+
+### RSPressPluginBuilder E2E Tests
+
+The `rspress-plugin` fixture tests dual-bundle builds via `buildFixture()` with `rspressBuilderOptions`:
+
+```typescript
+result.value = await buildFixture("rspress-plugin", {
+  config: {
+    rspressBuilderOptions: {},
+  },
+});
+```
+
+The `ConfigOptions` interface was extended to support `rspressBuilderOptions`, which generates configs using `RSPressPluginBuilder.create()` instead of `NodeLibraryBuilder.create()`.
+
+Test file: `__test__/e2e/rspress-plugin-builder.e2e.test.ts` (8 tests) covering:
+
+- Both plugin and runtime bundles produced
+- DTS output for both entries
+- CSS output in runtime directory
+- Package.json exports for `.` and `./runtime`
+- Plugin-only build when runtime is disabled
 
 ---
 

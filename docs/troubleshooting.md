@@ -11,6 +11,7 @@ Common issues and solutions when using rslib-builder.
 - [Publish Target Issues](#publish-target-issues)
 - [Format Issues](#format-issues)
 - [Plugin Issues](#plugin-issues)
+- [RSPress Plugin Issues](#rspress-plugin-issues)
 
 ## Build Errors
 
@@ -609,6 +610,61 @@ api.processAssets({ stage: 'additional' }, async () => {
 - `entrypoints` - Available after AutoEntryPlugin runs
 - `exportToOutputMap` - Available after AutoEntryPlugin runs
 - `base-package-json` - Available after PackageJsonTransformPlugin optimize stage
+
+## RSPress Plugin Issues
+
+### Missing @rsbuild/plugin-react
+
+**Symptom:** Error: `@rsbuild/plugin-react is required for RSPress runtime bundles.`
+
+**Solution:** Install the React plugin:
+
+```bash
+pnpm add -D @rsbuild/plugin-react
+```
+
+This is only needed when the runtime bundle is enabled (auto-detected from
+`src/runtime/index.tsx` or explicitly configured).
+
+### Runtime bundle not generated
+
+**Symptom:** No `runtime/` directory in build output.
+
+**Common causes:**
+
+1. **Missing default entry** - Auto-detection looks for `src/runtime/index.tsx`
+   exactly. Check path and `.tsx` extension.
+
+2. **Explicitly disabled** - Ensure `runtime` is not set to `false`.
+
+3. **Custom entry path** - If your runtime entry is elsewhere, specify it:
+
+   ```typescript
+   RSPressPluginBuilder.create({
+     runtime: {
+       entry: './src/runtime/index.ts',
+     },
+   });
+   ```
+
+### CSS module imports return undefined
+
+**Symptom:** `import styles from './foo.module.css'` returns an empty object.
+
+**Solution:** The runtime bundle uses `namedExport: false`. Use default import
+syntax, not named imports:
+
+```typescript
+// Correct
+import styles from './component.module.css';
+styles.myClass;
+
+// Incorrect
+import { myClass } from './component.module.css';
+```
+
+For more RSPress-specific issues, see
+[RSPress Plugin Setup - Troubleshooting](./guides/rspress-plugins.md#troubleshooting).
 
 ## Getting Help
 
