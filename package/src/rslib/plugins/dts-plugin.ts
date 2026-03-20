@@ -816,6 +816,17 @@ export interface DtsPluginOptions {
 
 	/** Override the default LibraryTSConfigFile used for temp tsconfig generation. */
 	tsconfigPreset?: LibraryTSConfigFile;
+
+	/**
+	 * Explicitly provide entry points instead of discovering from package.json exports.
+	 * Map of entry name to source path (e.g., `{ index: "./src/index.ts" }`).
+	 *
+	 * @remarks
+	 * Used by RSPressPluginBuilder to prevent cross-contamination between the plugin lib
+	 * and runtime lib — each lib's DtsPlugin only processes its own entries.
+	 * When set, the EntryExtractor is bypassed entirely.
+	 */
+	overrideEntries?: Record<string, string>;
 }
 
 /**
@@ -1051,11 +1062,11 @@ async function bundleDtsFiles(options: {
 		// Always use flat structure: index.d.ts, hooks.d.ts, rslib/index.d.ts
 		// For CJS format, use .d.cts extension
 		const dtsExtension = options.format === "cjs" ? ".d.cts" : ".d.ts";
-		const outputFileName = `${entryName}${dtsExtension}`;
-		const tempBundledPath = join(tempOutputDir, outputFileName);
 
 		// Generate API model for ALL entries when apiModel is enabled
 		const isMainEntry = entryName === "index" || entryPoints.size === 1;
+		const outputFileName = `${entryName}${dtsExtension}`;
+		const tempBundledPath = join(tempOutputDir, outputFileName);
 		const generateApiModel = apiModelEnabled;
 		const tempApiModelPath = generateApiModel ? join(tempOutputDir, `${entryName}.api.json`) : undefined;
 
@@ -1803,50 +1814,62 @@ export const DtsPlugin = (options: DtsPluginOptions = {}): RsbuildPlugin => {
 									packageJson = exposedPackageJson;
 								}
 
-								// Extract ALL TypeScript exports (skip bin entries)
-								const { entries, exportPaths } = new EntryExtractor().extract(packageJson);
 								const entryPoints = new Map<string, string>();
+								let exportPaths: Record<string, string> = {};
 
-								// Get virtual entry names to skip type generation for them
-								const virtualEntryNames = api.useExposed<Set<string>>("virtual-entry-names");
-
-								for (const [entryName, sourcePath] of Object.entries(entries)) {
-									// Skip bin entries - CLI tools don't need bundled type declarations
-									if (entryName.startsWith("bin/")) {
-										continue;
+								if (options.overrideEntries) {
+									// Use explicitly provided entries — bypass EntryExtractor entirely.
+									// Used by RSPressPluginBuilder for dual-lib scoping.
+									for (const [entryName, sourcePath] of Object.entries(options.overrideEntries)) {
+										entryPoints.set(entryName, sourcePath);
 									}
+								} else {
+									// Discover entries from package.json exports
+									const extracted = new EntryExtractor().extract(packageJson);
+									const entries = extracted.entries;
+									exportPaths = extracted.exportPaths;
 
-									// Skip virtual entries - they don't need type declarations
-									if (virtualEntryNames?.has(entryName)) {
-										log.global.info(`Skipping type generation for virtual entry: ${entryName}`);
-										continue;
+									// Get virtual entry names to skip type generation for them
+									const virtualEntryNames = api.useExposed<Set<string>>("virtual-entry-names");
+
+									for (const [entryName, sourcePath] of Object.entries(entries)) {
+										// Skip bin entries - CLI tools don't need bundled type declarations
+										if (entryName.startsWith("bin/")) {
+											continue;
+										}
+
+										// Skip virtual entries - they don't need type declarations
+										if (virtualEntryNames?.has(entryName)) {
+											log.global.info(`Skipping type generation for virtual entry: ${entryName}`);
+											continue;
+										}
+
+										// Only process TypeScript source files (skip JSON, CSS, declaration files, etc.)
+										if (!sourcePath.match(/\.(ts|mts|cts|tsx)$/)) {
+											continue;
+										}
+
+										// Skip test files
+										if (sourcePath.includes(".test.") || sourcePath.includes("__test__")) {
+											continue;
+										}
+
+										// Skip files outside the package root (e.g., temp files in /tmp/)
+										const resolvedSourcePath = sourcePath.startsWith(".") ? join(cwd, sourcePath) : sourcePath;
+										if (!resolvedSourcePath.startsWith(cwd)) {
+											log.global.info(`Skipping export "${entryName}" (source outside package: ${sourcePath})`);
+											continue;
+										}
+
+										// If this is the temp api-extractor file, use the original path instead
+										let finalSourcePath = sourcePath;
+										if (apiExtractorMapping && resolvedSourcePath === apiExtractorMapping.tempPath) {
+											finalSourcePath = apiExtractorMapping.originalPath;
+											log.global.info(`Using original path for api-extractor: ${finalSourcePath}`);
+										}
+
+										entryPoints.set(entryName, finalSourcePath);
 									}
-
-									// Only process TypeScript source files (skip JSON, CSS, declaration files, etc.)
-									if (!sourcePath.match(/\.(ts|mts|cts|tsx)$/)) {
-										continue;
-									}
-
-									// Skip test files
-									if (sourcePath.includes(".test.") || sourcePath.includes("__test__")) {
-										continue;
-									}
-
-									// Skip files outside the package root (e.g., temp files in /tmp/)
-									const resolvedSourcePath = sourcePath.startsWith(".") ? join(cwd, sourcePath) : sourcePath;
-									if (!resolvedSourcePath.startsWith(cwd)) {
-										log.global.info(`Skipping export "${entryName}" (source outside package: ${sourcePath})`);
-										continue;
-									}
-
-									// If this is the temp api-extractor file, use the original path instead
-									let finalSourcePath = sourcePath;
-									if (apiExtractorMapping && resolvedSourcePath === apiExtractorMapping.tempPath) {
-										finalSourcePath = apiExtractorMapping.originalPath;
-										log.global.info(`Using original path for api-extractor: ${finalSourcePath}`);
-									}
-
-									entryPoints.set(entryName, finalSourcePath);
 								}
 
 								if (entryPoints.size === 0) {
