@@ -72,33 +72,38 @@ For testing strategy details:
 
 ```text
 rslib-builder/
-├── src/
-│   ├── rslib/                    # RSlib build system
-│   │   ├── index.ts             # Main exports
-│   │   ├── builders/            # High-level builder classes
-│   │   │   ├── node-library-builder.ts
-│   │   │   └── node-library-builder.test.ts
-│   │   └── plugins/             # RSlib/Rsbuild plugins
-│   │       ├── auto-entry-plugin.ts
-│   │       ├── dts-plugin.ts
-│   │       ├── files-array-plugin.ts
-│   │       ├── package-json-transform-plugin.ts
-│   │       ├── publish-target-plugin.ts
-│   │       ├── tsdoc-lint-plugin.ts
-│   │       ├── virtual-entry-plugin.ts
-│   │       └── utils/           # Plugin utilities (with co-located tests)
-│   ├── tsconfig/                # TypeScript config templates
-│   ├── public/                  # Static files (tsconfig JSONs)
-│   ├── __test__/rslib/types/    # Shared test type definitions
-│   └── types/                   # TypeScript type definitions
-├── test/e2e/                    # E2E tests
-├── rslib.config.ts              # Self-builds using NodeLibraryBuilder
-├── package.json
-├── tsconfig.json
-└── vitest.config.ts
+├── package/                     # @savvy-web/rslib-builder (publishable)
+│   ├── src/
+│   │   ├── rslib/               # RSlib build system
+│   │   │   ├── builders/        # NodeLibraryBuilder, RSPressPluginBuilder
+│   │   │   └── plugins/         # Build plugins + utils
+│   │   ├── tsconfig/            # TypeScript config system
+│   │   ├── public/              # Static files (tsconfig JSONs)
+│   │   └── types/               # TypeScript type definitions
+│   ├── __test__/                # E2E test utilities (preserved)
+│   ├── rslib.config.ts          # Self-builds using NodeLibraryBuilder
+│   ├── package.json
+│   └── tsconfig.json
+├── examples/
+│   ├── libraries/               # NodeLibraryBuilder examples
+│   │   ├── single-entry/        # Toy calculator (single export)
+│   │   ├── multi-entry/         # Multiple exports
+│   │   ├── with-bin/            # CLI bin entry
+│   │   └── options-testing/     # Builder options combos
+│   └── rspress-plugin/          # RSPressPluginBuilder example
+│       ├── plugin/              # Plugin + runtime components
+│       └── site/                # RSPress doc site using the plugin
+├── lib/                         # Shared configs
+│   ├── configs/                 # lint-staged, commitlint, markdownlint
+│   └── scripts/                 # hard-reset.ts
+├── docs/                        # Package documentation (guides, architecture)
+├── pnpm-workspace.yaml
+├── turbo.json                   # Root task graph
+├── vitest.config.ts             # Root test orchestration
+└── biome.jsonc                  # Shared lint config
 ```
 
-All plugins and utilities have co-located `.test.ts` files.
+All plugins and utilities have co-located `.test.ts` files in `package/src/`.
 
 ### Key Components
 
@@ -106,7 +111,7 @@ All plugins and utilities have co-located `.test.ts` files.
 
 The main API for building Node.js libraries. Provides a fluent interface for RSlib builds.
 
-**Location**: `src/rslib/builders/node-library-builder.ts`
+**Location**: `package/src/rslib/builders/node-library-builder.ts`
 
 **Basic Usage**:
 
@@ -175,7 +180,7 @@ This module produces bundled ESM output with rolled-up types:
 
 ## Testing
 
-Tests are co-located with source files. Use type-safe mocks:
+Tests are co-located with source files in `package/src/`. Use type-safe mocks:
 
 ```typescript
 import type { MockAssetRegistry } from '../__test__/rslib/types/test-types.js';
@@ -187,16 +192,9 @@ const mockAssets: MockAssetRegistry = {
 
 **Never use `as any`**. Always create proper mock types.
 
-### E2E Tests
+### Integration Validation via Examples
 
-E2E tests verify builder options by building isolated fixture copies with dynamically generated configs:
-
-- `test/e2e/dts-bundling.test.ts` - DTS bundling for single/multi-entry fixtures
-- `test/e2e/builder-options/api-model.test.ts` - API model generation options
-- `test/e2e/builder-options/build-options.test.ts` - General build options (externals, transform)
-- `test/e2e/builder-options/format-option.test.ts` - Output format configuration
-- `test/e2e/builder-options/tsdoc-lint.test.ts` - TSDoc lint configuration
-- `test/e2e/builder-options/virtual-entries.test.ts` - Virtual entry injection
+The `examples/` workspaces serve as integration validation. They are built via turbo as part of the normal `pnpm build` pipeline, replacing the old synthetic E2E test infrastructure. Each example depends on `@savvy-web/rslib-builder` via `workspace:*` and uses turbo `dependsOn: ["^build"]` to ensure correct build ordering.
 
 ## Plugin Execution Order
 
@@ -225,10 +223,11 @@ VirtualEntryPlugin runs in a separate Rslib environment for non-TypeScript entri
 Key commands:
 
 ```bash
-pnpm build              # Build all modes
+pnpm build              # Build all modes (via turbo)
 pnpm test               # Run tests (verbose)
 pnpm lint:fix           # Auto-fix lint issues
 pnpm typecheck          # Type-check all workspaces
+pnpm reset              # Clean all build artifacts
 ```
 
 See [CONTRIBUTING.md](./CONTRIBUTING.md) for full development workflow and troubleshooting.

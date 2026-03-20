@@ -1,28 +1,9 @@
 {
-	"name": "@savvy-web/rslib-builder",
-	"version": "0.18.3",
+	"name": "rslib-builder-monorepo",
+	"version": "0.0.0",
 	"private": true,
-	"description": "RSlib-based build system for Node.js libraries with automatic package.json transformation, TypeScript declaration bundling, and multi-target support",
-	"keywords": [
-		"rslib",
-		"rsbuild",
-		"typescript",
-		"declarations",
-		"dts",
-		"bundler",
-		"build",
-		"esm",
-		"node",
-		"library",
-		"api-extractor",
-		"tsgo",
-		"tsdoc",
-		"monorepo"
-	],
+	"description": "Monorepo for @savvy-web/rslib-builder and related packages",
 	"homepage": "https://github.com/savvy-web/rslib-builder",
-	"bugs": {
-		"url": "https://github.com/savvy-web/rslib-builder/issues"
-	},
 	"repository": {
 		"type": "git",
 		"url": "git+https://github.com/savvy-web/rslib-builder.git"
@@ -34,111 +15,36 @@
 		"url": "https://savvyweb.systems"
 	},
 	"type": "module",
-	"exports": {
-		".": "./src/index.ts",
-		"./tsconfig/root.json": "./src/public/tsconfig/root.json",
-		"./tsconfig/ecma/lib.json": "./src/public/tsconfig/ecma/lib.json",
-		"./tsconfig/rspress/plugin.json": "./src/public/tsconfig/rspress/plugin.json",
-		"./tsconfig/rspress/website.json": "./src/public/tsconfig/rspress/website.json"
-	},
 	"scripts": {
-		"build": "turbo run build:dev build:prod --log-order=grouped --log-prefix=none",
-		"build:dev": "rslib build --env-mode dev",
-		"build:inspect": "rslib inspect --verbose",
-		"build:prod": "rslib build --env-mode npm",
-		"ci:build": "CI=\"true\" turbo run build:dev build:prod --log-prefix=none --log-order=grouped --output-logs=full",
-		"ci:test": "CI=\"true\" turbo run vitest:all --filter=@savvy-web/rslib-builder --log-prefix=none -- --coverage",
+		"build": "turbo run build --filter='./package' --filter='./examples/**' --log-order=grouped",
+		"ci:build": "CI=\"true\" turbo run build --filter='./package' --filter='./examples/**' --log-order=grouped --output-logs=full",
+		"ci:test": "CI=\"true\" vitest run --coverage",
 		"ci:version": "savvy-changesets version && biome format --write .",
 		"commit:check": "savvy-commit check",
 		"commit:init": "savvy-commit init",
+		"dev": "turbo run dev --filter=rspress-plugin-site",
 		"lint": "biome check --max-diagnostics=none",
 		"lint:fix": "biome check --write --max-diagnostics=none",
 		"lint:fix:unsafe": "biome check --write --unsafe --max-diagnostics=none",
 		"lint:md": "markdownlint-cli2 '**/*.{md,mdx}' --config './lib/configs/.markdownlint-cli2.jsonc'",
-		"lint:md:fix": "markdownlint-cli2  --config './lib/configs/.markdownlint-cli2.jsonc' --fix",
-		"lint:tsdoc": "eslint --config ./lib/configs/eslint.config.ts --ignore-pattern '**/*.test.ts'",
+		"lint:md:fix": "markdownlint-cli2 --config './lib/configs/.markdownlint-cli2.jsonc' --fix",
 		"prepare": "husky",
-		"test": "turbo run vitest:unit vitest:e2e --filter=@savvy-web/rslib-builder --log-prefix=none",
-		"test:ai": "turbo run vitest:all --filter=@savvy-web/rslib-builder --log-prefix=none -- --reporter=dot",
-		"test:e2e": "turbo run vitest:e2e --filter=@savvy-web/rslib-builder --log-prefix=none",
-		"test:unit": "turbo run vitest:unit --filter=@savvy-web/rslib-builder --log-prefix=none",
-		"test:watch": "vitest --watch --log-prefix=none --project unit",
-		"typecheck": "turbo run types:check --log-prefix=none",
-		"types:check": "tsgo --noEmit",
-		"vitest:all": "vitest run --project @savvy-web/rslib-builder:unit --project @savvy-web/rslib-builder:e2e",
-		"vitest:e2e": "vitest run --project @savvy-web/rslib-builder:e2e",
-		"vitest:unit": "vitest run --project @savvy-web/rslib-builder:unit"
-	},
-	"dependencies": {
-		"@microsoft/tsdoc": "^0.16.0",
-		"@microsoft/tsdoc-config": "^0.18.1",
-		"@pnpm/catalogs.config": "^1000.0.5",
-		"@pnpm/catalogs.protocol-parser": "^1001.0.0",
-		"@pnpm/exportable-manifest": "^1000.4.1",
-		"@pnpm/lockfile.fs": "^1001.1.31",
-		"@pnpm/workspace.read-manifest": "^1000.3.0",
-		"@typescript-eslint/parser": "^8.57.1",
-		"deep-equal": "^2.2.3",
-		"eslint": "^10.0.3",
-		"eslint-plugin-tsdoc": "^0.5.2",
-		"glob": "^13.0.6",
-		"picocolors": "^1.1.1",
-		"sort-package-json": "^3.6.1",
-		"tmp": "^0.2.4",
-		"workspace-tools": "^0.41.0"
+		"preview": "turbo run preview --filter=rspress-plugin-site",
+		"reset": "node --experimental-strip-types --experimental-transform-types lib/scripts/hard-reset.ts",
+		"test": "vitest run",
+		"test:ai": "vitest run --reporter=dot",
+		"test:e2e": "turbo run vitest:e2e --log-prefix=none --log-order=grouped",
+		"test:unit": "turbo run vitest:unit --log-prefix=none --log-order=grouped",
+		"test:watch": "vitest --watch",
+		"typecheck": "turbo run types:check --log-prefix=none --log-order=grouped",
+		"vitest:e2e": "vitest run --config vitest.e2e.config.ts --coverage",
+		"vitest:unit": "vitest run --coverage"
 	},
 	"devDependencies": {
-		"@microsoft/api-extractor": "^7.57.7",
-		"@pnpm/types": "^1001.3.0",
-		"@rsbuild/core": "^1.7.3",
-		"@rslib/core": "^0.20.0",
 		"@savvy-web/changesets": "^0.5.3",
 		"@savvy-web/commitlint": "^0.4.2",
 		"@savvy-web/lint-staged": "^0.6.1",
-		"@savvy-web/vitest": "^0.2.2",
-		"@types/deep-equal": "^1.0.4",
-		"@types/tmp": "^0.2.6",
-		"type-fest": "^5.4.3"
-	},
-	"peerDependencies": {
-		"@microsoft/api-extractor": "^7.57.7",
-		"@rsbuild/plugin-react": "^1.4.0",
-		"@rslib/core": "^0.20.0",
-		"@types/node": "catalog:silkPeers",
-		"@types/react": "^19.0.0",
-		"@typescript/native-preview": "catalog:silkPeers",
-		"react": "^19.0.0",
-		"react-dom": "^19.0.0",
-		"typescript": "catalog:silkPeers"
-	},
-	"peerDependenciesMeta": {
-		"@microsoft/api-extractor": {
-			"optional": false
-		},
-		"@rsbuild/plugin-react": {
-			"optional": true
-		},
-		"@rslib/core": {
-			"optional": false
-		},
-		"@types/node": {
-			"optional": false
-		},
-		"@types/react": {
-			"optional": true
-		},
-		"@typescript/native-preview": {
-			"optional": false
-		},
-		"react": {
-			"optional": true
-		},
-		"react-dom": {
-			"optional": true
-		},
-		"typescript": {
-			"optional": false
-		}
+		"@savvy-web/vitest": "^0.2.2"
 	},
 	"packageManager": "pnpm@10.32.1+sha512.a706938f0e89ac1456b6563eab4edf1d1faf3368d1191fc5c59790e96dc918e4456ab2e67d613de1043d2e8c81f87303e6b40d4ffeca9df15ef1ad567348f2be",
 	"engines": {
@@ -155,27 +61,6 @@
 				"name": "node",
 				"version": "24.11.0",
 				"onFail": "ignore"
-			}
-		]
-	},
-	"publishConfig": {
-		"access": "public",
-		"directory": "dist/dev",
-		"linkDirectory": true,
-		"targets": [
-			{
-				"protocol": "npm",
-				"registry": "https://npm.pkg.github.com/",
-				"directory": "dist/npm",
-				"access": "public",
-				"provenance": true
-			},
-			{
-				"protocol": "npm",
-				"registry": "https://registry.npmjs.org/",
-				"directory": "dist/npm",
-				"access": "public",
-				"provenance": true
 			}
 		]
 	}

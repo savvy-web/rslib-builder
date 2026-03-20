@@ -62,19 +62,19 @@ RSPressPluginBuilder is fully implemented and tested.
 
 **Key Components:**
 
-1. **RSPressPluginBuilder** (`src/rslib/builders/rspress-plugin-builder.ts`)
+1. **RSPressPluginBuilder** (`package/src/rslib/builders/rspress-plugin-builder.ts`)
    - Purpose: Main public API for building RSPress plugin packages
    - Status: Implemented (95% complete)
    - Key methods: `create()`, `mergeOptions()`, `createSingleMode()`, `createPluginLib()`, `createRuntimeLib()`
 
-2. **TSConfig Presets** (`src/tsconfig/index.ts`)
+2. **TSConfig Presets** (`package/src/tsconfig/index.ts`)
    - Purpose: RSPress-specific TypeScript configuration presets
    - Status: Implemented
    - Presets: `TSConfigs.rspress.plugin` (module: esnext, moduleResolution: bundler), `TSConfigs.rspress.website`
 
-3. **E2E Fixture** (`__fixtures__/rspress-plugin/`)
-   - Purpose: Integration test fixture with React runtime components
-   - Status: Implemented with plugin + runtime source files
+3. **Working Example** (`examples/rspress-plugin/`)
+   - Purpose: Integration example with React runtime components and doc site
+   - Status: Implemented with plugin + runtime source files + RSPress site
 
 ### Current Capabilities
 
@@ -86,7 +86,9 @@ RSPressPluginBuilder is fully implemented and tested.
 - Full publish target support (same as NodeLibraryBuilder)
 - TSDoc linting integration via `apiModel.tsdoc.lint`
 - API model generation on the plugin lib
-- DTS generation with `dtsPathPrefix` for runtime declarations
+- DTS generation with `dtsPathPrefix` for runtime declarations (runtime DTS at `dist/<mode>/runtime/index.d.ts`)
+- `bundle: false` on PackageJsonTransformPlugin prevents collapseIndex behavior
+- `include: /index\.js$/` on BannerPlugin prevents CSS corruption of non-entry files
 
 ---
 
@@ -245,7 +247,7 @@ RSPressPluginBuilder uses dedicated TypeScript configuration presets for RSPress
 
 ### rspress/plugin.json
 
-**Location:** `src/public/tsconfig/rspress/plugin.json`
+**Location:** `package/src/public/tsconfig/rspress/plugin.json`
 
 **Purpose:** TypeScript configuration for building RSPress plugins. Key settings:
 
@@ -265,7 +267,7 @@ DtsPlugin({
 
 ### rspress/website.json
 
-**Location:** `src/public/tsconfig/rspress/website.json`
+**Location:** `package/src/public/tsconfig/rspress/website.json`
 
 **Purpose:** TypeScript configuration for RSPress documentation websites (exported for consumer use, not used internally by the builder).
 
@@ -440,7 +442,7 @@ Build cache is configured per mode at `.rslib/cache/<mode>`.
 
 ### Unit Tests
 
-**File:** `src/rslib/builders/rspress-plugin-builder.test.ts` (39 tests)
+**File:** `package/src/rslib/builders/rspress-plugin-builder.test.ts` (39 tests)
 
 **Coverage:**
 
@@ -459,36 +461,19 @@ Build cache is configured per mode at `.rslib/cache/<mode>`.
 - Mocks `@rsbuild/plugin-react` for runtime lib plugin injection
 - Uses `vi.spyOn(process, "cwd")` for path resolution
 
-### E2E Tests
+### Integration Example
 
-**File:** `__test__/e2e/rspress-plugin-builder.e2e.test.ts` (8 tests)
+**Location:** `examples/rspress-plugin/`
 
-**Fixture:** `__fixtures__/rspress-plugin/` - Contains:
+The working example at `examples/rspress-plugin/` validates the full pipeline:
 
-- `src/index.ts` - Plugin entry point
-- `src/runtime/index.tsx` - Runtime React component entry
-- `src/runtime/` - React components with CSS Modules
-- `types/css.d.ts` - CSS module type declarations
-- `rslib.config.ts` - Uses RSPressPluginBuilder
+- `plugin/` - RSPress plugin with dual-bundle architecture (plugin + runtime)
+- `site/` - RSPress doc site consuming the plugin via `workspace:*`
 
-**Test scenarios:**
+The example is built via turbo as part of the normal `pnpm build` pipeline, replacing the old synthetic E2E test infrastructure. It validates:
 
-1. **Plugin + runtime build (npm mode):**
-   - Build succeeds
-   - Plugin JS and DTS output produced
-   - Runtime JS output in `runtime/` subdirectory
-   - Runtime DTS via `dtsPathPrefix` at dist root
-   - Runtime CSS output produced
-   - Package.json has correct exports for both `.` and `./runtime`
-
-2. **Plugin-only build (runtime disabled):**
-   - Build succeeds with `runtime: false`
-   - Plugin JS and DTS produced
-   - No runtime JS or CSS output
-
-**Extended `buildFixture()` support:**
-
-The E2E test utility `build-fixture.ts` supports `rspressBuilderOptions` in the `ConfigOptions` interface. When `rspressBuilderOptions` is provided, the generated `rslib.config.ts` uses `RSPressPluginBuilder.create()` instead of `NodeLibraryBuilder.create()`.
+1. **Plugin + runtime build:** Plugin JS/DTS output, runtime JS in `runtime/` subdirectory, runtime DTS at `dist/<mode>/runtime/index.d.ts`, CSS output, package.json exports for `.` and `./runtime`
+2. **Full plugin-to-site pipeline:** RSPress site successfully consumes the built plugin and renders runtime components
 
 ---
 

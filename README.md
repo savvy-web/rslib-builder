@@ -1,69 +1,44 @@
-# @savvy-web/rslib-builder
+# rslib-builder
 
-[![npm version](https://img.shields.io/npm/v/@savvy-web/rslib-builder)](https://www.npmjs.com/package/@savvy-web/rslib-builder)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Node.js Version](https://img.shields.io/badge/node-%3E%3D24.0.0-brightgreen)](https://nodejs.org)
+Monorepo for [`@savvy-web/rslib-builder`](./package/) — an RSlib-based build system for modern ESM Node.js libraries and RSPress plugins.
 
-Build modern ESM Node.js libraries with minimal configuration. Handles TypeScript declarations, package.json transformations, and PNPM workspace resolution automatically.
+## Structure
 
-## Features
-
-- **Zero-Config Entry Detection** - Auto-discovers entry points from package.json exports
-- **10-100x Faster Types** - Uses tsgo (native TypeScript compiler) with API Extractor for bundled, clean public API declarations
-- **Production-Ready Transforms** - Converts `.ts` exports to `.js`, resolves PNPM `catalog:` and `workspace:` references, generates files array
-- **Bundled or Bundleless** - Choose single-file bundles per entry or bundleless mode that preserves your source file structure
-- **RSPress Plugin Builder** - Dedicated builder for RSPress plugins with dual-bundle architecture (plugin + runtime) and React support
-- **Multi-Target Builds** - Separate dev (with source maps) and npm (optimized) outputs from a single configuration
-- **Flexible Formats** - ESM, CJS, or dual format output with per-entry format overrides
-- **TSDoc Validation** - Pre-build documentation validation with automatic public API discovery
-
-## Installation
-
-```bash
-npm install --save-dev @savvy-web/rslib-builder @rslib/core @microsoft/api-extractor @typescript/native-preview
-```
+| Directory | Description |
+| :-------- | :---------- |
+| [`package/`](./package/) | Main `@savvy-web/rslib-builder` package |
+| [`examples/libraries/`](./examples/libraries/) | NodeLibraryBuilder example consumers |
+| [`examples/rspress-plugin/`](./examples/rspress-plugin/) | RSPressPluginBuilder example (plugin + site) |
+| [`lib/`](./lib/) | Shared configs (lint-staged, commitlint, markdownlint) |
+| [`docs/`](./docs/) | Package documentation and guides |
 
 ## Quick Start
 
-```typescript
-// rslib.config.ts
-import { NodeLibraryBuilder } from '@savvy-web/rslib-builder';
-
-export default NodeLibraryBuilder.create({
-  externals: ['@rslib/core'],
-});
+```bash
+git clone https://github.com/savvy-web/rslib-builder.git
+cd rslib-builder
+pnpm install
+pnpm build    # Build all workspaces via turbo
+pnpm test     # Run all tests via vitest
 ```
 
-Build with `rslib build --env-mode dev` or `rslib build --env-mode npm`.
+## Commands
 
-## RSPress Plugins
-
-Build RSPress plugins with zero-config dual-bundle output (plugin + runtime):
-
-```typescript
-// rslib.config.ts
-import { RSPressPluginBuilder } from '@savvy-web/rslib-builder';
-
-export default RSPressPluginBuilder.create({
-  plugin: {
-    externals: ['typescript', 'shiki'],
-  },
-  runtime: {
-    externals: ['@rspress/plugin-llms'],
-  },
-});
-```
-
-RSPressPluginBuilder auto-detects the runtime entry at `src/runtime/index.tsx`, handles React JSX compilation, CSS modules, and built-in RSPress externals. For advanced configuration, see [RSPress Plugin Setup](./docs/guides/rspress-plugins.md).
+| Command | Description |
+| :------ | :---------- |
+| `pnpm build` | Build all workspaces via turbo |
+| `pnpm test` | Run all tests |
+| `pnpm typecheck` | Type-check all workspaces |
+| `pnpm lint` | Check code with biome |
+| `pnpm lint:fix` | Auto-fix lint issues |
+| `pnpm reset` | Clean all build artifacts |
 
 ## Documentation
 
-For configuration options, API reference, and advanced usage, see [docs](./docs/).
-
-## Contributing
-
-See [CONTRIBUTING.md](./CONTRIBUTING.md) for development setup and guidelines.
+- **Package docs:** [`package/README.md`](./package/README.md)
+- **Guides:** [`docs/`](./docs/)
+- **Contributing:** [`CONTRIBUTING.md`](./CONTRIBUTING.md)
 
 ## License
 
-[MIT](./LICENSE)
+MIT
