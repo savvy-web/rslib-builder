@@ -1,0 +1,13 @@
+import { FeatureCard } from "rspress-plugin-fixture/runtime";
+
+# RSPress Plugin Test Site
+
+This site validates the RSPress plugin build pipeline.
+
+The `HelloBanner` component appears at the top of every page, injected via the plugin's `globalUIComponents` hook.
+
+The `FeatureCard` component below is imported directly in MDX:
+
+<FeatureCard title="RSPress Plugin Builder" description="Dual-bundle architecture with plugin + runtime components, built by @savvy-web/rslib-builder." />
+
+<FeatureCard title="CSS Modules" description="Each component uses co-located CSS modules with shared CSS variables for theming." />

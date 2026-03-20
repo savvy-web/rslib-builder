@@ -3,136 +3,47 @@
 	"envMode": "strict",
 	"globalPassThroughEnv": ["RSLIB_BUILDER_LOCAL_PATH", "CI", "GITHUB_ACTIONS"],
 	"tasks": {
+		"build": {
+			"cache": true,
+			"dependsOn": ["^build"],
+			"inputs": [
+				"$TURBO_DEFAULT$",
+				"!**/*.test.ts",
+				"!**/*.spec.ts",
+				"!**/*.md",
+				"!.changeset/**",
+				"!.claude/**",
+				"!.github/**",
+				"!.husky/**",
+				"!.vscode/**"
+			],
+			"outputs": ["dist/**"]
+		},
 		"build:dev": {
 			"cache": true,
 			"dependsOn": ["types:check"],
-			"inputs": [
-				"$TURBO_DEFAULT$",
-				"$TURBO_ROOT$/package.json",
-				"$TURBO_ROOT$/pnpm-lock.yaml",
-				"$TURBO_ROOT$/pnpm-workspace.yaml",
-				"package.json",
-				"rslib.config.ts",
-				"tsconfig.json",
-				"src/**/*.ts",
-				"README.md",
-				"LICENSE"
-			],
+			"inputs": ["$TURBO_DEFAULT$", "$TURBO_ROOT$/pnpm-lock.yaml"],
 			"outputLogs": "errors-only",
 			"outputs": ["dist/dev/**", ".rslib/declarations/dev/**"]
 		},
 		"build:prod": {
 			"cache": true,
 			"dependsOn": ["types:check"],
-			"inputs": [
-				"$TURBO_DEFAULT$",
-				"$TURBO_ROOT$/package.json",
-				"$TURBO_ROOT$/pnpm-lock.yaml",
-				"$TURBO_ROOT$/pnpm-workspace.yaml",
-				"package.json",
-				"rslib.config.ts",
-				"tsconfig.json",
-				"src/**/*.ts",
-				"README.md",
-				"LICENSE"
-			],
+			"inputs": ["$TURBO_DEFAULT$", "$TURBO_ROOT$/pnpm-lock.yaml"],
 			"outputLogs": "full",
 			"outputs": ["dist/npm/**", ".rslib/declarations/npm/**"]
+		},
+		"dev": {
+			"cache": false,
+			"dependsOn": ["^build"],
+			"interactive": true,
+			"persistent": true
 		},
 		"types:check": {
 			"cache": true,
 			"dependsOn": [],
-			"inputs": [
-				"$TURBO_DEFAULT$",
-				"$TURBO_ROOT$/package.json",
-				"$TURBO_ROOT$/pnpm-lock.yaml",
-				"$TURBO_ROOT$/pnpm-workspace.yaml",
-				"package.json",
-				"*.ts",
-				"*.mts",
-				"*.cts",
-				"tsconfig.json",
-				"src/**/*.ts",
-				"src/**/*.tsx",
-				"src/**/*.mts",
-				"src/**/*.cts",
-				"lib/**/*.ts",
-				"lib/**/*.tsx",
-				"lib/**/*.mts",
-				"lib/**/*.cts",
-				"types/**/*.ts",
-				"__test__/**/*.ts",
-				"__test__/**/*.tsx",
-				"__test__/**/*.mts",
-				"__test__/**/*.cts"
-			],
-			"outputLogs": "full"
-		},
-		"vitest:all": {
-			"cache": false,
-			"dependsOn": ["types:check", "build:dev"],
-			"inputs": [
-				"$TURBO_DEFAULT$",
-				"$TURBO_ROOT$/package.json",
-				"$TURBO_ROOT$/pnpm-lock.yaml",
-				"$TURBO_ROOT$/pnpm-workspace.yaml",
-				"package.json",
-				"*.ts",
-				"tsconfig.json",
-				"src/**/*.ts",
-				"src/**/*.tsx",
-				"src/**/*.mts",
-				"src/**/*.cts",
-				"__test__/**/*.ts",
-				"__test__/**/*.tsx",
-				"__test__/**/*.mts",
-				"__test__/**/*.cts"
-			],
-			"outputs": []
-		},
-		"vitest:e2e": {
-			"cache": false,
-			"dependsOn": ["types:check", "build:dev"],
-			"inputs": [
-				"$TURBO_DEFAULT$",
-				"$TURBO_ROOT$/package.json",
-				"$TURBO_ROOT$/pnpm-lock.yaml",
-				"$TURBO_ROOT$/pnpm-workspace.yaml",
-				"package.json",
-				"*.ts",
-				"tsconfig.json",
-				"src/**/*.ts",
-				"src/**/*.tsx",
-				"src/**/*.mts",
-				"src/**/*.cts",
-				"__test__/**/*.ts",
-				"__test__/**/*.tsx",
-				"__test__/**/*.mts",
-				"__test__/**/*.cts"
-			],
-			"outputs": []
-		},
-		"vitest:unit": {
-			"cache": false,
-			"dependsOn": ["types:check", "build:dev"],
-			"inputs": [
-				"$TURBO_DEFAULT$",
-				"$TURBO_ROOT$/package.json",
-				"$TURBO_ROOT$/pnpm-lock.yaml",
-				"$TURBO_ROOT$/pnpm-workspace.yaml",
-				"package.json",
-				"*.ts",
-				"tsconfig.json",
-				"src/**/*.ts",
-				"src/**/*.tsx",
-				"src/**/*.mts",
-				"src/**/*.cts",
-				"__test__/**/*.ts",
-				"__test__/**/*.tsx",
-				"__test__/**/*.mts",
-				"__test__/**/*.cts"
-			],
-			"outputs": []
+			"outputLogs": "errors-only"
 		}
-	}
+	},
+	"ui": "tui"
 }

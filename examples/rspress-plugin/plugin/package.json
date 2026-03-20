@@ -1,0 +1,52 @@
+{
+	"name": "rspress-plugin-fixture",
+	"version": "1.0.0",
+	"private": true,
+	"type": "module",
+	"exports": {
+		".": "./src/index.ts",
+		"./runtime": "./src/runtime/index.tsx"
+	},
+	"scripts": {
+		"build": "turbo run build:dev build:prod",
+		"build:dev": "rslib build --env-mode dev",
+		"build:prod": "rslib build --env-mode npm",
+		"types:check": "tsgo --noEmit"
+	},
+	"devDependencies": {
+		"@microsoft/api-extractor": "^7.57.7",
+		"@rsbuild/plugin-react": "^1.4.0",
+		"@rslib/core": "^0.20.0",
+		"@savvy-web/rslib-builder": "workspace:*",
+		"@types/node": "catalog:silkPeers",
+		"@types/react": "^19.0.0",
+		"@typescript/native-preview": "catalog:silkPeers",
+		"react": "^19.0.0",
+		"react-dom": "^19.0.0",
+		"typescript": "catalog:silkPeers"
+	},
+	"peerDependencies": {
+		"@rspress/core": "^2.0.0"
+	},
+	"publishConfig": {
+		"access": "public",
+		"directory": "dist/dev",
+		"linkDirectory": true,
+		"targets": [
+			{
+				"protocol": "npm",
+				"registry": "https://npm.pkg.github.com/",
+				"directory": "dist/github",
+				"access": "public",
+				"provenance": true
+			},
+			{
+				"protocol": "npm",
+				"registry": "https://registry.npmjs.org/",
+				"directory": "dist/npm",
+				"access": "public",
+				"provenance": true
+			}
+		]
+	}
+}

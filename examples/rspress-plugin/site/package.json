@@ -1,0 +1,23 @@
+{
+	"name": "rspress-plugin-site",
+	"private": true,
+	"type": "module",
+	"scripts": {
+		"build": "rspress build",
+		"dev": "node lib/scripts/dev.mts",
+		"preview": "node lib/scripts/preview.mts",
+		"types:check": "tsgo --noEmit"
+	},
+	"dependencies": {
+		"rspress-plugin-fixture": "workspace:*"
+	},
+	"devDependencies": {
+		"open": "^11.0.0",
+		"@rspress/core": "^2.0.0",
+		"@savvy-web/rslib-builder": "workspace:*",
+		"@types/react": "^19.0.0",
+		"@typescript/native-preview": "catalog:silkPeers",
+		"react": "^19.0.0",
+		"react-dom": "^19.0.0"
+	}
+}

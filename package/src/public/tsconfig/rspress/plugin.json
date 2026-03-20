@@ -1,0 +1,25 @@
+{
+	"$schema": "https://json.schemastore.org/tsconfig.json",
+	"compilerOptions": {
+		"composite": true,
+		"declaration": true,
+		"exactOptionalPropertyTypes": true,
+		"jsx": "react-jsx",
+		"module": "esnext",
+		"moduleResolution": "bundler",
+		"resolveJsonModule": true,
+		"skipLibCheck": true,
+		"strict": true,
+		"strictNullChecks": true,
+		"target": "es2023"
+	},
+	"exclude": ["${configDir}/node_modules", "${configDir}/dist", "${configDir}/.rslib"],
+	"include": [
+		"${configDir}/src/**/*.ts",
+		"${configDir}/src/**/*.tsx",
+		"${configDir}/src/**/*.mts",
+		"${configDir}/src/**/*.cts",
+		"${configDir}/src/**/*.mdx",
+		"${configDir}/types/**/*.ts"
+	]
+}
