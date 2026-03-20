@@ -1,5 +1,5 @@
-import path from "node:path";
-import { fileURLToPath } from "node:url";
+// import path from "node:path";
+// import { fileURLToPath } from "node:url";
 import type { RspressPlugin, UserConfig } from "@rspress/core";
 
 /**
@@ -11,11 +11,6 @@ export interface HelloPluginOptions {
 	/** The greeting message to display during build. Default: `"Hello from rspress-plugin-fixture!"` */
 	message?: string | undefined;
 }
-
-// Resolve paths relative to this file's built location.
-// In the built output, runtime/ sits alongside index.js.
-const pluginDir = path.dirname(fileURLToPath(import.meta.url));
-const runtimePath = path.join(pluginDir, "runtime");
 
 /**
  * A minimal RSPress plugin that logs a greeting at build time
@@ -44,13 +39,11 @@ export function HelloPlugin(options: HelloPluginOptions = {}): RspressPlugin {
 				updatedConfig.builderConfig.source = {};
 			}
 			const existingInclude = updatedConfig.builderConfig.source.include ?? [];
-			updatedConfig.builderConfig.source.include = [...existingInclude, runtimePath];
+			updatedConfig.builderConfig.source.include = [...existingInclude, "rspress-plugin-fixture/runtime"];
 
 			return updatedConfig;
 		},
 
-		// runtimePath resolves to the runtime barrel (dist/<mode>/runtime/)
-		// which has a default export of HelloBanner
-		globalUIComponents: [runtimePath],
+		globalUIComponents: ["rspress-plugin-fixture/runtime"],
 	};
 }
