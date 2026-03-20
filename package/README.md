@@ -58,7 +58,7 @@ RSPressPluginBuilder auto-detects the runtime entry at `src/runtime/index.tsx`, 
 
 ## Documentation
 
-For configuration options, API reference, and advanced usage, see [docs](./docs/).
+For configuration options, API reference, and advanced usage, see [docs](../docs/).
 
 ## Contributing
 

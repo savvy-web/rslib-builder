@@ -247,7 +247,7 @@ export class RSPressPluginBuilder {
 		// 3. FilesArrayPlugin
 		plugins.push(FilesArrayPlugin({ mode }));
 
-		// 4. DtsPlugin
+		// 4. DtsPlugin — only process the plugin entry (not runtime)
 		plugins.push(
 			DtsPlugin({
 				...(options.tsconfigPath
@@ -259,6 +259,7 @@ export class RSPressPluginBuilder {
 				buildMode: mode,
 				format: "esm",
 				...(options.apiModel !== undefined && { apiModel: options.apiModel }),
+				overrideEntries: { index: pluginOpts.entry ?? "./src/index.ts" },
 			}),
 		);
 
@@ -362,6 +363,7 @@ export class RSPressPluginBuilder {
 				buildMode: mode,
 				format: "esm",
 				apiModel: false,
+				overrideEntries: { index: runtimeOpts.entry ?? DEFAULT_RUNTIME_ENTRY },
 			}),
 		);
 

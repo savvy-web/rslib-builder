@@ -25,7 +25,8 @@
 	},
 	"repository": {
 		"type": "git",
-		"url": "git+https://github.com/savvy-web/rslib-builder.git"
+		"url": "git+https://github.com/savvy-web/rslib-builder.git",
+		"directory": "package"
 	},
 	"license": "MIT",
 	"author": {
