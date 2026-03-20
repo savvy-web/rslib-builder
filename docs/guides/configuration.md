@@ -1407,6 +1407,26 @@ NodeLibraryBuilder.create({
 
 - `process.env.__PACKAGE_VERSION__` - Automatically set to package version
 
+## RSPress Plugin Builder
+
+For building RSPress plugins, use `RSPressPluginBuilder` instead of
+`NodeLibraryBuilder`. It provides a dedicated configuration interface with
+dual-bundle architecture (plugin + runtime), built-in RSPress externals,
+and automatic React JSX compilation for runtime components.
+
+```typescript
+import { RSPressPluginBuilder } from '@savvy-web/rslib-builder';
+
+export default RSPressPluginBuilder.create({
+  plugin: { externals: ['typescript'] },
+  runtime: { externals: ['@rspress/plugin-llms'] },
+});
+```
+
+For the full `RSPressPluginBuilderOptions` reference including bundle options,
+built-in externals, runtime auto-detection, and project setup instructions,
+see [RSPress Plugin Setup](./rspress-plugins.md).
+
 ## Full Example
 
 ```typescript

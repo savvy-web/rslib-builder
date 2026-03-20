@@ -1,0 +1,144 @@
+{
+	"name": "@savvy-web/rslib-builder",
+	"version": "0.18.3",
+	"private": true,
+	"description": "RSlib-based build system for Node.js libraries with automatic package.json transformation, TypeScript declaration bundling, and multi-target support",
+	"keywords": [
+		"rslib",
+		"rsbuild",
+		"typescript",
+		"declarations",
+		"dts",
+		"bundler",
+		"build",
+		"esm",
+		"node",
+		"library",
+		"api-extractor",
+		"tsgo",
+		"tsdoc",
+		"monorepo"
+	],
+	"homepage": "https://github.com/savvy-web/rslib-builder",
+	"bugs": {
+		"url": "https://github.com/savvy-web/rslib-builder/issues"
+	},
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/savvy-web/rslib-builder.git",
+		"directory": "package"
+	},
+	"license": "MIT",
+	"author": {
+		"name": "C. Spencer Beggs",
+		"email": "spencer@savvyweb.systems",
+		"url": "https://savvyweb.systems"
+	},
+	"type": "module",
+	"exports": {
+		".": "./src/index.ts",
+		"./tsconfig/root.json": "./src/public/tsconfig/root.json",
+		"./tsconfig/ecma/lib.json": "./src/public/tsconfig/ecma/lib.json",
+		"./tsconfig/rspress/plugin.json": "./src/public/tsconfig/rspress/plugin.json",
+		"./tsconfig/rspress/website.json": "./src/public/tsconfig/rspress/website.json"
+	},
+	"scripts": {
+		"build": "turbo run build:dev build:prod",
+		"build:dev": "rslib build --env-mode dev",
+		"build:inspect": "rslib inspect --verbose",
+		"build:prod": "rslib build --env-mode npm",
+		"test": "vitest run",
+		"test:ai": "vitest run --reporter=dot",
+		"test:watch": "vitest --watch",
+		"types:check": "tsgo --noEmit"
+	},
+	"dependencies": {
+		"@microsoft/tsdoc": "^0.16.0",
+		"@microsoft/tsdoc-config": "^0.18.1",
+		"@pnpm/catalogs.config": "^1000.0.5",
+		"@pnpm/catalogs.protocol-parser": "^1001.0.0",
+		"@pnpm/exportable-manifest": "^1000.4.1",
+		"@pnpm/lockfile.fs": "^1001.1.31",
+		"@pnpm/workspace.read-manifest": "^1000.3.0",
+		"@typescript-eslint/parser": "^8.57.1",
+		"deep-equal": "^2.2.3",
+		"eslint": "^10.0.3",
+		"eslint-plugin-tsdoc": "^0.5.2",
+		"glob": "^13.0.6",
+		"picocolors": "^1.1.1",
+		"sort-package-json": "^3.6.1",
+		"tmp": "^0.2.4",
+		"workspace-tools": "^0.41.0"
+	},
+	"devDependencies": {
+		"@microsoft/api-extractor": "^7.57.7",
+		"@pnpm/types": "^1001.3.0",
+		"@rsbuild/core": "^1.7.3",
+		"@rslib/core": "^0.20.0",
+		"@savvy-web/vitest": "^0.2.2",
+		"@types/deep-equal": "^1.0.4",
+		"@types/tmp": "^0.2.6",
+		"type-fest": "^5.4.3"
+	},
+	"peerDependencies": {
+		"@microsoft/api-extractor": "^7.57.7",
+		"@rsbuild/plugin-react": "^1.4.0",
+		"@rslib/core": "^0.20.0",
+		"@types/node": "catalog:silkPeers",
+		"@types/react": "^19.0.0",
+		"@typescript/native-preview": "catalog:silkPeers",
+		"react": "^19.0.0",
+		"react-dom": "^19.0.0",
+		"typescript": "catalog:silkPeers"
+	},
+	"peerDependenciesMeta": {
+		"@microsoft/api-extractor": {
+			"optional": false
+		},
+		"@rsbuild/plugin-react": {
+			"optional": true
+		},
+		"@rslib/core": {
+			"optional": false
+		},
+		"@types/node": {
+			"optional": false
+		},
+		"@types/react": {
+			"optional": true
+		},
+		"@typescript/native-preview": {
+			"optional": false
+		},
+		"react": {
+			"optional": true
+		},
+		"react-dom": {
+			"optional": true
+		},
+		"typescript": {
+			"optional": false
+		}
+	},
+	"publishConfig": {
+		"access": "public",
+		"directory": "dist/dev",
+		"linkDirectory": true,
+		"targets": [
+			{
+				"protocol": "npm",
+				"registry": "https://npm.pkg.github.com/",
+				"directory": "dist/npm",
+				"access": "public",
+				"provenance": true
+			},
+			{
+				"protocol": "npm",
+				"registry": "https://registry.npmjs.org/",
+				"directory": "dist/npm",
+				"access": "public",
+				"provenance": true
+			}
+		]
+	}
+}

@@ -32,30 +32,27 @@ pnpm build:prod
 
 # Inspect generated RSlib config
 pnpm build:inspect
+
+# Clean all build artifacts
+pnpm reset
 ```
 
 ### Testing
 
-Tests are co-located with source files (e.g., `foo.test.ts` next to `foo.ts`).
+Tests are co-located with source files in `package/src/` (e.g., `foo.test.ts` next to `foo.ts`).
 
 ```bash
 # Run unit tests
 pnpm test
 
-# Run all tests (unit + e2e)
-pnpm test:all
-
 # Watch mode for development
 pnpm test:watch
-
-# Run E2E tests (uses fixture packages)
-pnpm test:e2e
 ```
 
 #### Test Coverage Requirements
 
 - Minimum 85% coverage per file (statements, branches, functions, lines)
-- Use type-safe mocks from `src/__test__/rslib/types/test-types.ts`
+- Use type-safe mocks from `package/src/__test__/rslib/types/test-types.ts`
 - Never use `as any` - create proper mock interfaces
 
 #### Writing Tests
@@ -99,17 +96,23 @@ pnpm typecheck
 
 ```text
 rslib-builder/
-├── src/
-│   ├── rslib/                    # RSlib build system
-│   │   ├── builders/             # High-level builder classes
-│   │   └── plugins/              # RSlib/Rsbuild plugins
-│   │       └── utils/            # Plugin utilities
-│   ├── tsconfig/                 # TypeScript config templates
-│   ├── public/                   # Static files (tsconfig JSONs)
-│   ├── __test__/                 # Shared test utilities
-│   └── types/                    # TypeScript type definitions
-├── rslib.config.ts               # Self-builds using NodeLibraryBuilder
-└── vitest.config.ts
+├── package/                      # @savvy-web/rslib-builder (publishable)
+│   ├── src/
+│   │   ├── rslib/                # RSlib build system
+│   │   │   ├── builders/         # NodeLibraryBuilder, RSPressPluginBuilder
+│   │   │   └── plugins/          # Build plugins + utils
+│   │   ├── tsconfig/             # TypeScript config templates
+│   │   ├── public/               # Static files (tsconfig JSONs)
+│   │   ├── __test__/             # Shared test utilities
+│   │   └── types/                # TypeScript type definitions
+│   └── rslib.config.ts           # Self-builds using NodeLibraryBuilder
+├── examples/                     # Builder consumer examples (replace old fixtures)
+│   ├── libraries/                # NodeLibraryBuilder examples
+│   └── rspress-plugin/           # RSPressPluginBuilder example
+├── lib/                          # Shared configs
+├── turbo.json                    # Root task graph
+├── pnpm-workspace.yaml
+└── vitest.config.ts              # Root test orchestration
 ```
 
 ## Code Standards
@@ -124,7 +127,7 @@ rslib-builder/
 
 - Co-locate tests with source files (`*.test.ts`)
 - Maintain 85%+ test coverage per file
-- Use shared mock types from `src/__test__/rslib/`
+- Use shared mock types from `package/src/__test__/rslib/`
 - Use `/* v8 ignore */` for integration code that can't be unit tested
 
 ### Documentation

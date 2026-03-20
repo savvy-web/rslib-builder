@@ -9,6 +9,7 @@ completeness: 95
 related:
   - rslib-builder/api-extraction.md
   - rslib-builder/testing-strategy.md
+  - rslib-builder/rspress-plugin-builder.md
 dependencies: []
 ---
 
@@ -33,6 +34,8 @@ A sophisticated build system abstraction layer built on RSlib/Rsbuild/Rspack, pr
 ## Overview
 
 `@savvy-web/rslib-builder` provides a high-level `NodeLibraryBuilder` API that simplifies building TypeScript packages for multiple build modes (dev, npm). It handles automatic configuration generation, plugin orchestration, and complex package.json transformations.
+
+The project is organized as a pnpm monorepo with the main package at `package/`, example consumer libraries at `examples/`, and shared configs at `lib/`. The examples serve as both documentation and integration validation (built via turbo alongside the main package).
 
 The system features a plugin-based architecture where plugins operate at different Rsbuild asset processing stages, collectively transforming raw TypeScript source into production-ready distributions with proper type declarations, export mappings, and dependency resolution.
 
@@ -59,7 +62,7 @@ The system features a plugin-based architecture where plugins operate at differe
 
 #### Component 1: NodeLibraryBuilder
 
-**Location:** `src/rslib/builders/node-library-builder.ts`
+**Location:** `package/src/rslib/builders/node-library-builder.ts`
 
 **Purpose:** Main public API providing a fluent interface for building Node.js libraries.
 
@@ -144,7 +147,7 @@ NodeLibraryBuilder.create(options): RslibConfigAsyncFn
 
 #### Component 2: Plugin System
 
-**Location:** `src/rslib/plugins/`
+**Location:** `package/src/rslib/plugins/`
 
 **Purpose:** Modular build transformations operating at specific Rsbuild asset processing stages.
 
@@ -181,7 +184,7 @@ NodeLibraryBuilder.create(options): RslibConfigAsyncFn
 
 #### Component 3: Utility Modules
 
-**Location:** `src/rslib/plugins/utils/`
+**Location:** `package/src/rslib/plugins/utils/`
 
 **Purpose:** Shared utilities for entry extraction, package.json building, transformations, and message suppression. Consolidated from 14 files to 9 focused modules.
 
@@ -255,7 +258,7 @@ NodeLibraryBuilder.create(options): RslibConfigAsyncFn
 
 #### Component 4: Multi-Format Build System
 
-**Location:** `src/rslib/builders/node-library-builder.ts` (createSingleMode)
+**Location:** `package/src/rslib/builders/node-library-builder.ts` (createSingleMode)
 
 **Purpose:** Generate multiple LibConfig entries when the build requires different output formats for different entries.
 
@@ -310,7 +313,7 @@ Post-processing step that transforms standard `{ types, import }` conditions int
 
 #### Component 5: CJS Interop
 
-**Location:** `src/rslib/builders/node-library-builder.ts`
+**Location:** `package/src/rslib/builders/node-library-builder.ts`
 
 **Purpose:** Patch CJS output so `require('module')` returns the default export directly rather than `{ default: value, __esModule: true }`.
 
@@ -772,7 +775,7 @@ PublishTargetPlugin (onCloseBuild)  <--------------+
 
 ### ImportGraph Architecture
 
-**Location:** `src/rslib/plugins/utils/import-graph.ts`
+**Location:** `package/src/rslib/plugins/utils/import-graph.ts`
 
 **Purpose:** Analyzes TypeScript import relationships to discover all files reachable from specified entry points. Used by TsDocLintPlugin to automatically determine which files need TSDoc validation.
 
@@ -1469,7 +1472,7 @@ ImportGraph.traceFromPackageExports()
 Tests are co-located with source files for better discoverability and maintenance:
 
 ```text
-src/
+package/src/
 ├── rslib/
 │   ├── builders/
 │   │   ├── node-library-builder.ts
@@ -1548,7 +1551,7 @@ expect(config.environments.development.source).toHaveProperty('entry');
 
 ### Shared Test Utilities
 
-**Location:** `src/__test__/rslib/`
+**Location:** `package/src/__test__/rslib/`
 
 Shared test helpers remain in the `__test__` directory:
 
@@ -1587,6 +1590,26 @@ For comprehensive testing strategy details, see [testing-strategy.md](./testing-
 
 ---
 
+## RSPressPluginBuilder
+
+In addition to `NodeLibraryBuilder`, the package provides `RSPressPluginBuilder` — a specialized builder for RSPress plugins with a dual-bundle architecture:
+
+- **Plugin bundle** (always present): Node.js ESM server-side logic with RSPress externals
+- **Runtime bundle** (optional, auto-detected): Web-targeted React components with CSS modules, BannerPlugin for CSS injection, and `pluginReact()` auto-added
+
+`RSPressPluginBuilder` reuses the same plugin primitives (DtsPlugin, PackageJsonTransformPlugin, FilesArrayPlugin, PublishTargetPlugin, TsDocLintPlugin) but composes them differently across two lib entries. The plugin lib owns package.json processing; the runtime lib is lightweight.
+
+Key differences from `NodeLibraryBuilder`:
+
+- No AutoEntryPlugin — entries are fixed (plugin + optional runtime)
+- No bundleless mode or CJS output — always bundled ESM
+- `tsconfigPreset` option on DtsPlugin uses `TSConfigs.rspress.plugin` (module: esnext, moduleResolution: bundler)
+- Runtime auto-detection via `fs.existsSync("src/runtime/index.tsx")`
+
+For full details, see [rspress-plugin-builder.md](./rspress-plugin-builder.md).
+
+---
+
 ## Future Enhancements
 
 ### Phase 1: Short-term
@@ -1602,9 +1625,7 @@ For comprehensive testing strategy details, see [testing-strategy.md](./testing-
 
 ### Phase 3: Long-term
 
-- **Monorepo support**: Build multiple packages in workspace
 - **Remote caching**: Share build cache across CI runs
-- **Custom plugin hooks**: User-defined build stages
 
 ---
 
@@ -1613,6 +1634,7 @@ For comprehensive testing strategy details, see [testing-strategy.md](./testing-
 **Internal Design Docs:**
 
 - [API Extraction](./api-extraction.md) - API model generation and TSDoc configuration (TsDocLintPlugin shares tsdoc options with DtsPlugin)
+- [RSPress Plugin Builder](./rspress-plugin-builder.md) - Dual-bundle builder for RSPress plugins with React runtime components
 
 **Package Documentation:**
 

@@ -10,7 +10,7 @@
 	"access": "restricted",
 	"baseBranch": "main",
 	"updateInternalDependencies": "patch",
-	"ignore": ["@fixtures/*"],
+	"ignore": ["@libraries/*", "rspress-plugin-fixture", "rspress-plugin-site"],
 	"privatePackages": {
 		"tag": true,
 		"version": true

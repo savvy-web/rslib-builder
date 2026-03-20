@@ -1,0 +1,33 @@
+{
+	"extends": ["//"],
+	"tasks": {
+		"build": {
+			"cache": false,
+			"dependsOn": ["build:dev", "build:prod"],
+			"inputs": [
+				"$TURBO_DEFAULT$",
+				"!**/*.test.ts",
+				"!**/*.spec.ts",
+				"$TURBO_ROOT$/pnpm-lock.yaml",
+				"$TURBO_ROOT$/pnpm-workspace.yaml"
+			],
+			"outputLogs": "full"
+		},
+		"build:dev": {
+			"cache": true,
+			"dependsOn": ["types:check"],
+			"outputs": ["dist/dev/**", ".rslib/declarations/dev/**"]
+		},
+		"build:prod": {
+			"cache": true,
+			"dependsOn": ["types:check"],
+			"outputs": ["dist/npm/**", ".rslib/declarations/npm/**"]
+		},
+		"types:check": {
+			"cache": true,
+			"dependsOn": [],
+			"inputs": ["$TURBO_DEFAULT$", "$TURBO_ROOT$/pnpm-lock.yaml", "$TURBO_ROOT$/pnpm-workspace.yaml"],
+			"outputLogs": "full"
+		}
+	}
+}

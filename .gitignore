@@ -45,5 +45,5 @@ test.ts
 .playwright-mcp
 website/lib/packages/*/*.api.json
 website/lib/packages/*/package.json
-# E2E test temp directories
-__fixtures__/**/.tmp
+# Git worktrees
+.worktrees/

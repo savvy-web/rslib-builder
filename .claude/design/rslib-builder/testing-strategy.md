@@ -26,7 +26,7 @@ Comprehensive testing approach for @savvy-web/rslib-builder using Vitest with v8
 7. [Plugin Testing Approach](#plugin-testing-approach)
 8. [Coverage Strategy](#coverage-strategy)
 9. [Shared Test Utilities](#shared-test-utilities)
-10. [E2E Testing Infrastructure](#e2e-testing-infrastructure)
+10. [Integration Validation via Examples](#integration-validation-via-examples)
 11. [Best Practices](#best-practices)
 
 ---
@@ -54,10 +54,10 @@ The testing strategy for `@savvy-web/rslib-builder` prioritizes:
 
 ### Test Organization
 
-Tests follow a co-located structure where test files sit alongside their source files:
+Tests follow a co-located structure where test files sit alongside their source files in the `package/` workspace:
 
 ```text
-src/
+package/src/
 ├── rslib/
 │   ├── builders/
 │   │   ├── node-library-builder.ts
@@ -83,24 +83,18 @@ src/
 ├── exports.test.ts
 └── __test__/rslib/
     └── types/test-types.ts
-test/
-├── e2e/
-│   ├── builder-options/
-│   │   ├── api-model.test.ts      # API model generation options
-│   │   ├── build-options.test.ts   # General build options (externals, transform)
-│   │   └── tsdoc-lint.test.ts      # TSDoc lint configuration
-│   ├── dts-bundling.test.ts
-│   └── utils/
-│       ├── assertions.ts           # E2E test assertion helpers
-│       ├── build-fixture.ts        # Fixture build runner with isolation
-│       ├── test-fixture.ts         # Vitest test wrapper with auto-cleanup
-│       └── index.ts                # Re-exports for convenience
-└── fixtures/
-    ├── single-entry/
-    ├── multi-entry/
-    ├── options-testing/            # Fixture for builder options E2E tests
-    └── with-bin/
+examples/                           # Integration examples - built via turbo
+├── libraries/
+│   ├── single-entry/               # Single export library
+│   ├── multi-entry/                # Multiple exports (./utils, ./types)
+│   ├── options-testing/            # Builder options testing
+│   └── with-bin/                   # Library with CLI bin entry
+└── rspress-plugin/
+    ├── plugin/                     # RSPress plugin with runtime components
+    └── site/                       # RSPress doc site consuming the plugin
 ```
+
+**Vitest workspace discovery:** The `@savvy-web/vitest` config auto-discovers workspaces with `src/` + `__test__/` directories. Each workspace runs its own test suite; the root `pnpm test` invokes vitest across all workspaces.
 
 ### Test Files
 
@@ -121,16 +115,13 @@ Current test file inventory:
 
 ### Test Utility Location
 
-Located in `src/__test__/rslib/`:
+Located in `package/src/__test__/rslib/`:
 
 - **`types/test-types.ts`**: Mock type definitions and utility functions
 
-Located in `test/e2e/utils/`:
+### E2E Validation via Examples
 
-- **`build-fixture.ts`**: Fixture build runner with isolation and config generation
-- **`test-fixture.ts`**: Vitest test wrapper with automatic cleanup
-- **`assertions.ts`**: E2E test assertion helpers
-- **`index.ts`**: Re-exports for convenience
+The old `test/fixtures/` directory and `buildFixture()` infrastructure have been replaced by the `examples/` workspaces. Examples are built via turbo as part of the normal `pnpm build` pipeline, providing continuous integration validation of the builder. Each example depends on `@savvy-web/rslib-builder` via `workspace:*` and uses turbo `dependsOn: ["^build"]` to ensure correct build ordering.
 
 ---
 
@@ -303,7 +294,7 @@ The following are excluded from coverage:
 
 ### Mock Type Definitions
 
-Located in `src/__test__/rslib/types/test-types.ts`:
+Located in `package/src/__test__/rslib/types/test-types.ts`:
 
 ```typescript
 /**
@@ -344,7 +335,7 @@ export function createMockStats(mtime: Date): import("node:fs").Stats {
 
 ### Mock Utility Functions
 
-Located in `src/__test__/rslib/utils/test-types.ts`:
+Located in `package/src/__test__/rslib/utils/test-types.ts`:
 
 ```typescript
 import type { Stats } from "node:fs";
@@ -609,178 +600,36 @@ describe("MyPlugin", () => {
 
 ---
 
-## E2E Testing Infrastructure
+## Integration Validation via Examples
 
-End-to-end tests verify the complete build pipeline by building real fixture packages and asserting on the generated outputs. This catches integration issues that unit tests cannot detect.
+The old `test/fixtures/` directory and `buildFixture()` infrastructure have been replaced by the `examples/` workspaces. Examples are built via turbo as part of the normal `pnpm build` pipeline, providing continuous integration validation of the builder.
 
-### Fixture Structure
+### Example Structure
 
-Fixtures are minimal workspace packages in `test/fixtures/`:
+Examples are workspace packages in `examples/`:
 
 ```text
-test/fixtures/
-├── single-entry/          # Single export package
-│   ├── package.json       # workspace:* dependency on rslib-builder
-│   ├── tsconfig.json      # Extends @savvy-web/rslib-builder/tsconfig/ecma/lib.json
-│   ├── rslib.config.ts    # Uses NodeLibraryBuilder
-│   ├── turbo.json         # dependsOn: ["^build"]
-│   └── src/
-│       └── index.ts
-├── multi-entry/           # Multiple exports (./utils, ./types)
-│   └── ...
-├── options-testing/       # Fixture for builder options E2E tests
-│   ├── package.json
-│   ├── src/
-│   │   ├── index.ts       # Valid TSDoc comments
-│   │   ├── types.ts       # Additional export
-│   │   └── bad-docs.ts    # Invalid TSDoc for testing lint errors
-│   └── ...
-└── with-bin/              # Library with CLI bin entry
-    └── ...
+examples/
+├── libraries/
+│   ├── single-entry/               # Single export library
+│   ├── multi-entry/                # Multiple exports (./utils, ./types)
+│   ├── options-testing/            # Builder options testing
+│   └── with-bin/                   # Library with CLI bin entry
+└── rspress-plugin/
+    ├── plugin/                     # RSPress plugin with runtime components
+    └── site/                       # RSPress doc site consuming the plugin
 ```
 
-Each fixture:
+Each example:
 
 - Uses `workspace:*` to link to the local rslib-builder build
 - Extends the module's exported tsconfig for consistency
-- Has its own `turbo.json` to ensure build ordering
+- Has its own `turbo.json` to ensure build ordering via `dependsOn: ["^build"]`
 - Contains minimal source files with TSDoc comments
-
-### E2E Test Utilities
-
-Located in `test/e2e/utils/`:
-
-#### build-fixture.ts
-
-```typescript
-export interface BuildFixtureOptions {
-  mode?: "dev" | "npm";        // Default: "npm"
-  config?: ConfigOptions;       // NodeLibraryBuilder options
-  env?: Record<string, string>; // Additional env vars
-  timeout?: number;             // Default: 60000
-}
-
-export interface ConfigOptions {
-  builderOptions?: Partial<NodeLibraryBuilderOptions>;
-}
-
-export async function buildFixture(
-  fixtureName: string,
-  options: BuildFixtureOptions = {},
-): Promise<BuildFixtureResult>;
-```
-
-- Copies fixture to isolated temp directory with unique UUID
-- Generates `rslib.config.ts` from provided `config.builderOptions`
-- Symlinks `node_modules` from source fixture for fast resolution
-- Runs `pnpm exec rslib build --env-mode <mode>` in isolated directory
-- Collects all output files into a `Map<string, string>`
-- Returns cleanup function that removes the isolated copy
-
-**Key features:**
-
-- **Isolated builds**: Each test gets its own copy, enabling parallel execution
-- **Config generation**: Tests can pass builder options directly
-- **Automatic cleanup**: Isolated directories removed after test completion
-- **Function serialization**: `transform` callbacks serialized to generated config
-
-#### test-fixture.ts
-
-Extended Vitest test wrapper with automatic cleanup:
-
-```typescript
-import { test, describe, expect } from "../utils/index.js";
-
-describe("My tests", () => {
-  test("my test", async ({ result }) => {
-    result.value = await buildFixture("options-testing", {
-      config: {
-        builderOptions: {
-          apiModel: true,
-        },
-      },
-    });
-    assertBuildSucceeded(result.value);
-  });
-});
-```
-
-The `result` context provides automatic cleanup - just set `result.value` to your build result and the isolated fixture is cleaned up automatically.
-
-#### assertions.ts
-
-```typescript
-// Verify build succeeded/failed
-assertBuildSucceeded(result);
-assertBuildFailed(result);
-
-// Check output file exists and contains expected content
-assertOutputFile(result, "index.d.ts", {
-  exists: true,
-  contains: ["export declare function add"],
-});
-
-// Verify package.json structure
-assertPackageJson(result, {
-  hasExport: ".",
-  hasTypes: ".",
-  hasFile: "index.d.ts",
-  notHasFile: "options-testing.api.json",  // Negated patterns
-  fieldEquals: { customField: "value" },
-});
-
-// Verify API model generation
-assertApiModelFile(result, { exists: true, filename: "custom.api.json" });
-assertTsDocMetadata(result, { exists: true });
-assertResolvedTsconfig(result, { exists: true });
-
-// Check build output (stdout/stderr)
-assertBuildOutput(result, {
-  stdoutContains: "Validating TSDoc comments",
-  stdoutNotContains: "error",
-});
-```
-
-### Vitest E2E Configuration
-
-E2E tests use the same `vitest.config.ts` with separate file patterns:
-
-```typescript
-export default defineConfig({
-  test: {
-    globals: true,
-    environment: "node",
-    include: [
-      "src/**/*.test.ts",      // Unit tests
-      "test/e2e/**/*.test.ts", // E2E tests (same config)
-    ],
-    testTimeout: 120000,
-    hookTimeout: 60000,
-    coverage: {
-      include: ["src/**/*.ts"],
-      exclude: ["test/**"],  // E2E tests don't contribute to coverage
-    },
-  },
-});
-```
 
 ### Turbo Integration
 
-E2E tests require the module to be built first:
-
-**turbo.json (root)**:
-
-```json
-{
-  "test:e2e": {
-    "cache": false,
-    "dependsOn": ["^build", "build"],
-    "inputs": ["test/fixtures/**", "test/e2e/**"]
-  }
-}
-```
-
-**Fixture turbo.json**:
+Examples build as part of the turbo pipeline:
 
 ```json
 {
@@ -794,111 +643,25 @@ E2E tests require the module to be built first:
 }
 ```
 
-### CI Integration
+### When to Add Examples
 
-E2E tests run as part of the `ci:test` script:
+Add examples for:
 
-```json
-{
-  "ci:test": "CI=\"true\" vitest run --coverage"
-}
-```
-
-This ensures:
-
-1. Unit tests run first with coverage
-2. E2E tests run with same configuration
-
-### Example E2E Tests
-
-**Testing builder options:**
-
-```typescript
-import { describe, test, buildFixture, assertBuildSucceeded, assertApiModelFile } from "../utils/index.js";
-
-describe("NodeLibraryBuilder apiModel Options E2E", () => {
-  describe("apiModel: false", () => {
-    test("should not generate API model", async ({ result }) => {
-      result.value = await buildFixture("options-testing", {
-        config: {
-          builderOptions: {
-            apiModel: false,
-          },
-        },
-      });
-
-      assertBuildSucceeded(result.value);
-      assertApiModelFile(result.value, { exists: false });
-    });
-  });
-
-  describe("apiModel with custom tsdoc tags", () => {
-    test("should accept custom tag definitions", async ({ result }) => {
-      result.value = await buildFixture("options-testing", {
-        config: {
-          builderOptions: {
-            apiModel: {
-              tsdoc: {
-                tagDefinitions: [
-                  { tagName: "@customTag", syntaxKind: "block" }
-                ],
-                lint: { persistConfig: false },
-              },
-            },
-          },
-        },
-      });
-
-      assertBuildSucceeded(result.value);
-    });
-  });
-});
-```
-
-**Testing TSDoc lint options:**
-
-```typescript
-describe("lint with onError: throw", () => {
-  test("should fail build on lint errors", async ({ result }) => {
-    result.value = await buildFixture("options-testing", {
-      config: {
-        builderOptions: {
-          apiModel: {
-            tsdoc: {
-              lint: {
-                onError: "throw",
-                include: ["src/bad-docs.ts"],
-              },
-            },
-          },
-        },
-      },
-    });
-
-    assertBuildFailed(result.value);
-    expect(result.value.stdout + result.value.stderr).toContain("TSDoc validation failed");
-  });
-});
-```
-
-### When to Add E2E Tests
-
-Add E2E tests for:
-
-- New builder options (test via `config.builderOptions`)
+- New builder options or configurations
 - Build output formats or structures
 - Multi-entry point handling
-- Package.json transformation logic
 - Declaration bundling behavior
 - Bin entry handling
-- TSDoc lint behavior
-- API model generation options
+- RSPress plugin dual-bundle output (plugin + runtime)
 
-Skip E2E tests for:
+### RSPressPluginBuilder Example
 
-- Internal utility functions (unit test instead)
-- Configuration parsing (unit test instead)
-- Error message formatting
+The `examples/rspress-plugin/` workspace validates the full RSPress plugin pipeline:
+
+- `plugin/` - RSPress plugin with dual-bundle architecture using RSPressPluginBuilder
+- `site/` - RSPress doc site consuming the plugin via `workspace:*`
+
+Covers: plugin + runtime bundles, DTS output, CSS output, package.json exports for `.` and `./runtime`, and the full plugin-to-site pipeline.
 
 ---
 
