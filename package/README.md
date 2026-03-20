@@ -54,7 +54,7 @@ export default RSPressPluginBuilder.create({
 });
 ```
 
-RSPressPluginBuilder auto-detects the runtime entry at `src/runtime/index.tsx`, handles React JSX compilation, CSS modules, and built-in RSPress externals. For advanced configuration, see [RSPress Plugin Setup](./docs/guides/rspress-plugins.md).
+RSPressPluginBuilder auto-detects the runtime entry at `src/runtime/index.tsx`, handles React JSX compilation, CSS modules, and built-in RSPress externals. For advanced configuration, see [RSPress Plugin Setup](../docs/guides/rspress-plugins.md).
 
 ## Documentation
 
@@ -62,7 +62,7 @@ For configuration options, API reference, and advanced usage, see [docs](../docs
 
 ## Contributing
 
-See [CONTRIBUTING.md](./CONTRIBUTING.md) for development setup and guidelines.
+See [CONTRIBUTING.md](../CONTRIBUTING.md) for development setup and guidelines.
 
 ## License
 

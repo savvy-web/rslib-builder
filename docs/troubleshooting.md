@@ -424,7 +424,7 @@ This injects a footer snippet into CJS output files that
 reassigns `module.exports` to the default export value.
 Named exports are preserved as properties on that value.
 
-See [CJS Interop](./configuration.md#cjs-interop) for full
+See [CJS Interop](./guides/configuration.md#cjs-interop) for full
 details.
 
 ### cjsInterop not taking effect
