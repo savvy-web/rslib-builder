@@ -119,10 +119,11 @@ export class RSPressPluginBuilder {
 
 		return async ({ envMode }: { envMode?: string }): Promise<RslibConfig> => {
 			const mode = (envMode as BuildMode) || "dev";
+			const validModes = mergedOptions.modes ?? RSPressPluginBuilder.VALID_MODES;
 
-			if (!RSPressPluginBuilder.VALID_MODES.includes(mode)) {
+			if (!validModes.includes(mode)) {
 				throw new Error(
-					`Invalid env-mode: "${mode}". Must be one of: ${RSPressPluginBuilder.VALID_MODES.join(", ")}\n` +
+					`Invalid env-mode: "${mode}". Must be one of: ${validModes.join(", ")}\n` +
 						`Example: rslib build --env-mode npm`,
 				);
 			}

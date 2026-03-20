@@ -420,15 +420,19 @@ describe("RSPressPluginBuilder", () => {
 			expect(dtsCall).toHaveProperty("bundledPackages", ["some-pkg"]);
 		});
 
-		it("should pass apiModel: false to runtime DtsPlugin", async () => {
+		it("should pass apiModel: false and overrideEntries to runtime DtsPlugin", async () => {
 			vi.mocked(existsSync).mockReturnValue(true);
 
 			const configFn = RSPressPluginBuilder.create();
 			await configFn(envParams("dev"));
 
 			// First call is plugin lib DtsPlugin, second is runtime DtsPlugin
+			const pluginDtsCall = vi.mocked(DtsPlugin).mock.calls[0][0];
+			expect(pluginDtsCall).toHaveProperty("overrideEntries", { index: "./src/index.ts" });
+
 			const runtimeDtsCall = vi.mocked(DtsPlugin).mock.calls[1][0];
 			expect(runtimeDtsCall).toHaveProperty("apiModel", false);
+			expect(runtimeDtsCall).toHaveProperty("overrideEntries", { index: "./src/runtime/index.tsx" });
 			expect(runtimeDtsCall).not.toHaveProperty("dtsPathPrefix");
 		});
 	});
