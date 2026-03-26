@@ -1657,6 +1657,7 @@ export const DtsPlugin = (options: DtsPluginOptions = {}): RsbuildPlugin => {
 					const tempDtsDir = await ensureTempDeclarationDir(cwd, envId);
 
 					// Get files array for adding .d.ts files (but not .d.ts.map)
+					// biome-ignore lint/correctness/useHookAtTopLevel: Rsbuild plugin API, not React hooks
 					const filesArray = api.useExposed("files-array") as Set<string> | undefined;
 
 					try {
@@ -1689,6 +1690,7 @@ export const DtsPlugin = (options: DtsPluginOptions = {}): RsbuildPlugin => {
 						const allDtsFiles = await collectDtsFiles(tempDtsDir);
 
 						// Check if API report plugin created a temp api-extractor file
+						// biome-ignore lint/correctness/useHookAtTopLevel: Rsbuild plugin API, not React hooks
 						const apiExtractorMapping = api.useExposed("api-extractor-temp-mapping") as
 							| { tempPath: string; originalPath: string }
 							| undefined;
@@ -1801,6 +1803,7 @@ export const DtsPlugin = (options: DtsPluginOptions = {}): RsbuildPlugin => {
 							try {
 								// Read package.json to discover entry points
 								// First check if api-report-plugin exposed a modified version
+								// biome-ignore lint/correctness/useHookAtTopLevel: Rsbuild plugin API, not React hooks
 								const exposedPackageJson = api.useExposed<PackageJson>("api-extractor-package-json");
 
 								let packageJson: PackageJson;
@@ -1830,6 +1833,7 @@ export const DtsPlugin = (options: DtsPluginOptions = {}): RsbuildPlugin => {
 									exportPaths = extracted.exportPaths;
 
 									// Get virtual entry names to skip type generation for them
+									// biome-ignore lint/correctness/useHookAtTopLevel: Rsbuild plugin API, not React hooks
 									const virtualEntryNames = api.useExposed<Set<string>>("virtual-entry-names");
 
 									for (const [entryName, sourcePath] of Object.entries(entries)) {
@@ -2140,6 +2144,7 @@ export const DtsPlugin = (options: DtsPluginOptions = {}): RsbuildPlugin => {
 
 			// Copy files to localPaths after build completes (all files written to dist)
 			api.onCloseBuild(async () => {
+				// biome-ignore lint/correctness/useHookAtTopLevel: Rsbuild plugin API, not React hooks
 				const localPathsData = api.useExposed<{
 					localPaths: string[];
 					apiModelFilename: string;
