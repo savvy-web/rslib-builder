@@ -63,6 +63,7 @@ export const VirtualEntryPlugin = (options: VirtualEntryPluginOptions): RsbuildP
 				},
 				async (context) => {
 					// Get or create the shared files array
+					// biome-ignore lint/correctness/useHookAtTopLevel: Rsbuild plugin API, not React hooks
 					let filesArray = api.useExposed("files-array") as Set<string> | undefined;
 					if (!filesArray) {
 						filesArray = new Set<string>();

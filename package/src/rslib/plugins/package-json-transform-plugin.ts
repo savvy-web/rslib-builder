@@ -187,6 +187,7 @@ export const PackageJsonTransformPlugin = (options: PackageJsonTransformPluginOp
 		name: "package-json-processor",
 		setup(api: RsbuildPluginAPI): void {
 			// Get or create the shared files array
+			// biome-ignore lint/correctness/useHookAtTopLevel: Rsbuild plugin API, not React hooks
 			let filesArray = api.useExposed("files-array") as Set<string> | undefined;
 			if (!filesArray) {
 				filesArray = new Set<string>();
@@ -227,7 +228,9 @@ export const PackageJsonTransformPlugin = (options: PackageJsonTransformPluginOp
 					const isProduction = envId !== "dev";
 
 					// Get the updated entrypoints map if available
+					// biome-ignore lint/correctness/useHookAtTopLevel: Rsbuild plugin API, not React hooks
 					const entrypoints = api.useExposed<Map<string, string>>("entrypoints");
+					// biome-ignore lint/correctness/useHookAtTopLevel: Rsbuild plugin API, not React hooks
 					const exportToOutputMap = api.useExposed<Map<string, string>>("exportToOutputMap");
 
 					// Build format conditions from plugin options
@@ -262,6 +265,7 @@ export const PackageJsonTransformPlugin = (options: PackageJsonTransformPluginOp
 					}
 
 					// Check if we should use rollup types (set by DtsPlugin)
+					// biome-ignore lint/correctness/useHookAtTopLevel: Rsbuild plugin API, not React hooks
 					const useRollupTypes = api.useExposed<boolean>("use-rollup-types");
 					if (useRollupTypes && packageJson.data.exports && typeof packageJson.data.exports === "object") {
 						const exports = packageJson.data.exports as Record<string, unknown>;

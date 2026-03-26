@@ -135,6 +135,7 @@ export const FilesArrayPlugin = <TMode extends string = string>(
 		setup(api: RsbuildPluginAPI): void {
 			// Run during the main compilation to handle compiled assets and essential files
 
+			// biome-ignore lint/correctness/useHookAtTopLevel: Rsbuild plugin API, not React hooks
 			let filesArray = api.useExposed("files-array") as Set<string> | undefined;
 			if (!filesArray) {
 				filesArray = new Set<string>();
