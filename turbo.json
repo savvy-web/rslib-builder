@@ -5,7 +5,7 @@
 	"tasks": {
 		"build": {
 			"cache": true,
-			"dependsOn": ["^build"],
+			"dependsOn": ["^build:dev"],
 			"inputs": [
 				"$TURBO_DEFAULT$",
 				"!**/*.test.ts",
@@ -35,7 +35,7 @@
 		},
 		"dev": {
 			"cache": false,
-			"dependsOn": ["^build"],
+			"dependsOn": ["^build:dev"],
 			"interactive": true,
 			"persistent": true
 		},
@@ -44,6 +44,5 @@
 			"dependsOn": [],
 			"outputLogs": "errors-only"
 		}
-	},
-	"ui": "tui"
+	}
 }
