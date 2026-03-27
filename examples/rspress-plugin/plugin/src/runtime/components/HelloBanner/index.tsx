@@ -17,5 +17,5 @@ export interface HelloBannerProps {
  * @public
  */
 export function HelloBanner({ message }: HelloBannerProps): ReactElement {
-	return <div className={styles.banner}>{message ?? "Hello from rspress-plugin-fixture runtime!"}</div>;
+	return <div className={styles.banner}>{message ?? "Hello from @rspress/plugin runtime!"}</div>;
 }

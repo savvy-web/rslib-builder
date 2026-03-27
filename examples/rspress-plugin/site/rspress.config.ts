@@ -1,5 +1,5 @@
 import { defineConfig } from "@rspress/core";
-import { HelloPlugin } from "rspress-plugin-fixture";
+import { HelloPlugin } from "@rspress/plugin";
 
 export default defineConfig({
 	root: "docs",

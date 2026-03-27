@@ -12,7 +12,8 @@
 		"**/dist",
 		"**/CHANGELOG.md",
 		"**/.claude/plans",
-		"**/examples/rspress-plugin/site/docs"
+		"**/examples/rspress-plugin/site/docs",
+		"**/docs/superpowers"
 	],
 	"customRules": ["@savvy-web/changesets/markdownlint"],
 	"config": {

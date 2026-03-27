@@ -1,5 +1,5 @@
 {
-	"name": "rspress-plugin-site",
+	"name": "@rspress/site",
 	"private": true,
 	"type": "module",
 	"scripts": {
@@ -9,15 +9,17 @@
 		"types:check": "tsgo --noEmit"
 	},
 	"dependencies": {
-		"rspress-plugin-fixture": "workspace:*"
+		"@rspress/plugin": "workspace:*"
 	},
 	"devDependencies": {
-		"open": "^11.0.0",
-		"@rspress/core": "^2.0.0",
+		"@rspress/core": "^2.0.7",
 		"@savvy-web/rslib-builder": "workspace:*",
-		"@types/react": "^19.0.0",
-		"@typescript/native-preview": "catalog:silkPeers",
-		"react": "^19.0.0",
-		"react-dom": "^19.0.0"
+		"@types/node": "catalog:silk",
+		"@types/react": "^19.2.14",
+		"@typescript/native-preview": "catalog:silk",
+		"open": "^11.0.0",
+		"react": "^19.2.4",
+		"react-dom": "^19.2.4",
+		"typescript": "catalog:silk"
 	}
 }

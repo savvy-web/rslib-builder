@@ -8,18 +8,15 @@
 		"./types": "./src/types.ts"
 	},
 	"scripts": {
-		"build": "turbo run build:dev build:prod",
 		"build:dev": "rslib build --env-mode dev",
 		"build:prod": "rslib build --env-mode npm",
 		"types:check": "tsgo --noEmit"
 	},
 	"devDependencies": {
-		"@microsoft/api-extractor": "^7.57.7",
-		"@rslib/core": "^0.20.0",
 		"@savvy-web/rslib-builder": "workspace:*",
-		"@types/node": "catalog:silkPeers",
-		"@typescript/native-preview": "catalog:silkPeers",
-		"typescript": "catalog:silkPeers"
+		"@types/node": "catalog:silk",
+		"@typescript/native-preview": "catalog:silk",
+		"typescript": "catalog:silk"
 	},
 	"publishConfig": {
 		"access": "public",

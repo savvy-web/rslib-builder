@@ -3,13 +3,13 @@
 	"tasks": {
 		"build": {
 			"cache": false,
-			"dependsOn": ["^build"],
+			"dependsOn": ["^build:dev"],
 			"outputLogs": "full",
 			"outputs": ["dist/**"]
 		},
 		"dev": {
 			"cache": false,
-			"dependsOn": ["^build"],
+			"dependsOn": ["build"],
 			"interactive": true,
 			"persistent": true
 		},
@@ -20,7 +20,7 @@
 		},
 		"types:check": {
 			"cache": true,
-			"dependsOn": ["^build"],
+			"dependsOn": ["^build:dev"],
 			"outputLogs": "errors-only",
 			"outputs": []
 		}

@@ -43,7 +43,6 @@
 		"./tsconfig/rspress/website.json": "./src/public/tsconfig/rspress/website.json"
 	},
 	"scripts": {
-		"build": "turbo run build:dev build:prod",
 		"build:dev": "rslib build --env-mode dev",
 		"build:inspect": "rslib inspect --verbose",
 		"build:prod": "rslib build --env-mode npm",
@@ -68,14 +67,13 @@
 		"picocolors": "^1.1.1",
 		"sort-package-json": "^3.6.1",
 		"tmp": "^0.2.4",
-		"workspace-tools": "^0.41.0"
+		"workspace-tools": "0.41.0"
 	},
 	"devDependencies": {
 		"@microsoft/api-extractor": "^7.57.7",
 		"@pnpm/types": "^1001.3.0",
 		"@rsbuild/core": "^1.7.3",
 		"@rslib/core": "^0.20.0",
-		"@savvy-web/vitest": "^1.0.1",
 		"@types/deep-equal": "^1.0.4",
 		"@types/tmp": "^0.2.6",
 		"type-fest": "^5.4.3"

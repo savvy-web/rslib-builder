@@ -1,14 +1,10 @@
 {
 	"extends": ["//"],
 	"tasks": {
-		"build": {
-			"cache": false,
-			"dependsOn": ["build:dev", "build:prod"],
-			"outputLogs": "full"
-		},
 		"build:dev": {
 			"cache": true,
 			"dependsOn": ["types:check"],
+			"outputLogs": "errors-only",
 			"outputs": ["dist/dev/**", ".rslib/declarations/dev/**"]
 		},
 		"build:prod": {
@@ -18,7 +14,7 @@
 		},
 		"types:check": {
 			"cache": true,
-			"dependsOn": ["^build"],
+			"dependsOn": ["^build:dev"],
 			"outputLogs": "errors-only",
 			"outputs": ["dist/.tsbuildinfo.lib"]
 		}

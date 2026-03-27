@@ -8,7 +8,7 @@ import type { RspressPlugin, UserConfig } from "@rspress/core";
  * @public
  */
 export interface HelloPluginOptions {
-	/** The greeting message to display during build. Default: `"Hello from rspress-plugin-fixture!"` */
+	/** The greeting message to display during build. Default: `"Hello from @rspress/plugin!"` */
 	message?: string | undefined;
 }
 
@@ -22,7 +22,7 @@ export interface HelloPluginOptions {
  * @public
  */
 export function HelloPlugin(options: HelloPluginOptions = {}): RspressPlugin {
-	const message = options.message ?? "Hello from rspress-plugin-fixture!";
+	const message = options.message ?? "Hello from @rspress/plugin!";
 
 	return {
 		name: "rspress-plugin-hello",
@@ -39,11 +39,11 @@ export function HelloPlugin(options: HelloPluginOptions = {}): RspressPlugin {
 				updatedConfig.builderConfig.source = {};
 			}
 			const existingInclude = updatedConfig.builderConfig.source.include ?? [];
-			updatedConfig.builderConfig.source.include = [...existingInclude, "rspress-plugin-fixture/runtime"];
+			updatedConfig.builderConfig.source.include = [...existingInclude, "@rspress/plugin/runtime"];
 
 			return updatedConfig;
 		},
 
-		globalUIComponents: ["rspress-plugin-fixture/runtime"],
+		globalUIComponents: ["@rspress/plugin/runtime"],
 	};
 }
