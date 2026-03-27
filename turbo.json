@@ -22,14 +22,28 @@
 		"build:dev": {
 			"cache": true,
 			"dependsOn": ["types:check"],
-			"inputs": ["$TURBO_DEFAULT$", "$TURBO_ROOT$/pnpm-lock.yaml"],
+			"inputs": [
+				"$TURBO_DEFAULT$",
+				"$TURBO_ROOT$/pnpm-lock.yaml",
+				"!**/*.test.ts",
+				"!**/*.spec.ts",
+				"!**/*.md",
+				"!**/__test__/**"
+			],
 			"outputLogs": "errors-only",
 			"outputs": ["dist/dev/**", ".rslib/declarations/dev/**"]
 		},
 		"build:prod": {
 			"cache": true,
 			"dependsOn": ["types:check"],
-			"inputs": ["$TURBO_DEFAULT$", "$TURBO_ROOT$/pnpm-lock.yaml"],
+			"inputs": [
+				"$TURBO_DEFAULT$",
+				"$TURBO_ROOT$/pnpm-lock.yaml",
+				"!**/*.test.ts",
+				"!**/*.spec.ts",
+				"!**/*.md",
+				"!**/__test__/**"
+			],
 			"outputLogs": "full",
 			"outputs": ["dist/npm/**", ".rslib/declarations/npm/**"]
 		},
@@ -42,6 +56,7 @@
 		"types:check": {
 			"cache": true,
 			"dependsOn": [],
+			"inputs": ["$TURBO_DEFAULT$", "!**/*.md"],
 			"outputLogs": "errors-only"
 		}
 	}
