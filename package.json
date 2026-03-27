@@ -1,5 +1,5 @@
 {
-	"name": "rslib-builder-monorepo",
+	"name": "rslib-builder",
 	"version": "0.0.0",
 	"private": true,
 	"description": "Monorepo for @savvy-web/rslib-builder and related packages",
@@ -16,8 +16,8 @@
 	},
 	"type": "module",
 	"scripts": {
-		"build": "turbo run build --filter='./package' --filter='./examples/**' --log-order=grouped",
-		"ci:build": "CI=\"true\" turbo run build --filter='./package' --filter='./examples/**' --log-order=grouped --output-logs=full",
+		"build": "turbo run build:dev build:prod  --log-order=grouped --log-prefix=none",
+		"ci:build": "CI=\"true\" turbo run build:dev build:prod --log-order=grouped --output-logs=full --log-prefix=none",
 		"ci:test": "CI=\"true\" vitest run --coverage",
 		"ci:version": "savvy-changesets version && biome format --write .",
 		"commit:check": "savvy-commit check",
@@ -41,9 +41,9 @@
 		"vitest:unit": "vitest run --coverage"
 	},
 	"devDependencies": {
-		"@savvy-web/changesets": "^0.7.0",
+		"@savvy-web/changesets": "^0.7.1",
 		"@savvy-web/commitlint": "^0.4.3",
-		"@savvy-web/lint-staged": "^0.6.4",
+		"@savvy-web/lint-staged": "^0.6.5",
 		"@savvy-web/vitest": "^1.0.1"
 	},
 	"packageManager": "pnpm@10.33.0+sha512.10568bb4a6afb58c9eb3630da90cc9516417abebd3fabbe6739f0ae795728da1491e9db5a544c76ad8eb7570f5c4bb3d6c637b2cb41bfdcdb47fa823c8649319",

@@ -1,21 +1,10 @@
 {
 	"extends": ["//"],
 	"tasks": {
-		"build": {
-			"cache": false,
-			"dependsOn": ["build:dev", "build:prod"],
-			"inputs": [
-				"$TURBO_DEFAULT$",
-				"!**/*.test.ts",
-				"!**/*.spec.ts",
-				"$TURBO_ROOT$/pnpm-lock.yaml",
-				"$TURBO_ROOT$/pnpm-workspace.yaml"
-			],
-			"outputLogs": "full"
-		},
 		"build:dev": {
 			"cache": true,
 			"dependsOn": ["types:check"],
+			"outputLogs": "errors-only",
 			"outputs": ["dist/dev/**", ".rslib/declarations/dev/**"]
 		},
 		"build:prod": {
@@ -25,9 +14,9 @@
 		},
 		"types:check": {
 			"cache": true,
-			"dependsOn": [],
-			"inputs": ["$TURBO_DEFAULT$", "$TURBO_ROOT$/pnpm-lock.yaml", "$TURBO_ROOT$/pnpm-workspace.yaml"],
-			"outputLogs": "full"
+			"dependsOn": ["^build:dev"],
+			"outputLogs": "errors-only",
+			"outputs": ["dist/.tsbuildinfo.lib"]
 		}
 	}
 }

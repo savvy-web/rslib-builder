@@ -636,7 +636,7 @@ Examples build as part of the turbo pipeline:
   "extends": ["//"],
   "tasks": {
     "build": {
-      "dependsOn": ["^build"],
+      "dependsOn": ["^build:dev"],
       "outputs": ["dist/**"]
     }
   }

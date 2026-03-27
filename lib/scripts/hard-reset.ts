@@ -41,12 +41,15 @@ function getDirs(parentDir: string): string[] {
 // --- Root ---
 console.log("\nCleaning root");
 remove(join(rootDir, ".turbo"));
+remove(join(rootDir, "pnpm-lock.yaml"));
+remove(join(rootDir, "node_modules"));
 
 // --- Main package (package/) ---
 console.log("\nCleaning package/");
 remove(join(rootDir, "package", "dist"));
 remove(join(rootDir, "package", ".rslib"));
 remove(join(rootDir, "package", ".turbo"));
+remove(join(rootDir, "package", "node_modules"));
 
 // --- Example libraries (examples/libraries/*) ---
 const librariesDir = join(rootDir, "examples", "libraries");
@@ -56,6 +59,7 @@ for (const lib of getDirs(librariesDir)) {
 	remove(join(libDir, "dist"));
 	remove(join(libDir, ".rslib"));
 	remove(join(libDir, ".turbo"));
+	remove(join(libDir, "node_modules"));
 }
 
 // --- RSPress plugin (examples/rspress-plugin/plugin/) ---
@@ -64,6 +68,7 @@ console.log("\nCleaning examples/rspress-plugin/plugin/");
 remove(join(pluginDir, "dist"));
 remove(join(pluginDir, ".rslib"));
 remove(join(pluginDir, ".turbo"));
+remove(join(pluginDir, "node_modules"));
 
 // --- RSPress site (examples/rspress-plugin/site/) ---
 const siteDir = join(rootDir, "examples", "rspress-plugin", "site");
@@ -71,5 +76,6 @@ console.log("\nCleaning examples/rspress-plugin/site/");
 remove(join(siteDir, "dist"));
 remove(join(siteDir, ".rspress"));
 remove(join(siteDir, ".turbo"));
+remove(join(siteDir, "node_modules"));
 
 console.log(`\nDone. Removed ${removedCount} items.\n`);
