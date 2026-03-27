@@ -1,5 +1,11 @@
 # @savvy-web/rslib-builder
 
+## 0.19.1
+
+### Bug Fixes
+
+* [`18891cc`](https://github.com/savvy-web/rslib-builder/commit/18891cc10a60e36265fc0cb845e29a2b188ab5e5) Pins workspace-tools to 0.41.0 due to breaking upstream change.
+
 ## 0.19.0
 
 ### Features
