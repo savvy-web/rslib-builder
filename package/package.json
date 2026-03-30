@@ -67,7 +67,7 @@
 		"picocolors": "^1.1.1",
 		"sort-package-json": "^3.6.1",
 		"tmp": "^0.2.4",
-		"workspace-tools": "0.41.0"
+		"workspace-tools": "0.41.1"
 	},
 	"devDependencies": {
 		"@microsoft/api-extractor": "^7.57.7",
