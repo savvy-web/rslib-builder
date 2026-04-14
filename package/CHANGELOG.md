@@ -1,5 +1,11 @@
 # @savvy-web/rslib-builder
 
+## 0.20.1
+
+### Other
+
+* [`7a2282d`](https://github.com/savvy-web/rslib-builder/commit/7a2282dab4e404d806bef7d03c901856c323cdde) Switch to catalog dependency versioning
+
 ## 0.20.0
 
 ### Breaking Changes
