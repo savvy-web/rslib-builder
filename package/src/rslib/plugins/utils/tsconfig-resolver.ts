@@ -1,13 +1,5 @@
 import type { ParsedCommandLine } from "typescript";
-import {
-	ImportsNotUsedAsValues,
-	JsxEmit,
-	ModuleDetectionKind,
-	ModuleKind,
-	ModuleResolutionKind,
-	NewLineKind,
-	ScriptTarget,
-} from "typescript";
+import { JsxEmit, ModuleDetectionKind, ModuleKind, ModuleResolutionKind, NewLineKind, ScriptTarget } from "typescript";
 import type { LibraryFormat } from "../../../types/package-json.js";
 
 /**
@@ -230,7 +222,6 @@ export class TsconfigResolver {
 	 * @internal
 	 */
 	private static readonly SCRIPT_TARGET_MAP: ReadonlyMap<ScriptTarget, string> = new Map([
-		[ScriptTarget.ES3, "es3"],
 		[ScriptTarget.ES5, "es5"],
 		[ScriptTarget.ES2015, "es2015"],
 		[ScriptTarget.ES2016, "es2016"],
@@ -251,11 +242,7 @@ export class TsconfigResolver {
 	 * @internal
 	 */
 	private static readonly MODULE_KIND_MAP: ReadonlyMap<ModuleKind | number, string> = new Map([
-		[ModuleKind.None, "none"],
 		[ModuleKind.CommonJS, "commonjs"],
-		[ModuleKind.AMD, "amd"],
-		[ModuleKind.UMD, "umd"],
-		[ModuleKind.System, "system"],
 		[ModuleKind.ES2015, "es2015"],
 		[ModuleKind.ES2020, "es2020"],
 		[ModuleKind.ES2022, "es2022"],
@@ -272,7 +259,6 @@ export class TsconfigResolver {
 	 * @internal
 	 */
 	private static readonly MODULE_RESOLUTION_MAP: ReadonlyMap<ModuleResolutionKind, string> = new Map([
-		[ModuleResolutionKind.Classic, "classic"],
 		[ModuleResolutionKind.Node10, "node10"],
 		[ModuleResolutionKind.Node16, "node16"],
 		[ModuleResolutionKind.NodeNext, "nodenext"],
@@ -309,16 +295,6 @@ export class TsconfigResolver {
 	private static readonly NEW_LINE_MAP: ReadonlyMap<NewLineKind, string> = new Map([
 		[NewLineKind.CarriageReturnLineFeed, "crlf"],
 		[NewLineKind.LineFeed, "lf"],
-	]);
-
-	/**
-	 * Mapping of ImportsNotUsedAsValues enum values to their string representations.
-	 * @internal
-	 */
-	private static readonly IMPORTS_NOT_USED_MAP: ReadonlyMap<ImportsNotUsedAsValues, string> = new Map([
-		[ImportsNotUsedAsValues.Remove, "remove"],
-		[ImportsNotUsedAsValues.Preserve, "preserve"],
-		[ImportsNotUsedAsValues.Error, "error"],
 	]);
 
 	/**
@@ -553,41 +529,6 @@ export class TsconfigResolver {
 	}
 
 	/**
-	 * Converts a TypeScript ImportsNotUsedAsValues enum value to its string representation.
-	 *
-	 * @remarks
-	 * This option is deprecated in TypeScript 5.0+ in favor of `verbatimModuleSyntax`,
-	 * but is still supported for backwards compatibility with older configurations.
-	 *
-	 * @param importsNotUsedAsValues - The ImportsNotUsedAsValues enum value to convert
-	 * @returns The string representation (e.g., "remove", "preserve", "error"), or undefined if input is undefined
-	 *
-	 * @example
-	 * ```typescript
-	 * import { ImportsNotUsedAsValues } from 'typescript';
-	 * import { TsconfigResolver } from '@savvy-web/rslib-builder';
-	 *
-	 * const preserve = TsconfigResolver.convertImportsNotUsedAsValues(ImportsNotUsedAsValues.Preserve);
-	 * console.log(preserve); // "preserve"
-	 * ```
-	 *
-	 * @public
-	 */
-	static convertImportsNotUsedAsValues(importsNotUsedAsValues: ImportsNotUsedAsValues | undefined): string | undefined {
-		if (importsNotUsedAsValues === undefined) {
-			return undefined;
-		}
-
-		const mapped = TsconfigResolver.IMPORTS_NOT_USED_MAP.get(importsNotUsedAsValues);
-		if (mapped !== undefined) {
-			return mapped;
-		}
-
-		// Fallback for unknown future values
-		return String(importsNotUsedAsValues);
-	}
-
-	/**
 	 * Converts a lib reference to its canonical name.
 	 *
 	 * @remarks
@@ -724,11 +665,6 @@ export class TsconfigResolver {
 		}
 		if (opts.newLine !== undefined) {
 			compilerOptions.newLine = TsconfigResolver.convertNewLine(opts.newLine);
-		}
-		if (opts.importsNotUsedAsValues !== undefined) {
-			compilerOptions.importsNotUsedAsValues = TsconfigResolver.convertImportsNotUsedAsValues(
-				opts.importsNotUsedAsValues,
-			);
 		}
 	}
 

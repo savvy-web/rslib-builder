@@ -1,13 +1,5 @@
 import type { ParsedCommandLine } from "typescript";
-import {
-	ImportsNotUsedAsValues,
-	JsxEmit,
-	ModuleDetectionKind,
-	ModuleKind,
-	ModuleResolutionKind,
-	NewLineKind,
-	ScriptTarget,
-} from "typescript";
+import { JsxEmit, ModuleDetectionKind, ModuleKind, ModuleResolutionKind, NewLineKind, ScriptTarget } from "typescript";
 
 import { describe, expect, it } from "vitest";
 import { TsconfigResolver, TsconfigResolverError } from "./tsconfig-resolver.js";
@@ -102,13 +94,9 @@ describe("TsconfigResolver", () => {
 		});
 
 		it("should handle other module kinds", () => {
-			expect(TsconfigResolver.convertModuleKind(ModuleKind.AMD)).toBe("amd");
-			expect(TsconfigResolver.convertModuleKind(ModuleKind.UMD)).toBe("umd");
-			expect(TsconfigResolver.convertModuleKind(ModuleKind.System)).toBe("system");
 			expect(TsconfigResolver.convertModuleKind(ModuleKind.ES2015)).toBe("es2015");
 			expect(TsconfigResolver.convertModuleKind(ModuleKind.ES2020)).toBe("es2020");
 			expect(TsconfigResolver.convertModuleKind(ModuleKind.ES2022)).toBe("es2022");
-			expect(TsconfigResolver.convertModuleKind(ModuleKind.None)).toBe("none");
 		});
 
 		it("should convert Node18 module (enum value 101)", () => {
@@ -142,10 +130,6 @@ describe("TsconfigResolver", () => {
 		it("should convert NodeJs resolution to node10 (NodeJs is deprecated alias for Node10)", () => {
 			// NodeJs and Node10 share the same enum value (2)
 			expect(TsconfigResolver.convertModuleResolution(ModuleResolutionKind.NodeJs)).toBe("node10");
-		});
-
-		it("should convert Classic resolution", () => {
-			expect(TsconfigResolver.convertModuleResolution(ModuleResolutionKind.Classic)).toBe("classic");
 		});
 
 		it("should return undefined for undefined input", () => {
@@ -236,30 +220,6 @@ describe("TsconfigResolver", () => {
 			// Simulate an unknown future newline kind (e.g., 999)
 			const unknownNewLine = 999 as NewLineKind;
 			expect(TsconfigResolver.convertNewLine(unknownNewLine)).toBe("999");
-		});
-	});
-
-	describe("static convertImportsNotUsedAsValues", () => {
-		it("should convert remove", () => {
-			expect(TsconfigResolver.convertImportsNotUsedAsValues(ImportsNotUsedAsValues.Remove)).toBe("remove");
-		});
-
-		it("should convert preserve", () => {
-			expect(TsconfigResolver.convertImportsNotUsedAsValues(ImportsNotUsedAsValues.Preserve)).toBe("preserve");
-		});
-
-		it("should convert error", () => {
-			expect(TsconfigResolver.convertImportsNotUsedAsValues(ImportsNotUsedAsValues.Error)).toBe("error");
-		});
-
-		it("should return undefined for undefined input", () => {
-			expect(TsconfigResolver.convertImportsNotUsedAsValues(undefined)).toBeUndefined();
-		});
-
-		it("should handle unknown future importsNotUsedAsValues values via fallback", () => {
-			// Simulate an unknown future value (e.g., 999)
-			const unknownValue = 999 as ImportsNotUsedAsValues;
-			expect(TsconfigResolver.convertImportsNotUsedAsValues(unknownValue)).toBe("999");
 		});
 	});
 
@@ -557,17 +517,6 @@ describe("TsconfigResolver", () => {
 			};
 			const result = resolver.resolve(parsed, "/project");
 			expect(result.compilerOptions.isolatedDeclarations).toBe(true);
-		});
-
-		it("should handle importsNotUsedAsValues (deprecated option)", () => {
-			const resolver = new TsconfigResolver();
-			const parsed: ParsedCommandLine = {
-				options: { importsNotUsedAsValues: ImportsNotUsedAsValues.Preserve },
-				fileNames: [],
-				errors: [],
-			};
-			const result = resolver.resolve(parsed, "/project");
-			expect(result.compilerOptions.importsNotUsedAsValues).toBe("preserve");
 		});
 
 		it("should override module settings for CJS format", () => {

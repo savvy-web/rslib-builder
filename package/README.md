@@ -20,7 +20,7 @@ Build modern ESM Node.js libraries with minimal configuration. Handles TypeScrip
 ## Installation
 
 ```bash
-npm install --save-dev @savvy-web/rslib-builder @rslib/core @microsoft/api-extractor @typescript/native-preview
+npm install --save-dev @savvy-web/rslib-builder @rslib/core @typescript/native-preview
 ```
 
 ## Quick Start

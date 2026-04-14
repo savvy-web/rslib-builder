@@ -287,7 +287,9 @@ export class WorkspaceCatalog {
 	private async readPnpmWorkspaceCatalogs(workspaceRoot: string): Promise<Catalogs> {
 		try {
 			const manifest = await readWorkspaceManifest(workspaceRoot);
-			return getCatalogsFromWorkspaceManifest(manifest);
+			return getCatalogsFromWorkspaceManifest(
+				manifest ? { catalog: manifest.catalog, catalogs: manifest.catalogs } : undefined,
+			);
 		} catch {
 			return {};
 		}

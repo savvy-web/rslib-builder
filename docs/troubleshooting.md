@@ -38,7 +38,7 @@ Common issues and solutions when using rslib-builder.
    Install required peer dependencies:
 
    ```bash
-   pnpm add -D @rslib/core @microsoft/api-extractor @typescript/native-preview
+   pnpm add -D @rslib/core @typescript/native-preview
    ```
 
 3. **Incorrect externals configuration**
