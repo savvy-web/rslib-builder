@@ -21,18 +21,7 @@ export default NodeLibraryBuilder.create({
 	},
 	// Externalize build tools (peerDependencies) and internal cross-module imports
 	// source-map-support is optionally required by TypeScript internals (in try/catch)
-	externals: [
-		"@rslib/core",
-		"@rsbuild/core",
-		"@rspack/core",
-		"typescript",
-		"@microsoft/api-extractor",
-		"source-map-support",
-		// TSDoc lint plugin dependencies (optional)
-		"eslint",
-		"@typescript-eslint/parser",
-		"eslint-plugin-tsdoc",
-	],
+	externals: ["@rslib/core", "@rspack/core", "typescript", "source-map-support"],
 	copyPatterns: [
 		{
 			from: "./**/*.json",

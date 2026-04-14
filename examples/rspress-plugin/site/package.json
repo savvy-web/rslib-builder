@@ -15,11 +15,12 @@
 		"@rspress/core": "^2.0.7",
 		"@savvy-web/rslib-builder": "workspace:*",
 		"@types/node": "catalog:silk",
-		"@types/react": "^19.2.14",
+		"@types/react": "catalog:silk",
+		"@types/react-dom": "catalog:silk",
 		"@typescript/native-preview": "catalog:silk",
 		"open": "^11.0.0",
-		"react": "^19.2.4",
-		"react-dom": "^19.2.4",
+		"react": "catalog:silk",
+		"react-dom": "catalog:silk",
 		"typescript": "catalog:silk"
 	}
 }

@@ -1,8 +1,7 @@
 ---
+"@savvy-web/rslib-builder": patch
 ---
 
-## Dependencies
+## Other
 
-| Dependency | Type | Action | From | To |
-| :--- | :--- | :--- | :--- | :--- |
-| @savvy-web/pnpm-plugin-silk | config | updated | 0.11.0 | 0.12.0 |
+Switch to catalog dependency versioning

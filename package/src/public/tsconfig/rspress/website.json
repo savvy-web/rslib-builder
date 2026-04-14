@@ -10,14 +10,28 @@
 		"skipLibCheck": true,
 		"strict": true,
 		"strictNullChecks": true,
-		"target": "es2023"
+		"target": "es2023",
+		"types": ["node", "react", "react-dom"]
 	},
 	"exclude": ["${configDir}/node_modules", "${configDir}/dist", "${configDir}/.rspress", "${configDir}/.rslib"],
 	"include": [
+		"${configDir}/types/*.ts",
+		"${configDir}/package.json",
 		"${configDir}/*.ts",
-		"${configDir}/*.mts",
 		"${configDir}/*.cts",
-		"${configDir}/**/*.tsx",
+		"${configDir}/*.mts",
+		"${configDir}/src/**/*.ts",
+		"${configDir}/src/**/*.tsx",
+		"${configDir}/src/**/*.cts",
+		"${configDir}/src/**/*.mts",
+		"${configDir}/lib/**/*.ts",
+		"${configDir}/lib/**/*.tsx",
+		"${configDir}/lib/**/*.cts",
+		"${configDir}/lib/**/*.mts",
+		"${configDir}/__test__/**/*.ts",
+		"${configDir}/__test__/**/*.tsx",
+		"${configDir}/__test__/**/*.cts",
+		"${configDir}/__test__/**/*.mts",
 		"${configDir}/docs/**/*.mdx"
 	]
 }

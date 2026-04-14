@@ -60,19 +60,19 @@
 		"@pnpm/exportable-manifest": "^1000.4.2",
 		"@pnpm/lockfile.fs": "^1100.0.0",
 		"@pnpm/workspace.read-manifest": "^1000.3.1",
+		"@rsbuild/core": "^1.7.5",
 		"@typescript-eslint/parser": "^8.58.2",
 		"deep-equal": "^2.2.3",
-		"eslint": "^10.0.3",
+		"eslint": "^10.2.0",
 		"eslint-plugin-tsdoc": "^0.5.2",
 		"glob": "^13.0.6",
 		"picocolors": "^1.1.1",
 		"sort-package-json": "^3.6.1",
 		"tmp": "^0.2.4",
-		"workspace-tools": "0.41.0"
+		"workspace-tools": "^0.41.3"
 	},
 	"devDependencies": {
 		"@pnpm/types": "^1100.0.0",
-		"@rsbuild/core": "^1.7.5",
 		"@rslib/core": "^0.21.1",
 		"@types/deep-equal": "^1.0.4",
 		"@types/tmp": "^0.2.6",
@@ -80,13 +80,14 @@
 	},
 	"peerDependencies": {
 		"@rsbuild/plugin-react": "^1.4.6",
-		"@rslib/core": "^0.21.1",
+		"@rslib/core": "^0.21.0",
 		"@types/node": "catalog:silkPeers",
-		"@types/react": "^19.0.0",
+		"@types/react": "catalog:silkPeers",
+		"@types/react-dom": "catalog:silkPeers",
 		"@typescript/native-preview": "catalog:silkPeers",
-		"react": "^19.0.0",
-		"react-dom": "^19.0.0",
-		"typescript": "^6.0.0"
+		"react": "catalog:silkPeers",
+		"react-dom": "catalog:silkPeers",
+		"typescript": "catalog:silkPeers"
 	},
 	"peerDependenciesMeta": {
 		"@rsbuild/plugin-react": {
@@ -99,6 +100,9 @@
 			"optional": false
 		},
 		"@types/react": {
+			"optional": true
+		},
+		"@types/react-dom": {
 			"optional": true
 		},
 		"@typescript/native-preview": {
