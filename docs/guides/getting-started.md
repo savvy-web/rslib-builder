@@ -17,7 +17,7 @@ Before you begin, ensure you have:
 
 - Node.js 24.x or later
 - pnpm 10.x or later (npm/yarn also work but pnpm is recommended)
-- TypeScript 5.9.x or later
+- TypeScript 6.0.x or later
 
 ## Installation
 
@@ -28,7 +28,7 @@ Install the package and its peer dependencies:
 pnpm add -D @savvy-web/rslib-builder
 
 # Install peer dependencies
-pnpm add -D @rslib/core @microsoft/api-extractor @typescript/native-preview
+pnpm add -D @rslib/core @typescript/native-preview
 ```
 
 ## Basic Setup
@@ -198,7 +198,7 @@ import { helper } from './utils/helper';
 Verify peer dependencies are installed:
 
 ```bash
-pnpm add -D @typescript/native-preview @microsoft/api-extractor
+pnpm add -D @typescript/native-preview
 ```
 
 ### Build takes too long

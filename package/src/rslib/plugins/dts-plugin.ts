@@ -2,8 +2,12 @@ import { spawn } from "node:child_process";
 import type { PathLike } from "node:fs";
 import { constants, existsSync } from "node:fs";
 import { access, copyFile, mkdir, readFile, readdir, rm, unlink, writeFile } from "node:fs/promises";
+import { createRequire } from "node:module";
 import { dirname, isAbsolute, join, relative } from "node:path";
+import type { ExtractorMessage } from "@microsoft/api-extractor";
+import { Extractor, ExtractorConfig, ExtractorLogLevel } from "@microsoft/api-extractor";
 import { StandardTags, Standardization, TSDocTagSyntaxKind } from "@microsoft/tsdoc";
+import { TSDocConfigFile } from "@microsoft/tsdoc-config";
 import type { RsbuildPlugin, RsbuildPluginAPI } from "@rsbuild/core";
 import { logger } from "@rsbuild/core";
 import deepEqual from "deep-equal";
@@ -23,7 +27,6 @@ import { TSConfigs } from "../../tsconfig/index.js";
 import type { PackageJson } from "../../types/package-json.js";
 import { createEnvLogger } from "./utils/build-logger.js";
 import { EntryExtractor } from "./utils/entry-extractor.js";
-import { getApiExtractorPath } from "./utils/file-utils.js";
 import { createMessageSuppressor } from "./utils/message-suppressor.js";
 import { TsconfigResolver } from "./utils/tsconfig-resolver.js";
 
@@ -1002,9 +1005,6 @@ async function bundleDtsFiles(options: {
 			(typeof tsdocMetadataOption === "object" && tsdocMetadataOption.enabled !== false));
 	const tsdocMetadataFilename = resolveTsdocMetadataFilename(apiModel);
 
-	// Validate that API Extractor is installed before attempting import
-	getApiExtractorPath();
-
 	// Determine TSDoc config output path and CI validation behavior
 	const lintConfig = typeof tsdocOptions?.lint === "object" ? tsdocOptions.lint : undefined;
 	const persistConfig = lintConfig?.persistConfig;
@@ -1024,11 +1024,13 @@ async function bundleDtsFiles(options: {
 
 		// Load the TSDocConfigFile object for API Extractor
 		// Use loadForFolder to properly resolve the config from the project directory
-		const { TSDocConfigFile } = await import("@microsoft/tsdoc-config");
 		tsdocConfigFile = TSDocConfigFile.loadForFolder(dirname(tsdocConfigPath));
 	}
 
-	const { Extractor, ExtractorConfig, ExtractorMessage, ExtractorLogLevel } = await import("@microsoft/api-extractor");
+	// Resolve the TypeScript compiler folder for API Extractor
+	// This ensures API Extractor uses the project's TS v6 instead of its bundled copy
+	const esmRequire = createRequire(import.meta.url);
+	const typescriptCompilerFolder = dirname(esmRequire.resolve("typescript/package.json"));
 
 	// Process each entry point
 	for (const [entryName, sourcePath] of entryPoints) {
@@ -1123,9 +1125,10 @@ async function bundleDtsFiles(options: {
 
 		// Run API Extractor
 		const extractorResult = Extractor.invoke(extractorConfig, {
+			typescriptCompilerFolder,
 			localBuild: true,
 			showVerboseMessages: false,
-			messageCallback: (message: InstanceType<typeof ExtractorMessage>) => {
+			messageCallback: (message: ExtractorMessage) => {
 				// User-defined suppression rules — checked first, take priority over all other handling
 				if (suppressor.matches(message.messageId, message.text)) {
 					message.logLevel = ExtractorLogLevel.None;

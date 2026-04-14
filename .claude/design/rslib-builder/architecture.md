@@ -3,8 +3,8 @@ status: current
 module: rslib-builder
 category: architecture
 created: 2026-01-18
-updated: 2026-03-12
-last-synced: 2026-03-12
+updated: 2026-04-14
+last-synced: 2026-04-14
 completeness: 95
 related:
   - rslib-builder/api-extraction.md
@@ -202,8 +202,8 @@ NodeLibraryBuilder.create(options): RslibConfigAsyncFn
 
 3. **`file-utils.ts`** - File system utilities
    - Consolidated with: `dependency-path-utils.ts`
-   - Exports: `fileExistAsync()`, `packageJsonVersion()`, `getApiExtractorPath()`
-   - File existence checks, package version reading, API Extractor path resolution
+   - Exports: `fileExistAsync()`, `packageJsonVersion()`
+   - File existence checks, package version reading
 
 4. **`package-json-transformer.ts`** - Package.json transformation pipeline
    - Consolidated from: `bin-transform-utils.ts`, `export-transform-utils.ts`, `path-transform-utils.ts`, `rslib-transform-utils.ts`, `pnpm-transform-utils.ts`, `package-json-builder-utils.ts`, `package-json-types-utils.ts`
