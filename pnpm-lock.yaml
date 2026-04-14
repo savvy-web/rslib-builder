@@ -252,8 +252,8 @@ importers:
         specifier: ^6.0.0
         version: 6.0.2
       workspace-tools:
-        specifier: 0.41.0
-        version: 0.41.0
+        specifier: 0.41.4
+        version: 0.41.4
     devDependencies:
       '@pnpm/types':
         specifier: ^1100.0.0
@@ -4695,6 +4695,9 @@ packages:
 
   workspace-tools@0.41.0:
     resolution: {integrity: sha512-iBB6LNqtJpfjTWnyjlgOwdJmf1wBTUsIr1V5phOBCJMywubpYAijDUqhgz7RfrTYdscA4vEFyhjiy4OSAGULcA==}
+
+  workspace-tools@0.41.4:
+    resolution: {integrity: sha512-FuSHMNmM1AXJaaWIUMFsWH/+dR0KEzkHhTv96KZ5iKxCvi4TXnATRr/U23d8d8DMUx7oL/oVfr9SvEaDvDYN2A==}
 
   workspaces-effect@0.3.0:
     resolution: {integrity: sha512-ntu9AdP2Q2DTLQdb8rLddzkTBidkbnH0glTS4VVLj/DDTI21ru+sVZq1SIdaNgKqG0DHACoIqRcYGYxvYn3x5g==}
@@ -9944,6 +9947,15 @@ snapshots:
       fast-glob: 3.3.3
       git-url-parse: 16.1.0
       globby: 11.1.0
+      jju: 1.4.0
+      js-yaml: 4.1.1
+      micromatch: 4.0.8
+
+  workspace-tools@0.41.4:
+    dependencies:
+      '@yarnpkg/lockfile': 1.1.0
+      fast-glob: 3.3.3
+      git-url-parse: 16.1.0
       jju: 1.4.0
       js-yaml: 4.1.1
       micromatch: 4.0.8
