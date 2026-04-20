@@ -52,18 +52,18 @@
 		"types:check": "tsgo --noEmit"
 	},
 	"dependencies": {
-		"@microsoft/api-extractor": "^7.58.2",
+		"@microsoft/api-extractor": "^7.58.5",
 		"@microsoft/tsdoc": "^0.16.0",
 		"@microsoft/tsdoc-config": "^0.18.1",
 		"@pnpm/catalogs.config": "^1100.0.0",
 		"@pnpm/catalogs.protocol-parser": "^1100.0.0",
 		"@pnpm/exportable-manifest": "^1000.4.2",
-		"@pnpm/lockfile.fs": "^1100.0.0",
+		"@pnpm/lockfile.fs": "^1100.0.1",
 		"@pnpm/workspace.read-manifest": "^1000.3.1",
 		"@rsbuild/core": "^1.7.5",
 		"@typescript-eslint/parser": "^8.58.2",
 		"deep-equal": "^2.2.3",
-		"eslint": "^10.2.0",
+		"eslint": "^10.2.1",
 		"eslint-plugin-tsdoc": "^0.5.2",
 		"glob": "^13.0.6",
 		"picocolors": "^1.1.1",
@@ -73,10 +73,10 @@
 	},
 	"devDependencies": {
 		"@pnpm/types": "^1100.0.0",
-		"@rslib/core": "^0.21.1",
+		"@rslib/core": "^0.21.2",
 		"@types/deep-equal": "^1.0.4",
 		"@types/tmp": "^0.2.6",
-		"type-fest": "^5.5.0"
+		"type-fest": "^5.6.0"
 	},
 	"peerDependencies": {
 		"@rsbuild/plugin-react": "^1.4.6",
