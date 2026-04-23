@@ -1,5 +1,11 @@
 # @savvy-web/rslib-builder
 
+## 0.20.2
+
+### Other
+
+* [`7b18ec0`](https://github.com/savvy-web/rslib-builder/commit/7b18ec094c5732d0c3e19a6cd2442865afd2e948) Bumps @rsbuild/core to 2.0.0
+
 ## 0.20.1
 
 ### Other
