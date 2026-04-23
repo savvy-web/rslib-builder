@@ -72,7 +72,7 @@
 		"workspace-tools": "^0.41.3"
 	},
 	"devDependencies": {
-		"@pnpm/types": "^1100.0.0",
+		"@pnpm/types": "^1101.0.0",
 		"@rslib/core": "^0.21.1",
 		"@types/deep-equal": "^1.0.4",
 		"@types/tmp": "^0.2.6",
