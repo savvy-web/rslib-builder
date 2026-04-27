@@ -1,5 +1,11 @@
 # @savvy-web/rslib-builder
 
+## 0.20.3
+
+### Bug Fixes
+
+* [`2b29b24`](https://github.com/savvy-web/rslib-builder/commit/2b29b24b81041584a1d6e6a07a243385b6c45d4f) Multi-entry packages no longer emit invalid ESM where `__webpack_require__` is both imported from a sibling chunk and re-declared locally. Both `NodeLibraryBuilder` and `RSPressPluginBuilder` now disable rspack's runtime-chunk extraction and async chunk splitting on every emitted lib, so the duplicate-declaration `SyntaxError` that broke Node ESM loading on multi-entry libraries is gone. Modern-module's natural ESM-aware sibling chunk extraction is preserved — those chunks have valid `import` / `export` bindings and load correctly. See the new chunk splitting guide for the documented escape hatch. Fixes issue #158.
+
 ## 0.20.2
 
 ### Other
