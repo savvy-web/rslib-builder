@@ -3,8 +3,8 @@ status: current
 module: rslib-builder
 category: architecture
 created: 2026-03-19
-updated: 2026-03-19
-last-synced: 2026-03-19
+updated: 2026-04-27
+last-synced: 2026-04-27
 completeness: 95
 related:
   - rslib-builder/architecture.md
@@ -191,6 +191,10 @@ The runtime lib is conditionally generated. It:
 - Does not process package.json (the plugin lib handles this)
 - Default entry: `./src/runtime/index.tsx`
 - Output: `dist/<mode>/runtime/`
+
+### Chunk Policy
+
+Both the plugin lib and the runtime lib apply `disableSharedChunks` (`package/src/rslib/builders/utils/disable-shared-chunks.ts`) via `tools.rspack` to force a self-contained, single-chunk-per-entry rspack output. The plugin lib uses the object form `tools: { rspack: disableSharedChunks }`; the runtime lib uses a function-form `tools.rspack` callback that calls `disableSharedChunks(config)` alongside the existing `BannerPlugin` CSS-injection hook. See [architecture.md "Chunk Policy"](./architecture.md#chunk-policy) for rationale (issue #158).
 
 ### Runtime Auto-Detection
 

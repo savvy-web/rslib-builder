@@ -3,8 +3,8 @@ status: current
 module: rslib-builder
 category: testing
 created: 2026-01-18
-updated: 2026-02-26
-last-synced: 2026-02-26
+updated: 2026-04-27
+last-synced: 2026-04-27
 completeness: 95
 related:
   - rslib-builder/architecture.md
@@ -87,6 +87,7 @@ examples/                           # Integration examples - built via turbo
 ├── libraries/
 │   ├── single-entry/               # Single export library
 │   ├── multi-entry/                # Multiple exports (./utils, ./types)
+│   ├── multi-entry-shared-deps/    # Two entries sharing an internal module (issue #158 regression guard)
 │   ├── options-testing/            # Builder options testing
 │   └── with-bin/                   # Library with CLI bin entry
 └── rspress-plugin/
@@ -107,6 +108,7 @@ Current test file inventory:
 | Plugins | `files-array-plugin.test.ts` | Package.json files array building |
 | Plugins | `package-json-transform-plugin.test.ts` | Package transformation |
 | Builders | `node-library-builder.test.ts` | Builder API, configuration, cjsInterop |
+| Builders | `utils/disable-shared-chunks.test.ts` | Self-contained chunk policy helper (issue #158) |
 | Utils | `workspace-catalog.test.ts` | Workspace catalog resolution |
 | Utils | `json-asset-utils.test.ts` | JSON asset handling |
 | Utils | `asset-processor-utils.test.ts` | Asset processing pipeline |
@@ -613,6 +615,7 @@ examples/
 ├── libraries/
 │   ├── single-entry/               # Single export library
 │   ├── multi-entry/                # Multiple exports (./utils, ./types)
+│   ├── multi-entry-shared-deps/    # Two entries sharing an internal module (issue #158 regression guard)
 │   ├── options-testing/            # Builder options testing
 │   └── with-bin/                   # Library with CLI bin entry
 └── rspress-plugin/
@@ -653,6 +656,7 @@ Add examples for:
 - Declaration bundling behavior
 - Bin entry handling
 - RSPress plugin dual-bundle output (plugin + runtime)
+- Output-shape regression guards (e.g., `multi-entry-shared-deps/__test__/output-shape.test.ts` asserts no `__webpack_require__` symbol appears in any emitted JS file — issue #158 regression guard for the `disableSharedChunks` chunk policy)
 
 ### RSPressPluginBuilder Example
 

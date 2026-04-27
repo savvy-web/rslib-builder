@@ -81,6 +81,18 @@ format group). The primary format handles
 package.json transformation; secondary formats get
 minimal plugin sets.
 
+Every emitted `LibConfig` (main, secondary format,
+per-entry override, virtual entries, and the
+RSPress plugin and runtime libs) sets
+`optimization.runtimeChunk = false` and
+`optimization.splitChunks = false`. This produces
+self-contained, single-chunk-per-entry output and
+avoids a duplicate `__webpack_require__`
+declaration that broke Node ESM loading in
+multi-entry builds. See
+[Chunk Splitting](../guides/chunk-splitting.md)
+for the rationale and the escape hatch.
+
 ### Layer 3: Plugin Orchestration
 
 Seven plugins handle specific build concerns:

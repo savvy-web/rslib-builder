@@ -81,7 +81,6 @@ export const PublishTargetPlugin = (options: PublishTargetPluginOptions): Rsbuil
 				}
 
 				// Read the base package.json state exposed by PackageJsonTransformPlugin
-				// biome-ignore lint/correctness/useHookAtTopLevel: Rsbuild plugin API, not React hooks
 				const basePackageJson = api.useExposed<PackageJson>("base-package-json");
 				if (!basePackageJson) {
 					return;

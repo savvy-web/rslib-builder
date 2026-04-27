@@ -20,6 +20,7 @@ import type {
 	TransformPackageJsonFn,
 } from "./node-library-builder.js";
 import { resolvePublishTargets } from "./node-library-builder.js";
+import { disableSharedChunks } from "./utils/disable-shared-chunks.js";
 
 /**
  * Options for an individual RSPress plugin bundle (plugin or runtime).
@@ -317,6 +318,7 @@ export class RSPressPluginBuilder {
 				entry: { index: pluginOpts.entry ?? "./src/index.ts" },
 				define: sourceDefine,
 			},
+			tools: { rspack: disableSharedChunks },
 		};
 	}
 
@@ -413,6 +415,7 @@ export class RSPressPluginBuilder {
 			},
 			tools: {
 				rspack(config, { rspack }) {
+					disableSharedChunks(config);
 					config.plugins ??= [];
 					config.plugins.push(
 						new rspack.BannerPlugin({

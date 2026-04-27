@@ -1,8 +1,13 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import type { RslibConfig } from "@rslib/core";
+import type { ConfigParams, RslibConfig } from "@rslib/core";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { NodeLibraryBuilder } from "./node-library-builder.js";
+
+/** Helper to create ConfigParams with the required fields. */
+function envParams(envMode?: string): ConfigParams {
+	return { env: "test", command: "build", envMode } as ConfigParams;
+}
 
 // Mock node:fs
 vi.mock("node:fs", () => ({
@@ -68,7 +73,8 @@ vi.mock("../plugins/utils/import-graph.js", () => ({
 vi.mock("../plugins/utils/entry-extractor.js", () => ({
 	EntryExtractor: class MockEntryExtractor {
 		extract = vi.fn().mockReturnValue({
-			entries: { index: "./src/index.ts" },
+			entries: { index: "./src/index.ts", runtime: "./src/runtime.ts" },
+			exportPaths: { index: ".", runtime: "./runtime" },
 		});
 	},
 }));
@@ -596,6 +602,76 @@ describe("NodeLibraryBuilder", () => {
 				const filesArrayCall = vi.mocked(FilesArrayPlugin).mock.calls[0][0];
 				expect(filesArrayCall).not.toHaveProperty("target");
 			});
+		});
+	});
+
+	describe("self-contained chunks", () => {
+		beforeEach(() => {
+			vi.mocked(existsSync).mockReturnValue(false);
+			vi.mocked(readFileSync).mockReturnValue(
+				JSON.stringify({
+					name: "@test/pkg",
+					exports: {
+						".": "./src/index.ts",
+						"./runtime": "./src/runtime.ts",
+					},
+				}),
+			);
+		});
+
+		it("disables runtimeChunk and splitChunks on the main lib", async () => {
+			const configFn = NodeLibraryBuilder.create();
+			await configFn(envParams("dev"));
+
+			const mainLib = capturedConfig?.lib?.[0];
+			const tools = mainLib?.tools;
+			expect(tools?.rspack).toBeDefined();
+
+			const rspackConfig: { optimization?: { runtimeChunk?: unknown; splitChunks?: unknown } } = {};
+			(tools?.rspack as (c: typeof rspackConfig) => void)(rspackConfig);
+			expect(rspackConfig.optimization?.runtimeChunk).toBe(false);
+			expect(rspackConfig.optimization?.splitChunks).toBe(false);
+		});
+
+		it("disables runtimeChunk and splitChunks on the secondary (dual-format) lib", async () => {
+			const configFn = NodeLibraryBuilder.create({ format: ["esm", "cjs"] });
+			await configFn(envParams("dev"));
+
+			const secondaryLib = capturedConfig?.lib?.[1];
+			const rspackConfig: { optimization?: { runtimeChunk?: unknown; splitChunks?: unknown } } = {};
+			(secondaryLib?.tools?.rspack as (c: typeof rspackConfig) => void)(rspackConfig);
+			expect(rspackConfig.optimization?.runtimeChunk).toBe(false);
+			expect(rspackConfig.optimization?.splitChunks).toBe(false);
+		});
+
+		it("disables runtimeChunk and splitChunks on the override-format lib", async () => {
+			const configFn = NodeLibraryBuilder.create({
+				format: "esm",
+				entryFormats: { "./runtime": "cjs" },
+			});
+			await configFn(envParams("dev"));
+
+			const overrideLib = capturedConfig?.lib?.[1];
+			const rspackConfig: { optimization?: { runtimeChunk?: unknown; splitChunks?: unknown } } = {};
+			(overrideLib?.tools?.rspack as (c: typeof rspackConfig) => void)(rspackConfig);
+			expect(rspackConfig.optimization?.runtimeChunk).toBe(false);
+			expect(rspackConfig.optimization?.splitChunks).toBe(false);
+		});
+
+		it("disables runtimeChunk and splitChunks on the virtual-entry lib", async () => {
+			const configFn = NodeLibraryBuilder.create({
+				virtualEntries: {
+					"pnpmfile.cjs": { source: "./src/pnpmfile.ts", format: "cjs" },
+				},
+			});
+			await configFn(envParams("dev"));
+
+			const virtualLib = capturedConfig?.lib?.find((l) => l?.id?.includes("virtual"));
+			expect(virtualLib).toBeDefined();
+			const rspackConfig: { optimization?: { runtimeChunk?: unknown; splitChunks?: unknown } } = {};
+			(virtualLib?.tools?.rspack as (c: typeof rspackConfig) => void)(rspackConfig);
+			expect(rspackConfig.optimization?.runtimeChunk).toBe(false);
+			expect(rspackConfig.optimization?.splitChunks).toBe(false);
 		});
 	});
 });

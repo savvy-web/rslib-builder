@@ -1321,6 +1321,12 @@ src/                          dist/npm/
 - Packages with many internal modules where tree-shaking is important
 - Projects that want to preserve source file organization in the output
 
+**Note:** Regardless of bundle mode, every emitted `LibConfig` disables
+rslib's default `runtimeChunk` and `splitChunks`, producing
+self-contained chunks per entry. See
+[Chunk Splitting](./chunk-splitting.md) for the rationale and the
+escape hatch for opting back into rslib's default chunk behavior.
+
 ## CJS Interop
 
 ### cjsInterop

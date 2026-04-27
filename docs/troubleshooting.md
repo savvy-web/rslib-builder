@@ -66,6 +66,25 @@ rslib build --env-mode npm
 rslib build --env-mode production  # Not a valid target
 ```
 
+### `SyntaxError: Identifier '__webpack_require__' has already been declared`
+
+**Symptom:** Multi-entry ESM packages built with an older rslib-builder
+release fail at load time with:
+
+```text
+SyntaxError: Identifier '__webpack_require__' has already been declared
+```
+
+**Cause:** rslib's default `splitChunks` / `runtimeChunk` behavior extracted
+a webpack-runtime chunk that other entry chunks both imported AND
+re-declared locally — invalid ESM that Node rejects.
+
+**Fix:** Upgrade to the rslib-builder release that ships the self-contained
+chunk policy. `NodeLibraryBuilder` and `RSPressPluginBuilder` now disable
+`runtimeChunk` and `splitChunks` on every emitted `LibConfig` by default.
+See [Chunk Splitting](./guides/chunk-splitting.md) for the full policy and
+the escape hatch for opting back into rslib's default chunk behavior.
+
 ### Build hangs or times out
 
 **Symptom:** Build process doesn't complete.

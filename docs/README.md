@@ -8,6 +8,7 @@ Comprehensive documentation for `@savvy-web/rslib-builder`.
 - [Architecture Overview](./architecture/overview.md) - How the build system works
 - [Plugin System](./guides/plugins.md) - Built-in plugins and custom extensions
 - [Configuration](./guides/configuration.md) - All configuration options
+- [Chunk Splitting](./guides/chunk-splitting.md) - Self-contained chunk policy and escape hatch
 - [RSPress Plugin Setup](./guides/rspress-plugins.md) - Build RSPress plugins with dual-bundle architecture
 - [Troubleshooting](./troubleshooting.md) - Common issues and solutions
 
@@ -59,6 +60,7 @@ docs/
 │   ├── getting-started.md   # Quick start guide
 │   ├── configuration.md     # Configuration reference
 │   ├── plugins.md           # Plugin system
+│   ├── chunk-splitting.md   # Self-contained chunk policy
 │   └── rspress-plugins.md   # RSPress plugin setup
 └── troubleshooting.md       # Common issues
 ```

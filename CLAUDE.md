@@ -2,7 +2,7 @@
 
 RSlib-based build system for modern ESM Node.js libraries. Provides `NodeLibraryBuilder` API and plugin system for TypeScript packages.
 
-## Package Overview
+## Project Overview
 
 - Bundled ESM builds with rolled-up types
 - Multiple build modes (dev and npm) with different optimizations
@@ -11,6 +11,8 @@ RSlib-based build system for modern ESM Node.js libraries. Provides `NodeLibrary
 - TypeScript declarations via tsgo + API Extractor
 - Multi-entry API model generation with per-entry canonical references
 - Self-building (uses NodeLibraryBuilder for its own build)
+
+For per-package context, see `package/CLAUDE.md`. Each example workspace also has a brief `examples/*/CLAUDE.md` describing its purpose.
 
 ## Design Documentation
 
@@ -55,6 +57,16 @@ For virtual entry system:
 - Working with the VirtualEntryPlugin or bundleless mode
 - Adding virtual entries to a build configuration
 - Debugging entry point resolution for non-TypeScript exports
+
+For RSPress plugin builder architecture:
+
+--> `@./.claude/design/rslib-builder/rspress-plugin-builder.md`
+
+**Load when:**
+
+- Working with the RSPressPluginBuilder
+- Debugging dual-bundle plugin/runtime builds
+- Configuring runtime entries, CSS banner injection, or plugin externals
 
 For testing strategy details:
 
@@ -128,22 +140,17 @@ export default NodeLibraryBuilder.create({
 
 #### Plugin System
 
-Custom RSlib plugins handle complex build scenarios:
+Custom RSlib plugins handle complex build scenarios. The current plugins:
 
-1. **TsDocLintPlugin** - Validates TSDoc comments before build using ESLint
-   - Enabled by default when apiModel is enabled (configured via `apiModel.tsdoc.lint`)
-2. **AutoEntryPlugin** - Automatically extracts entry points from package.json exports
-3. **PackageJsonTransformPlugin** - Transforms package.json for different build modes
-   - Exposes `base-package-json` state via `api.expose()` for cross-plugin data flow
-4. **DtsPlugin** - Generates TypeScript declarations using tsgo and API Extractor
-   - Runs API Extractor per entry, merges into single `.api.json` with multiple EntryPoints
-   - When `apiModel` is enabled, also emits resolved `tsconfig.json` for virtual TS environments
-5. **FilesArrayPlugin** - Generates files array, excludes source maps
-6. **VirtualEntryPlugin** - Injects non-TypeScript virtual entries (JSON, static files)
-7. **PublishTargetPlugin** - Produces per-target output directories for multi-registry publishing
-   - Runs in `onCloseBuild` after the build completes
-   - Copies staging output (`dist/<mode>`) to each target's directory and applies per-target package.json transforms
-   - Consumes `base-package-json` exposed by PackageJsonTransformPlugin
+1. **TsDocLintPlugin** — validates TSDoc comments before build via ESLint
+2. **AutoEntryPlugin** — extracts entry points from `package.json` exports
+3. **PackageJsonTransformPlugin** — transforms `package.json` per build mode
+4. **DtsPlugin** — generates TypeScript declarations via tsgo + API Extractor
+5. **FilesArrayPlugin** — generates the files array, excludes source maps
+6. **VirtualEntryPlugin** — injects non-TypeScript virtual entries
+7. **PublishTargetPlugin** — produces per-target output directories for multi-registry publishing
+
+Execution order, hook stages, exposed cross-plugin state, and detailed responsibilities live in `@./.claude/design/rslib-builder/architecture.md`.
 
 ### Build Modes
 
@@ -195,28 +202,6 @@ const mockAssets: MockAssetRegistry = {
 ### Integration Validation via Examples
 
 The `examples/` workspaces serve as integration validation. They are built via turbo as part of the normal `pnpm build` pipeline, replacing the old synthetic E2E test infrastructure. Each example depends on `@savvy-web/rslib-builder` via `workspace:*` and uses turbo `dependsOn: ["^build"]` to ensure correct build ordering.
-
-## Plugin Execution Order
-
-Plugins execute in this order during the build:
-
-**Pre-Build Hooks:**
-
-- TsDocLintPlugin (`onBeforeBuild` - validates TSDoc before compilation)
-
-**Build Hooks:**
-
-1. AutoEntryPlugin (entry detection - `modifyRsbuildConfig`)
-2. PackageJsonTransformPlugin (package.json processing)
-3. FilesArrayPlugin (files array - `additional` stage)
-4. DtsPlugin (type declarations - `pre-process` stage)
-5. User plugins (if provided)
-
-VirtualEntryPlugin runs in a separate Rslib environment for non-TypeScript entries.
-
-**Post-Build Hooks:**
-
-- PublishTargetPlugin (`onCloseBuild` - copies staging output to each target directory and applies per-target package.json transforms)
 
 ## Development
 
