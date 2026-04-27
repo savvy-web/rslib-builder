@@ -112,7 +112,6 @@ export const AutoEntryPlugin = (options?: AutoEntryPluginOptions): RsbuildPlugin
 		setup(api: RsbuildPluginAPI): void {
 			// Initialize state for this API instance
 			buildStateMap.set(api, { hasLoggedEntries: false, hasLoggedSchemas: false });
-			// biome-ignore lint/correctness/useHookAtTopLevel: Rsbuild plugin API, not React hooks
 			let entrypoints = api.useExposed<Map<string, string>>("entrypoints");
 			if (!entrypoints) {
 				entrypoints = new Map<string, string>();
@@ -120,7 +119,6 @@ export const AutoEntryPlugin = (options?: AutoEntryPluginOptions): RsbuildPlugin
 			}
 
 			// Create a map to store export key to output path mappings for exportsAsIndexes
-			// biome-ignore lint/correctness/useHookAtTopLevel: Rsbuild plugin API, not React hooks
 			let exportToOutputMap = api.useExposed<Map<string, string>>("exportToOutputMap");
 			if (!exportToOutputMap) {
 				exportToOutputMap = new Map<string, string>();

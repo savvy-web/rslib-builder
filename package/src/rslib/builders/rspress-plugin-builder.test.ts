@@ -552,4 +552,50 @@ describe("RSPressPluginBuilder", () => {
 			expect(runtimeLib?.tools?.rspack).toBeDefined();
 		});
 	});
+
+	describe("self-contained chunks", () => {
+		it("disables runtimeChunk and splitChunks on the plugin lib", async () => {
+			vi.mocked(existsSync).mockReturnValue(false);
+
+			const configFn = RSPressPluginBuilder.create();
+			await configFn(envParams("dev"));
+
+			const pluginLib = capturedConfig?.lib?.[0];
+			const rspackConfig: {
+				optimization?: { runtimeChunk?: unknown; splitChunks?: unknown };
+			} = {};
+			(pluginLib?.tools?.rspack as (c: typeof rspackConfig) => void)(rspackConfig);
+			expect(rspackConfig.optimization?.runtimeChunk).toBe(false);
+			expect(rspackConfig.optimization?.splitChunks).toBe(false);
+		});
+
+		it("disables runtimeChunk and splitChunks on the runtime lib (alongside CSS banner)", async () => {
+			vi.mocked(existsSync).mockReturnValue(true);
+
+			const configFn = RSPressPluginBuilder.create();
+			await configFn(envParams("dev"));
+
+			const runtimeLib = capturedConfig?.lib?.[1];
+			interface MockRspackConfig {
+				optimization?: { runtimeChunk?: unknown; splitChunks?: unknown };
+				plugins?: unknown[];
+			}
+			interface MockRspackCtx {
+				rspack: {
+					BannerPlugin: new (_opts: unknown) => unknown;
+				};
+			}
+			const rspackConfig: MockRspackConfig = {};
+			const ctx: MockRspackCtx = {
+				rspack: {
+					BannerPlugin: class {},
+				},
+			};
+			(runtimeLib?.tools?.rspack as (c: MockRspackConfig, ctx: MockRspackCtx) => void)(rspackConfig, ctx);
+			expect(rspackConfig.optimization?.runtimeChunk).toBe(false);
+			expect(rspackConfig.optimization?.splitChunks).toBe(false);
+			// Banner plugin still added
+			expect(rspackConfig.plugins?.length).toBe(1);
+		});
+	});
 });

@@ -16,6 +16,7 @@ import { EntryExtractor } from "../plugins/utils/entry-extractor.js";
 import { packageJsonVersion } from "../plugins/utils/file-utils.js";
 import { ImportGraph } from "../plugins/utils/import-graph.js";
 import { VirtualEntryPlugin } from "../plugins/virtual-entry-plugin.js";
+import { disableSharedChunks } from "./utils/disable-shared-chunks.js";
 
 /**
  * Async RSLib configuration function type.
@@ -895,6 +896,7 @@ export class NodeLibraryBuilder {
 				...(entry && { entry }),
 				define: sourceDefine,
 			},
+			tools: { rspack: disableSharedChunks },
 			...(options.cjsInterop &&
 				primaryFormat === "cjs" && {
 					footer: { js: CJS_INTEROP_FOOTER },
@@ -1016,6 +1018,7 @@ export class NodeLibraryBuilder {
 							...(secondaryEntry && { entry: secondaryEntry }),
 							define: sourceDefine,
 						},
+						tools: { rspack: disableSharedChunks },
 						...(options.cjsInterop &&
 							secondaryFormat === "cjs" && {
 								footer: { js: CJS_INTEROP_FOOTER },
@@ -1083,6 +1086,7 @@ export class NodeLibraryBuilder {
 							...(options.tsconfigPath && { tsconfigPath: options.tsconfigPath }),
 							define: sourceDefine,
 						},
+						tools: { rspack: disableSharedChunks },
 						...(options.cjsInterop &&
 							overrideFormat === "cjs" && {
 								footer: { js: CJS_INTEROP_FOOTER },
@@ -1132,6 +1136,7 @@ export class NodeLibraryBuilder {
 					source: {
 						entry: entryMap,
 					},
+					tools: { rspack: disableSharedChunks },
 					plugins: [
 						VirtualEntryPlugin({ virtualEntryNames }),
 						// Minimal plugins for virtual entries - no DtsPlugin, no AutoEntryPlugin

@@ -3,8 +3,8 @@ status: complete
 module: rslib-builder
 category: architecture
 created: 2026-02-03
-updated: 2026-02-26
-last-synced: 2026-02-26
+updated: 2026-04-27
+last-synced: 2026-04-27
 completeness: 100
 related:
   - rslib-builder/architecture.md
@@ -375,6 +375,7 @@ When virtual entries have different formats, the configuration expands:
           pnpmfile: "./src/pnpmfile.ts", // Entry name, output is "pnpmfile.cjs"
         },
       },
+      tools: { rspack: disableSharedChunks }, // Self-contained chunks (see architecture.md)
       plugins: [VirtualEntryPlugin({ virtualEntryNames })], // Minimal plugin set
     },
   ],
@@ -518,6 +519,8 @@ for (const [format, entries] of virtualByFormat) {
     source: {
       entry: Object.fromEntries(entries),
     },
+    // Self-contained, single-chunk-per-entry output (see architecture.md "Chunk Policy")
+    tools: { rspack: disableSharedChunks },
     plugins: [
       // Minimal plugins - just what's needed for bundling
       VirtualEntryPlugin({ virtualEntryNames }),

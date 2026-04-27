@@ -3,8 +3,8 @@ status: current
 module: rslib-builder
 category: architecture
 created: 2026-01-18
-updated: 2026-04-14
-last-synced: 2026-04-14
+updated: 2026-04-27
+last-synced: 2026-04-27
 completeness: 95
 related:
   - rslib-builder/api-extraction.md
@@ -730,6 +730,27 @@ PublishTargetPlugin (onCloseBuild)  <--------------+
                               5. Copy files array from primary package.json
                               6. Write target-specific package.json
 ```
+
+### Chunk Policy
+
+Every `LibConfig` produced by `NodeLibraryBuilder` and `RSPressPluginBuilder` calls `disableSharedChunks(config)` via `tools.rspack` to mutate the Rspack configuration:
+
+```typescript
+// package/src/rslib/builders/utils/disable-shared-chunks.ts
+export function disableSharedChunks(config: Rspack.Configuration): void {
+  config.optimization ??= {};
+  config.optimization.runtimeChunk = false;
+  config.optimization.splitChunks = false;
+}
+```
+
+**Why this is necessary:** RSlib's internal `composeFormatConfig` sets `optimization.runtimeChunk` and `optimization.splitChunks: { chunks: 'async' }` for ESM bundle builds. In multi-entry builds these settings cause rspack to emit a shared webpack-runtime chunk, which introduces a duplicate `__webpack_require__` declaration across entry output files. Node.js ESM semantics treat this as a `SyntaxError` at load time (issue #158).
+
+**What is preserved:** `modern-module`'s ESM-aware shared module extraction still runs at a lower level. It can emit clean sibling ESM chunks (e.g., `512.js` containing `export { ... }`) for cross-entry shared modules. Those chunks are valid ESM that Node loads without errors — they are not the source of the bug. The fix targets only the webpack-runtime declaration collision.
+
+**Integration example:** `examples/libraries/multi-entry-shared-deps/` validates this behavior with two entries importing a shared internal module.
+
+**Escape hatch:** See `docs/guides/chunk-splitting.md` for advanced chunk-splitting options when the default policy needs to be overridden.
 
 ### Shared State Keys
 
