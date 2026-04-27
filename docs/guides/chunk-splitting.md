@@ -58,4 +58,4 @@ For the `RSPressPluginBuilder` runtime lib only, the existing `tools.rspack` is 
 ## See also
 
 - [Configuration reference](./configuration.md)
-- [Issue #158](https://github.com/spencerbeggs/rslib-builder/issues/158) — original bug history.
+- [Issue #158](https://github.com/savvy-web/rslib-builder/issues/158) — original bug history.

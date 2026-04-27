@@ -1,15 +1,21 @@
 import type { Rspack } from "@rsbuild/core";
 
 /**
- * Force a self-contained, single-chunk-per-entry rspack output.
+ * Disable rspack runtime-chunk extraction and async chunk splitting.
  *
  * @remarks
- * Disables rslib's runtime-chunk extraction and cross-chunk splitting, which
- * would otherwise produce invalid ESM for multi-entry libraries (chunks where
- * `__webpack_require__` is both imported and re-declared). Used inside
- * `LibConfig.tools.rspack` to override rslib's `composeFormatConfig` defaults
- * (`runtimeChunk: { name: ... }` for multi-entry ESM bundles, and
- * `splitChunks: { chunks: 'async' }`).
+ * Sets `optimization.runtimeChunk = false` and `optimization.splitChunks = false`
+ * on the rspack configuration. This prevents the webpack-runtime extraction
+ * that produced invalid ESM for multi-entry libraries (chunks where the
+ * webpack-require runtime symbol was both imported from a sibling and
+ * re-declared locally). Used inside `LibConfig.tools.rspack` to override
+ * rslib's `composeFormatConfig` defaults (`runtimeChunk: { name: ... }` for
+ * multi-entry ESM bundles, and `splitChunks: { chunks: 'async' }`).
+ *
+ * Modern-module's own ESM-aware shared module extraction is unaffected and
+ * may still emit clean sibling ESM chunks for code shared across entries.
+ * Those chunks have valid `import` / `export` bindings and load fine under
+ * Node — they were not the bug being avoided.
  *
  * @param config - The rspack configuration to mutate in place.
  *

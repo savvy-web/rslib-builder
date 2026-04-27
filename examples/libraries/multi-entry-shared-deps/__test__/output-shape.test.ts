@@ -1,13 +1,23 @@
-import { existsSync, readFileSync, readdirSync } from "node:fs";
+import { execSync } from "node:child_process";
+import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
-import { describe, expect, it } from "vitest";
+import { pathToFileURL } from "node:url";
+import { beforeAll, describe, expect, it } from "vitest";
 
-const distDevDir = join(import.meta.dirname, "..", "dist", "dev");
+const exampleDir = join(import.meta.dirname, "..");
+const distDevDir = join(exampleDir, "dist", "dev");
 
 describe("multi-entry-shared-deps build output shape", () => {
-	it("dist/dev exists (build has run)", () => {
-		expect(existsSync(distDevDir)).toBe(true);
-	});
+	beforeAll(() => {
+		// Build the example before assertions. Turbo's cache makes repeat
+		// runs near-free, but the build must run at least once so dist/dev
+		// exists in fresh checkouts and CI (where `pnpm ci:test` runs vitest
+		// without a prior `pnpm build`).
+		execSync("pnpm turbo run build:dev --filter=@libraries/multi-entry-shared-deps", {
+			cwd: exampleDir,
+			stdio: "pipe",
+		});
+	}, 60_000);
 
 	it("emits no __webpack_require__ symbol in any chunk", () => {
 		// Issue #158: chunks both imported AND declared __webpack_require__,
@@ -25,13 +35,18 @@ describe("multi-entry-shared-deps build output shape", () => {
 		expect(offenders).toEqual([]);
 	});
 
-	it("emits valid ESM entry files that re-export from shared chunks", () => {
-		// Both entries must be present and use ESM import syntax (not webpack
-		// runtime). This is a sanity check that the chunks are loadable as
-		// regular ESM by Node.
-		const indexJs = readFileSync(join(distDevDir, "index.js"), "utf-8");
-		const runtimeJs = readFileSync(join(distDevDir, "runtime.js"), "utf-8");
-		expect(indexJs).toMatch(/export\s*\{/);
-		expect(runtimeJs).toMatch(/export\s*\{/);
+	it("loads both entries via Node ESM dynamic import", async () => {
+		// Sanity check that the chunks are valid, loadable ESM. Loading the
+		// entries exercises the cross-chunk import to the shared sibling
+		// (e.g. `./512.js`); a Node SyntaxError or ENOENT here would mean
+		// the regression has returned.
+		const indexUrl = pathToFileURL(join(distDevDir, "index.js")).href;
+		const runtimeUrl = pathToFileURL(join(distDevDir, "runtime.js")).href;
+		const indexMod = await import(indexUrl);
+		const runtimeMod = await import(runtimeUrl);
+		expect(typeof indexMod.greet).toBe("function");
+		expect(typeof runtimeMod.logEvent).toBe("function");
+		expect(indexMod.greet("world")).toContain("hello world");
+		expect(runtimeMod.logEvent("ready")).toContain("ready");
 	});
 });
