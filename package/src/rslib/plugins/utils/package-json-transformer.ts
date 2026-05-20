@@ -107,11 +107,54 @@ export function createTypePath(jsPath: string, collapseIndex: boolean = true): s
 }
 
 /**
+ * Strips a leading `./` from a bin path so it conforms to npm's bin path rules.
+ *
+ * @remarks
+ * npm 10/11 silently strips `bin` entries whose paths start with `./` (see issue #167).
+ * Other package.json fields tolerate `./`, so this is bin-specific.
+ *
+ * @internal
+ */
+function stripLeadingDotSlash(path: string): string {
+	return path.startsWith("./") ? path.slice(2) : path;
+}
+
+/**
+ * Normalizes a package.json bin field so values are valid for npm 11.x publishes.
+ *
+ * @remarks
+ * npm 11.x rejects `bin` entries whose paths start with `./` and silently drops them
+ * from the published manifest, leaving the package without an executable. This function
+ * strips the leading `./` from each value while leaving everything else intact.
+ *
+ * @param bin - The bin field value from package.json
+ * @returns The bin field with each path stripped of a leading `./`
+ *
+ * @internal
+ */
+export function normalizeBinPaths(bin: PackageJson["bin"]): PackageJson["bin"] {
+	if (typeof bin === "string") {
+		return stripLeadingDotSlash(bin);
+	}
+
+	if (bin && typeof bin === "object") {
+		const normalized: Record<string, string | undefined> = {};
+		for (const [command, path] of Object.entries(bin)) {
+			normalized[command] = typeof path === "string" ? stripLeadingDotSlash(path) : path;
+		}
+		return normalized as PackageJson["bin"];
+	}
+
+	return bin;
+}
+
+/**
  * Transforms the package.json bin field for build output compatibility.
  *
  * @remarks
- * TypeScript bin entries are compiled to `./bin/{command-name}.js` by RSlib.
- * Non-TypeScript entries (shell scripts, compiled JS) are preserved as-is.
+ * TypeScript bin entries are compiled to `bin/{command-name}.js` by RSlib.
+ * Non-TypeScript entries (shell scripts, compiled JS) are preserved but normalised
+ * to strip any leading `./` prefix npm 11.x would reject.
  *
  * @param bin - The bin field value from package.json
  * @returns The transformed bin field with updated paths
@@ -120,33 +163,29 @@ export function createTypePath(jsPath: string, collapseIndex: boolean = true): s
  * ```typescript
  * import { transformPackageBin } from './package-json-transformer.js';
  *
- * transformPackageBin("./src/cli.ts"); // "./bin/cli.js"
- * transformPackageBin({ "my-tool": "./src/cli.ts" }); // { "my-tool": "./bin/my-tool.js" }
- * transformPackageBin("./scripts/cli.sh"); // "./scripts/cli.sh" (preserved)
+ * transformPackageBin("./src/cli.ts"); // "bin/cli.js"
+ * transformPackageBin({ "my-tool": "./src/cli.ts" }); // { "my-tool": "bin/my-tool.js" }
+ * transformPackageBin("./scripts/cli.sh"); // "scripts/cli.sh"
  * ```
  *
  * @internal
  */
 export function transformPackageBin(bin: PackageJson["bin"]): PackageJson["bin"] {
 	if (typeof bin === "string") {
-		// Only transform TypeScript files to ./bin/cli.js
 		if (bin.endsWith(".ts") || bin.endsWith(".tsx")) {
-			return "./bin/cli.js";
+			return "bin/cli.js";
 		}
-		// Non-TypeScript entries preserved as-is
-		return bin;
+		return stripLeadingDotSlash(bin);
 	}
 
 	if (bin && typeof bin === "object") {
 		const transformed: Record<string, string> = {};
 		for (const [command, path] of Object.entries(bin)) {
 			if (path !== undefined) {
-				// Only transform TypeScript files to ./bin/{command}.js
 				if (path.endsWith(".ts") || path.endsWith(".tsx")) {
-					transformed[command] = `./bin/${command}.js`;
+					transformed[command] = `bin/${command}.js`;
 				} else {
-					// Non-TypeScript entries preserved as-is
-					transformed[command] = path;
+					transformed[command] = stripLeadingDotSlash(path);
 				}
 			}
 		}
@@ -510,6 +549,16 @@ export async function buildPackageJson(
 		result = transform(result);
 	}
 
+	// Final guard: strip any leading ./ from bin paths. npm 11.x silently drops
+	// bin entries whose paths start with ./, and user transforms may reintroduce
+	// the prefix even after our internal transforms have produced clean values.
+	if (result.bin) {
+		const normalizedBin = normalizeBinPaths(result.bin);
+		if (normalizedBin) {
+			result.bin = normalizedBin;
+		}
+	}
+
 	return result;
 }
 
@@ -574,14 +623,16 @@ export function addFormatDirPrefix(path: string, format: LibraryFormat): string 
  */
 export function applyFormatPrefixToBin(bin: PackageJson["bin"], format: LibraryFormat): PackageJson["bin"] {
 	if (typeof bin === "string") {
-		return bin.endsWith(".js") ? addFormatDirPrefix(bin, format) : bin;
+		const prefixed = bin.endsWith(".js") ? addFormatDirPrefix(bin, format) : bin;
+		return stripLeadingDotSlash(prefixed);
 	}
 
 	if (bin && typeof bin === "object") {
 		const result: Record<string, string> = {};
 		for (const [command, path] of Object.entries(bin)) {
 			if (path !== undefined) {
-				result[command] = path.endsWith(".js") ? addFormatDirPrefix(path, format) : path;
+				const prefixed = path.endsWith(".js") ? addFormatDirPrefix(path, format) : path;
+				result[command] = stripLeadingDotSlash(prefixed);
 			}
 		}
 		return result;

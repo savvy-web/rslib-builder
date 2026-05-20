@@ -224,10 +224,10 @@ describe("rslib-transform-utils", () => {
 
 			const result = applyRslibTransformations(packageJson, packageJson);
 
-			// TypeScript bin entries are compiled to ./bin/{command}.js
+			// TypeScript bin entries are compiled to bin/{command}.js
 			expect(result.bin).toEqual({
-				"my-cli": "./bin/my-cli.js",
-				"my-tool": "./bin/my-tool.js",
+				"my-cli": "bin/my-cli.js",
+				"my-tool": "bin/my-tool.js",
 			});
 		});
 
@@ -240,8 +240,8 @@ describe("rslib-transform-utils", () => {
 
 			const result = applyRslibTransformations(packageJson, packageJson);
 
-			// Single TypeScript bin entry compiles to ./bin/cli.js
-			expect(result.bin).toBe("./bin/cli.js");
+			// Single TypeScript bin entry compiles to bin/cli.js
+			expect(result.bin).toBe("bin/cli.js");
 		});
 
 		it("should transform files array", () => {
@@ -320,8 +320,8 @@ describe("rslib-transform-utils", () => {
 			const result = applyRslibTransformations(packageJson, packageJson);
 
 			expect(result.bin).toEqual({
-				"my-cli": "./scripts/cli.sh",
-				"my-tool": "./dist/tool.js",
+				"my-cli": "scripts/cli.sh",
+				"my-tool": "dist/tool.js",
 			});
 		});
 
@@ -334,7 +334,7 @@ describe("rslib-transform-utils", () => {
 
 			const result = applyRslibTransformations(packageJson, packageJson);
 
-			expect(result.bin).toBe("./scripts/cli.sh");
+			expect(result.bin).toBe("scripts/cli.sh");
 		});
 
 		it("should handle string bin field with shell script", () => {
@@ -346,8 +346,8 @@ describe("rslib-transform-utils", () => {
 
 			const result = applyRslibTransformations(packageJson, packageJson);
 
-			// Shell scripts should not be transformed
-			expect(result.bin).toBe("./bin/start.sh");
+			// Shell scripts: preserved but ./ stripped for npm 11.x compatibility
+			expect(result.bin).toBe("bin/start.sh");
 		});
 	});
 });
