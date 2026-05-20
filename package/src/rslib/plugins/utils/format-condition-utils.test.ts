@@ -257,7 +257,7 @@ describe("format condition utilities", () => {
 				dualFormat: true,
 			});
 			expect(result.bin).toEqual({
-				"my-cli": "./esm/bin/my-cli.js",
+				"my-cli": "esm/bin/my-cli.js",
 			});
 		});
 
@@ -276,8 +276,44 @@ describe("format condition utilities", () => {
 				format: "esm",
 			});
 			expect(result.bin).toEqual({
-				"my-cli": "./bin/my-cli.js",
+				"my-cli": "bin/my-cli.js",
 			});
+		});
+	});
+
+	describe("buildPackageJson bin normalization for npm 11.x", () => {
+		it("should strip leading ./ from bin paths after user transform", async () => {
+			const pkg: PackageJson = {
+				name: "test-pkg",
+				version: "1.0.0",
+				exports: {
+					".": "./src/index.ts",
+				},
+			};
+			const transform = (p: PackageJson): PackageJson => {
+				p.bin = { "custom-cli": "./custom/path.js" };
+				return p;
+			};
+			const result = await buildPackageJson(pkg, false, true, undefined, undefined, false, transform);
+			expect(result.bin).toEqual({
+				"custom-cli": "custom/path.js",
+			});
+		});
+
+		it("should strip leading ./ from string bin after user transform", async () => {
+			const pkg: PackageJson = {
+				name: "test-pkg",
+				version: "1.0.0",
+				exports: {
+					".": "./src/index.ts",
+				},
+			};
+			const transform = (p: PackageJson): PackageJson => {
+				p.bin = "./custom/cli.js";
+				return p;
+			};
+			const result = await buildPackageJson(pkg, false, true, undefined, undefined, false, transform);
+			expect(result.bin).toBe("custom/cli.js");
 		});
 	});
 });

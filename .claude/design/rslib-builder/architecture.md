@@ -3,8 +3,8 @@ status: current
 module: rslib-builder
 category: architecture
 created: 2026-01-18
-updated: 2026-04-27
-last-synced: 2026-04-27
+updated: 2026-05-20
+last-synced: 2026-05-20
 completeness: 95
 related:
   - rslib-builder/api-extraction.md
@@ -207,8 +207,10 @@ NodeLibraryBuilder.create(options): RslibConfigAsyncFn
 
 4. **`package-json-transformer.ts`** - Package.json transformation pipeline
    - Consolidated from: `bin-transform-utils.ts`, `export-transform-utils.ts`, `path-transform-utils.ts`, `rslib-transform-utils.ts`, `pnpm-transform-utils.ts`, `package-json-builder-utils.ts`, `package-json-types-utils.ts`
-   - Exports: `buildPackageJson()`, `transformExportPath()`, `createTypePath()`, `transformPackageExports()`, `transformPackageBin()`, `applyRslibTransformations()`, `applyPnpmTransformations()`
+   - Exports: `buildPackageJson()`, `transformExportPath()`, `createTypePath()`, `transformPackageExports()`, `transformPackageBin()`, `normalizeBinPaths()`, `applyRslibTransformations()`, `applyPnpmTransformations()`
    - Orchestrates pnpm + RSlib transformation pipeline, handles exports/bin fields, path transformations, type conditions
+   - `transformPackageBin()` and `applyFormatPrefixToBin()` produce npm-canonical bin paths without a leading `./` prefix (e.g. `bin/cli.js` not `./bin/cli.js`); npm 11.x silently drops bin entries whose paths start with `./`
+   - `normalizeBinPaths()` is the exported standalone normalizer; `buildPackageJson()` also applies it as a final guard after the user transform so reintroduced `./` prefixes are stripped
 
 5. **`workspace-catalog.ts`** - Multi-package-manager workspace catalog resolution
    - Exports: `WorkspaceCatalog` class, `createWorkspaceCatalog()` factory
@@ -1129,6 +1131,14 @@ Source package.json
          |
          v
     Custom transform function (if provided)
+         |
+         v
++----------------------------------------+
+| normalizeBinPaths() guard              |
+|   - Strip any remaining ./ prefix from |
+|     bin path values after user transform|
+|   - Prevents npm 11.x silent bin drop  |
++----------------------------------------+
          |
          v
     FilesArrayPlugin adds files array
