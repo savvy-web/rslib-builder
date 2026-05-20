@@ -1,5 +1,22 @@
 # @savvy-web/rslib-builder
 
+## 0.20.4
+
+### Bug Fixes
+
+* [`4186537`](https://github.com/savvy-web/rslib-builder/commit/4186537fe272a6fd7bd51d198630e12e214e41e0) Fix `bin` paths in built `package.json` dropping leading `./` for npm 11.x compatibility.
+
+npm 10/11 silently drops bin entries whose values start with `./`, leaving packages with no executable after publish — no CI error, just a broken `npx` invocation discovered by users. The builder now emits `bin/cli.js` instead of `./bin/cli.js`. The new `normalizeBinPaths` helper is also exported for direct use in custom transforms.
+
+### Dependencies
+
+* | [`c0d7a9c`](https://github.com/savvy-web/rslib-builder/commit/c0d7a9caf6eceec7e4eb39b8de6d5e8e12bcd4b6) | Dependency | Type    | Action                | From                  | To |
+  | :------------------------------------------------------------------------------------------------------ | :--------- | :------ | :-------------------- | :-------------------- | -- |
+  | @types/node                                                                                             | dependency | updated | ^25.6.0               | ^25.7.0               |    |
+  | @typescript/native-preview                                                                              | dependency | updated | ^7.0.0-dev.20260424.2 | ^7.0.0-dev.20260513.1 |    |
+  | react                                                                                                   | dependency | updated | ^19.2.5               | ^19.2.6               |    |
+  | react-dom                                                                                               | dependency | updated | ^19.2.5               | ^19.2.6               |    |
+
 ## 0.20.3
 
 ### Bug Fixes
