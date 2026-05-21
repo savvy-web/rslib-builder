@@ -7,16 +7,16 @@ settings:
 catalogs:
   silk:
     '@types/node':
-      specifier: ^25.7.0
+      specifier: ^25.9.1
       version: 25.9.1
     '@types/react':
-      specifier: ^19.2.14
+      specifier: ^19.2.15
       version: 19.2.15
     '@types/react-dom':
       specifier: ^19.2.3
       version: 19.2.3
     '@typescript/native-preview':
-      specifier: ^7.0.0-dev.20260513.1
+      specifier: ^7.0.0-dev.20260519.1
       version: 7.0.0-dev.20260519.1
     react:
       specifier: ^19.2.6
@@ -58,7 +58,7 @@ overrides:
   smol-toml: '>=1.6.1'
   tmp: ^0.2.4
 
-pnpmfileChecksum: sha256-2+BUeKCgjOcf2I4wyhZyWETgJIwnDlmdwNKSnVotq/E=
+pnpmfileChecksum: sha256-qvdCCa72IufQV7GlA20Wd6Leo7yHiU/ZQZciNTWkhM4=
 
 importers:
 
@@ -1536,7 +1536,6 @@ packages:
 
   '@types/parse-path@7.1.0':
     resolution: {integrity: sha512-EULJ8LApcVEPbrfND0cRQqutIOdiIgJ1Mgrhpy755r14xMohPTEpkV/k28SJvuOs9bHRFW8x+KeDAEPiGQPB9Q==}
-    deprecated: This is a stub types definition. parse-path provides its own type definitions, so you do not need this installed.
 
   '@types/react-dom@19.2.3':
     resolution: {integrity: sha512-jp2L/eY6fn+KgVVQAOqYItbF0VY/YApe5Mz2F0aykSO8gx31bYCZyvSeYxCHKvzHG5eZjc+zyaS5BrBWya2+kQ==}
