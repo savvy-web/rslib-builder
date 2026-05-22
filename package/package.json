@@ -1,6 +1,6 @@
 {
 	"name": "@savvy-web/rslib-builder",
-	"version": "0.20.4",
+	"version": "0.20.5",
 	"private": true,
 	"description": "RSlib-based build system for Node.js libraries with automatic package.json transformation, TypeScript declaration bundling, and multi-target support",
 	"keywords": [
