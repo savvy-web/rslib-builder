@@ -71,8 +71,8 @@ importers:
         specifier: ^0.9.0
         version: 0.9.0(@commitlint/cli@20.5.3(@types/node@25.9.1)(conventional-commits-parser@6.4.0)(typescript@6.0.3))(@commitlint/config-conventional@20.5.3)(@effect/experimental@0.60.0(@effect/platform@0.96.1(effect@3.21.2))(effect@3.21.2))(@effect/typeclass@0.40.0(effect@3.21.2))(@effect/workflow@0.18.1(@effect/experimental@0.60.0(@effect/platform@0.96.1(effect@3.21.2))(effect@3.21.2))(@effect/platform@0.96.1(effect@3.21.2))(@effect/rpc@0.75.1(@effect/platform@0.96.1(effect@3.21.2))(effect@3.21.2))(effect@3.21.2))(commitizen@4.3.1(@types/node@25.9.1)(typescript@6.0.3))(husky@9.1.7)
       '@savvy-web/lint-staged':
-        specifier: ^1.0.1
-        version: 1.0.1(3929dcb7b755663eb5270f6339b20208)
+        specifier: ^1.1.0
+        version: 1.1.0(3929dcb7b755663eb5270f6339b20208)
       '@savvy-web/vitest':
         specifier: ^1.3.2
         version: 1.3.2(0aa4721bdae67c791defb8af8e2c6006)
@@ -199,7 +199,7 @@ importers:
     devDependencies:
       '@rspress/core':
         specifier: ^2.0.7
-        version: 2.0.12(@rspack/core@2.0.4(@swc/helpers@0.5.21))(@types/mdast@4.0.4)(@types/react@19.2.15)(micromark-util-types@2.0.2)(micromark@4.0.2)
+        version: 2.0.12(@types/mdast@4.0.4)(@types/react@19.2.15)(micromark-util-types@2.0.2)(micromark@4.0.2)
       '@savvy-web/rslib-builder':
         specifier: workspace:*
         version: link:../../../package/dist/dev
@@ -255,11 +255,11 @@ importers:
         specifier: ^1000.3.1
         version: 1000.3.1
       '@rsbuild/core':
-        specifier: ^2.0.6
-        version: 2.0.6
+        specifier: ^2.0.7
+        version: 2.0.7
       '@rsbuild/plugin-react':
         specifier: ^2.0.0
-        version: 2.0.0(@rsbuild/core@2.0.6)(@rspack/core@2.0.4(@swc/helpers@0.5.21))
+        version: 2.0.0(@rsbuild/core@2.0.7)(@rspack/core@2.0.4(@swc/helpers@0.5.21))
       '@types/node':
         specifier: catalog:silkPeers
         version: 25.9.1
@@ -310,7 +310,7 @@ importers:
         version: 0.41.7
     devDependencies:
       '@pnpm/types':
-        specifier: ^1101.0.0
+        specifier: ^1101.1.1
         version: 1101.1.1
       '@rslib/core':
         specifier: ^0.21.5
@@ -1205,6 +1205,16 @@ packages:
       core-js:
         optional: true
 
+  '@rsbuild/core@2.0.7':
+    resolution: {integrity: sha512-LsBONEzsjzOAqO72ot39eI7g53zSfF9QuDXTu4ks8IUX+EZsxRSniQfc+1zVA6a6y3b9KUUtG96avoMLKbWklQ==}
+    engines: {node: ^20.19.0 || >=22.12.0}
+    hasBin: true
+    peerDependencies:
+      core-js: '>= 3.0.0'
+    peerDependenciesMeta:
+      core-js:
+        optional: true
+
   '@rsbuild/plugin-react@2.0.0':
     resolution: {integrity: sha512-/1gzt39EGUSFEqB83g46QoOwsgv172HI18i6au1b6lgIaX4sv9stuX4ijdHbHCp8PqYEq+MyQ99jIQMO6I+etg==}
     peerDependencies:
@@ -1357,19 +1367,19 @@ packages:
       commitizen: ^4.3.0
       husky: ^9.1.0
 
-  '@savvy-web/lint-staged@1.0.1':
-    resolution: {integrity: sha512-JELWQGKusQcgIMYg7izh6oFr/4tGbFZjHRgMIA4MRJCUTphxsmX/9tlLB1zOxSatxHaQqu4Cir7MEYzuRHkOfQ==}
+  '@savvy-web/lint-staged@1.1.0':
+    resolution: {integrity: sha512-Mgzd1refMWa6i2p7HhJf4ZXLhfDz6pfRQfDzK8hGKenvP8KegMkrEK5l9Pb70/vYc3I/My/Mwm+xlvWCMkTQlg==}
     engines: {node: '>=24.0.0'}
     hasBin: true
     peerDependencies:
       '@biomejs/biome': 2.4.15
       '@types/node': ^25.6.0
       '@typescript/native-preview': ^7.0.0-dev.20260513.1
-      husky: ^9.1.0
-      lint-staged: ^16.4.0
-      markdownlint-cli2: ^0.22.0
+      husky: ^9.1.7
+      lint-staged: ^17.0.5
+      markdownlint-cli2: ^0.22.1
       markdownlint-cli2-formatter-codequality: ^0.0.7
-      turbo: ^2.9.0
+      turbo: ^2.9.14
       typescript: ^6.0.0
     peerDependenciesMeta:
       '@biomejs/biome':
@@ -5809,6 +5819,22 @@ snapshots:
     transitivePeerDependencies:
       - '@module-federation/runtime-tools'
 
+  '@rsbuild/core@2.0.7':
+    dependencies:
+      '@rspack/core': 2.0.4(@swc/helpers@0.5.21)
+      '@swc/helpers': 0.5.21
+    transitivePeerDependencies:
+      - '@module-federation/runtime-tools'
+
+  '@rsbuild/plugin-react@2.0.0(@rsbuild/core@2.0.6)':
+    dependencies:
+      '@rspack/plugin-react-refresh': 2.0.0(@rspack/core@2.0.4(@swc/helpers@0.5.21))(react-refresh@0.18.0)
+      react-refresh: 0.18.0
+    optionalDependencies:
+      '@rsbuild/core': 2.0.6
+    transitivePeerDependencies:
+      - '@rspack/core'
+
   '@rsbuild/plugin-react@2.0.0(@rsbuild/core@2.0.6)(@rspack/core@2.0.4(@swc/helpers@0.5.21))':
     dependencies:
       '@rspack/plugin-react-refresh': 2.0.0(@rspack/core@2.0.4(@swc/helpers@0.5.21))(react-refresh@0.18.0)
@@ -5818,10 +5844,19 @@ snapshots:
     transitivePeerDependencies:
       - '@rspack/core'
 
+  '@rsbuild/plugin-react@2.0.0(@rsbuild/core@2.0.7)(@rspack/core@2.0.4(@swc/helpers@0.5.21))':
+    dependencies:
+      '@rspack/plugin-react-refresh': 2.0.0(@rspack/core@2.0.4(@swc/helpers@0.5.21))(react-refresh@0.18.0)
+      react-refresh: 0.18.0
+    optionalDependencies:
+      '@rsbuild/core': 2.0.7
+    transitivePeerDependencies:
+      - '@rspack/core'
+
   '@rslib/core@0.21.5(@microsoft/api-extractor@7.58.7(@types/node@25.9.1))(@typescript/native-preview@7.0.0-dev.20260519.1)(typescript@6.0.3)':
     dependencies:
-      '@rsbuild/core': 2.0.6
-      rsbuild-plugin-dts: 0.21.5(@microsoft/api-extractor@7.58.7(@types/node@25.9.1))(@rsbuild/core@2.0.6)(@typescript/native-preview@7.0.0-dev.20260519.1)(typescript@6.0.3)
+      '@rsbuild/core': 2.0.7
+      rsbuild-plugin-dts: 0.21.5(@microsoft/api-extractor@7.58.7(@types/node@25.9.1))(@rsbuild/core@2.0.7)(@typescript/native-preview@7.0.0-dev.20260519.1)(typescript@6.0.3)
     optionalDependencies:
       '@microsoft/api-extractor': 7.58.7(@types/node@25.9.1)
       typescript: 6.0.3
@@ -5939,9 +5974,59 @@ snapshots:
       - micromark-util-types
       - supports-color
 
+  '@rspress/core@2.0.12(@types/mdast@4.0.4)(@types/react@19.2.15)(micromark-util-types@2.0.2)(micromark@4.0.2)':
+    dependencies:
+      '@mdx-js/mdx': 3.1.1
+      '@mdx-js/react': 3.1.1(@types/react@19.2.15)(react@19.2.6)
+      '@rsbuild/core': 2.0.6
+      '@rsbuild/plugin-react': 2.0.0(@rsbuild/core@2.0.6)
+      '@rspress/shared': 2.0.12
+      '@shikijs/rehype': 4.1.0
+      '@types/unist': 3.0.3
+      '@unhead/react': 2.1.15(react@19.2.6)
+      body-scroll-lock: 4.0.0-beta.0
+      clsx: 2.1.1
+      copy-to-clipboard: 3.3.3
+      flexsearch: 0.8.212
+      hast-util-heading-rank: 3.0.0
+      hast-util-to-jsx-runtime: 2.3.6
+      mdast-util-mdx: 3.0.0
+      mdast-util-mdxjs-esm: 2.0.1
+      medium-zoom: 1.1.0
+      nprogress: 0.2.0
+      react: 19.2.6
+      react-dom: 19.2.6(react@19.2.6)
+      react-lazy-with-preload: 2.2.1
+      react-reconciler: 0.33.0(react@19.2.6)
+      react-render-to-markdown: 19.0.1(react@19.2.6)
+      react-router-dom: 7.15.1(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
+      rehype-external-links: 3.0.0
+      rehype-raw: 7.0.0
+      remark-cjk-friendly: 2.0.1(@types/mdast@4.0.4)(micromark-util-types@2.0.2)(micromark@4.0.2)(unified@11.0.5)
+      remark-cjk-friendly-gfm-strikethrough: 2.0.1(@types/mdast@4.0.4)(micromark-util-types@2.0.2)(micromark@4.0.2)(unified@11.0.5)
+      remark-gfm: 4.0.1
+      remark-mdx: 3.1.1
+      remark-parse: 11.0.0
+      remark-stringify: 11.0.0
+      scroll-into-view-if-needed: 3.1.0
+      shiki: 4.1.0
+      unified: 11.0.5
+      unist-util-remove: 4.0.0
+      unist-util-visit: 5.1.0
+      unist-util-visit-children: 3.0.0
+    transitivePeerDependencies:
+      - '@module-federation/runtime-tools'
+      - '@rspack/core'
+      - '@types/mdast'
+      - '@types/react'
+      - core-js
+      - micromark
+      - micromark-util-types
+      - supports-color
+
   '@rspress/shared@2.0.12':
     dependencies:
-      '@rsbuild/core': 2.0.6
+      '@rsbuild/core': 2.0.7
       '@shikijs/rehype': 4.1.0
       unified: 11.0.5
     transitivePeerDependencies:
@@ -6044,7 +6129,7 @@ snapshots:
       - bufferutil
       - utf-8-validate
 
-  '@savvy-web/lint-staged@1.0.1(3929dcb7b755663eb5270f6339b20208)':
+  '@savvy-web/lint-staged@1.1.0(3929dcb7b755663eb5270f6339b20208)':
     dependencies:
       '@effect/cli': 0.75.1(@effect/platform@0.96.1(effect@3.21.2))(@effect/printer-ansi@0.49.0(@effect/typeclass@0.40.0(effect@3.21.2))(effect@3.21.2))(@effect/printer@0.49.0(@effect/typeclass@0.40.0(effect@3.21.2))(effect@3.21.2))(effect@3.21.2)
       '@effect/platform': 0.96.1(effect@3.21.2)
@@ -9197,10 +9282,10 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  rsbuild-plugin-dts@0.21.5(@microsoft/api-extractor@7.58.7(@types/node@25.9.1))(@rsbuild/core@2.0.6)(@typescript/native-preview@7.0.0-dev.20260519.1)(typescript@6.0.3):
+  rsbuild-plugin-dts@0.21.5(@microsoft/api-extractor@7.58.7(@types/node@25.9.1))(@rsbuild/core@2.0.7)(@typescript/native-preview@7.0.0-dev.20260519.1)(typescript@6.0.3):
     dependencies:
       '@ast-grep/napi': 0.37.0
-      '@rsbuild/core': 2.0.6
+      '@rsbuild/core': 2.0.7
     optionalDependencies:
       '@microsoft/api-extractor': 7.58.7(@types/node@25.9.1)
       '@typescript/native-preview': 7.0.0-dev.20260519.1

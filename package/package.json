@@ -60,7 +60,7 @@
 		"@pnpm/exportable-manifest": "^1000.4.2",
 		"@pnpm/lockfile.fs": "^1100.1.1",
 		"@pnpm/workspace.read-manifest": "^1000.3.1",
-		"@rsbuild/core": "^2.0.6",
+		"@rsbuild/core": "^2.0.7",
 		"@typescript-eslint/parser": "^8.59.4",
 		"deep-equal": "^2.2.3",
 		"eslint": "^10.4.0",
@@ -68,11 +68,11 @@
 		"glob": "^13.0.6",
 		"picocolors": "^1.1.1",
 		"sort-package-json": "^3.6.1",
-		"tmp": "^0.2.4",
+		"tmp": "^0.2.5",
 		"workspace-tools": "^0.41.4"
 	},
 	"devDependencies": {
-		"@pnpm/types": "^1101.0.0",
+		"@pnpm/types": "^1101.1.1",
 		"@rslib/core": "^0.21.5",
 		"@types/deep-equal": "^1.0.4",
 		"@types/tmp": "^0.2.6",
