@@ -58,7 +58,7 @@ export type PublishProtocol = "npm" | "jsr";
  * A resolved publish target from `publishConfig.targets`.
  *
  * @remarks
- * Aligns with `ResolvedTarget` from workflow-release-action,
+ * Aligns with `ResolvedTarget` from silk-release-action,
  * minus authentication-specific fields.
  *
  * @public
@@ -1194,7 +1194,7 @@ export class NodeLibraryBuilder {
 
 /**
  * Known shorthand expansions for publish target strings.
- * Aligns with KNOWN_SHORTHANDS in workflow-release-action's resolve-targets.ts.
+ * Aligns with KNOWN_SHORTHANDS in silk-release-action's resolve-targets.ts.
  * @internal
  */
 const KNOWN_TARGET_SHORTHANDS: Record<
@@ -1212,7 +1212,7 @@ const KNOWN_TARGET_SHORTHANDS: Record<
  * @remarks
  * Expands shorthand strings (`"npm"`, `"github"`, `"jsr"`, or a URL) into
  * fully resolved {@link PublishTarget} objects. Mirrors the resolution logic
- * in workflow-release-action, but only produces the subset of fields
+ * in silk-release-action, but only produces the subset of fields
  * relevant to the build process.
  *
  * @param packageJson - The parsed package.json
