@@ -1,5 +1,15 @@
 # @savvy-web/rslib-builder
 
+## 0.20.6
+
+### Dependencies
+
+* | [`6f8c67d`](https://github.com/savvy-web/rslib-builder/commit/6f8c67db67a60a4ef3d9cd0e8b8f4e8a1d8bda8f) | Dependency    | Type    | Action    | From      | To |
+  | :------------------------------------------------------------------------------------------------------ | :------------ | :------ | :-------- | :-------- | -- |
+  | @rsbuild/core                                                                                           | dependency    | updated | ^2.0.6    | ^2.0.7    |    |
+  | tmp                                                                                                     | dependency    | updated | ^0.2.4    | ^0.2.5    |    |
+  | @pnpm/types                                                                                             | devDependency | updated | ^1101.0.0 | ^1101.1.1 |    |
+
 ## 0.20.5
 
 ### Dependencies
