@@ -1,5 +1,13 @@
 # @savvy-web/rslib-builder
 
+## 0.20.8
+
+### Dependencies
+
+* | [`2a73665`](https://github.com/savvy-web/rslib-builder/commit/2a73665ad88f2a1ad0908f8e9b58656113926b4f) | Dependency | Type    | Action  | From    | To |
+  | :------------------------------------------------------------------------------------------------------ | :--------- | :------ | :------ | :------ | -- |
+  | @typescript-eslint/parser                                                                               | dependency | updated | ^8.59.4 | ^8.60.0 |    |
+
 ## 0.20.7
 
 ### Dependencies
