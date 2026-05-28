@@ -1,5 +1,16 @@
 # @savvy-web/rslib-builder
 
+## 0.20.9
+
+### Dependencies
+
+* | [`c85eb0a`](https://github.com/savvy-web/rslib-builder/commit/c85eb0aa1036cca63029f2b12ad6dc24617463f9) | Dependency    | Type    | Action    | From      | To |
+  | :------------------------------------------------------------------------------------------------------ | :------------ | :------ | :-------- | :-------- | -- |
+  | @pnpm/lockfile.fs                                                                                       | dependency    | updated | ^1100.1.1 | ^1100.1.2 |    |
+  | @rsbuild/core                                                                                           | dependency    | updated | ^2.0.7    | ^2.0.8    |    |
+  | tmp                                                                                                     | dependency    | updated | ^0.2.5    | ^0.2.7    |    |
+  | @pnpm/types                                                                                             | devDependency | updated | ^1101.1.1 | ^1101.2.0 |    |
+
 ## 0.20.8
 
 ### Dependencies
