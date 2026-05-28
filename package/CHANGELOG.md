@@ -1,5 +1,14 @@
 # @savvy-web/rslib-builder
 
+## 0.20.10
+
+### Dependencies
+
+* | [`908b61e`](https://github.com/savvy-web/rslib-builder/commit/908b61e47292e0d6a6ae06c74c1b39d9df598a00) | Dependency | Type    | Action                | From                  | To |
+  | :------------------------------------------------------------------------------------------------------ | :--------- | :------ | :-------------------- | :-------------------- | -- |
+  | @typescript/native-preview                                                                              | dependency | updated | ^7.0.0-dev.20260523.1 | ^7.0.0-dev.20260527.2 |    |
+  | tmp                                                                                                     | dependency | updated | ^0.2.4                | ^0.2.7                |    |
+
 ## 0.20.9
 
 ### Dependencies
