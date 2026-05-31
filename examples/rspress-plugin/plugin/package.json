@@ -13,7 +13,7 @@
 		"types:check": "tsgo --noEmit"
 	},
 	"devDependencies": {
-		"@rsbuild/plugin-react": "^2.0.0",
+		"@rsbuild/plugin-react": "^2.0.1",
 		"@rspress/core": "^2.0.9",
 		"@savvy-web/rslib-builder": "workspace:*",
 		"@types/node": "catalog:silk",
