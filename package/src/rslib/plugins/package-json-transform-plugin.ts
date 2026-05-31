@@ -224,7 +224,15 @@ export const PackageJsonTransformPlugin = (options: PackageJsonTransformPluginOp
 					}
 					// Get environment ID from compiler context
 					const envId = context.compilation?.name || "unknown";
-					const isProduction = envId !== "dev";
+					// Derive the build mode from the explicit option (always set by
+					// NodeLibraryBuilder), falling back to the environment name for direct
+					// plugin usage. Dual-format builds name their environments
+					// `${mode}-${format}` (e.g. "dev-esm"), so match on the mode prefix —
+					// an exact `=== "dev"` check misclassifies dual-format dev builds as
+					// production and resolves their workspace:/catalog: specifiers to fixed
+					// versions, which breaks pnpm linkDirectory resolution of the dev build.
+					const buildMode = options.mode ?? envId.split("-")[0];
+					const isProduction = buildMode !== "dev";
 
 					// Get the updated entrypoints map if available
 					const entrypoints = api.useExposed<Map<string, string>>("entrypoints");

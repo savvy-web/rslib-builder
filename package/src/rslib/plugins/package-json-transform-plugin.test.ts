@@ -188,6 +188,49 @@ describe("PackageJsonTransformPlugin", () => {
 		);
 	});
 
+	it("should treat dual-format dev environments (dev-esm/dev-cjs) as development", async () => {
+		// Dual-format builds name their rsbuild environments `${mode}-${format}`
+		// (e.g. "dev-esm"). These must still resolve to isProduction=false so the
+		// dev build keeps workspace:/catalog: specifiers for pnpm linkDirectory —
+		// an exact `=== "dev"` check would misclassify them as production.
+		const plugin = PackageJsonTransformPlugin();
+		const mockApi = { processAssets: vi.fn(), expose: vi.fn(), useExposed: vi.fn().mockReturnValue(undefined) };
+
+		plugin.setup(mockApi as unknown as Parameters<ReturnType<typeof PackageJsonTransformPlugin>["setup"]>[0]);
+
+		const callback = mockApi.processAssets.mock.calls[1][1];
+
+		const originalPackageJson: PackageJson = {
+			name: "test-package",
+			version: "1.0.0",
+		};
+
+		const mockPackageJsonAsset = {
+			data: originalPackageJson,
+			update: vi.fn(),
+		};
+		// biome-ignore lint/suspicious/noExplicitAny: Mock object for testing
+		mockJsonAssetCreate.mockResolvedValue(mockPackageJsonAsset as any);
+
+		mockBuildPackageJson.mockResolvedValue(originalPackageJson);
+
+		const mockContext = createMockContext();
+		mockContext.compilation.name = "dev-esm"; // Dual-format dev environment
+
+		await callback(mockContext);
+
+		expect(mockBuildPackageJson).toHaveBeenCalledWith(
+			originalPackageJson,
+			false,
+			undefined,
+			undefined,
+			undefined,
+			undefined,
+			undefined,
+			undefined,
+		);
+	});
+
 	it("should handle missing compilation name", async () => {
 		const plugin = PackageJsonTransformPlugin();
 		const mockApi = { processAssets: vi.fn(), expose: vi.fn(), useExposed: vi.fn().mockReturnValue(undefined) };
