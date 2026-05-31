@@ -1,5 +1,17 @@
 # @savvy-web/rslib-builder
 
+## 0.20.12
+
+### Bug Fixes
+
+* [`c108769`](https://github.com/savvy-web/rslib-builder/commit/c1087699cb86f55413368d108563a508283a58ed) Preserve `workspace:` and `catalog:` dependency specifiers in dual-format dev builds. The package.json transform treated any rsbuild environment not named exactly `dev` as a production build, but dual-format builds name their dev environments `dev-esm` and `dev-cjs`. Their `dist/dev` manifests therefore had specifiers resolved to fixed versions, which broke pnpm `linkDirectory` resolution of the local dev output. The build mode is now derived from the explicit mode option with an environment-name prefix fallback.
+
+### Dependencies
+
+* | [`f295f09`](https://github.com/savvy-web/rslib-builder/commit/f295f0901d96d640ac4844b4e7e4b8c1702fcb24) | Dependency | Type    | Action | From   | To |
+  | :------------------------------------------------------------------------------------------------------ | :--------- | :------ | :----- | :----- | -- |
+  | @rsbuild/core                                                                                           | dependency | updated | ^2.0.8 | ^2.0.9 |    |
+
 ## 0.20.11
 
 ### Dependencies
