@@ -1,5 +1,17 @@
 # @savvy-web/rslib-builder
 
+## 0.21.0
+
+### Features
+
+* [`02a6e53`](https://github.com/savvy-web/rslib-builder/commit/02a6e539eb3ca308a952c41bf35669472243737b) `RSPressPluginBuilder` now emits the React runtime **bundleless** (per-file transpile) into `dist/<mode>/runtime/` instead of compiling it into a single `runtime/index.js` bundle. This mirrors RSPress's own plugin pattern (e.g. `@rspress/plugin-algolia`): each component compiles to its own `.js` next to its CSS module, `react`/`@theme` stay external, and `import.meta.env` is left untouched so RSPress resolves `import.meta.env.SSG_MD` per site build. Shipping per-file output lets plugins register individual runtime components by file path via `globalUIComponents` / `resolve.alias` against the published files, and keeps SSG-MD (HTML vs markdown) dual-mode rendering working — both of which a frozen single bundle broke. A bundled `runtime/index.d.ts` is still emitted so the published `./runtime` export's `types` condition resolves. The runtime lib drops the previous `bundle: true` config, the CSS-injection `BannerPlugin`, and the chunk-splitting overrides, which are unnecessary for per-file output.
+
+### Dependencies
+
+* | [`6ffb679`](https://github.com/savvy-web/rslib-builder/commit/6ffb679d48eae9b52c4ee1e90c147ac91b36858d) | Dependency | Type    | Action  | From    | To |
+  | :------------------------------------------------------------------------------------------------------ | :--------- | :------ | :------ | :------ | -- |
+  | @typescript-eslint/parser                                                                               | dependency | updated | ^8.60.0 | ^8.60.1 |    |
+
 ## 0.20.12
 
 ### Bug Fixes
