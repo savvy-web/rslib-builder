@@ -222,7 +222,21 @@ describe("RSPressPluginBuilder", () => {
 			expect(capturedConfig?.lib).toHaveLength(2);
 			const runtimeLib = capturedConfig?.lib?.[1];
 			expect(runtimeLib).toBeDefined();
-			expect(runtimeLib?.source?.entry).toEqual({ index: "./src/runtime/index.tsx" });
+			// Bundleless transpile: the entry is a glob over the runtime tree.
+			expect(runtimeLib?.source?.entry).toEqual({ index: "./src/runtime/**" });
+		});
+
+		it("should emit the runtime bundleless (per-file) into dist/<mode>/runtime", async () => {
+			vi.mocked(existsSync).mockReturnValue(true);
+
+			const configFn = RSPressPluginBuilder.create();
+			await configFn(envParams("dev"));
+
+			const runtimeLib = capturedConfig?.lib?.[1];
+			expect(runtimeLib?.bundle).toBe(false);
+			expect(runtimeLib?.syntax).toBe("esnext");
+			expect(runtimeLib?.outBase).toBe("./src/runtime");
+			expect(runtimeLib?.output?.target).toBe("web");
 		});
 
 		it("should skip when file does not exist", async () => {
@@ -541,18 +555,6 @@ describe("RSPressPluginBuilder", () => {
 		});
 	});
 
-	describe("runtime tools.rspack banner", () => {
-		it("should configure tools.rspack on runtime lib for CSS banner", async () => {
-			vi.mocked(existsSync).mockReturnValue(true);
-
-			const configFn = RSPressPluginBuilder.create();
-			await configFn(envParams("dev"));
-
-			const runtimeLib = capturedConfig?.lib?.[1];
-			expect(runtimeLib?.tools?.rspack).toBeDefined();
-		});
-	});
-
 	describe("self-contained chunks", () => {
 		it("disables runtimeChunk and splitChunks on the plugin lib", async () => {
 			vi.mocked(existsSync).mockReturnValue(false);
@@ -569,33 +571,16 @@ describe("RSPressPluginBuilder", () => {
 			expect(rspackConfig.optimization?.splitChunks).toBe(false);
 		});
 
-		it("disables runtimeChunk and splitChunks on the runtime lib (alongside CSS banner)", async () => {
+		it("does not set tools.rspack on the bundleless runtime lib", async () => {
 			vi.mocked(existsSync).mockReturnValue(true);
 
 			const configFn = RSPressPluginBuilder.create();
 			await configFn(envParams("dev"));
 
+			// The runtime is transpiled per-file (bundleless), so it needs neither
+			// the chunk-splitting overrides nor the single-bundle CSS banner.
 			const runtimeLib = capturedConfig?.lib?.[1];
-			interface MockRspackConfig {
-				optimization?: { runtimeChunk?: unknown; splitChunks?: unknown };
-				plugins?: unknown[];
-			}
-			interface MockRspackCtx {
-				rspack: {
-					BannerPlugin: new (_opts: unknown) => unknown;
-				};
-			}
-			const rspackConfig: MockRspackConfig = {};
-			const ctx: MockRspackCtx = {
-				rspack: {
-					BannerPlugin: class {},
-				},
-			};
-			(runtimeLib?.tools?.rspack as (c: MockRspackConfig, ctx: MockRspackCtx) => void)(rspackConfig, ctx);
-			expect(rspackConfig.optimization?.runtimeChunk).toBe(false);
-			expect(rspackConfig.optimization?.splitChunks).toBe(false);
-			// Banner plugin still added
-			expect(rspackConfig.plugins?.length).toBe(1);
+			expect(runtimeLib?.tools?.rspack).toBeUndefined();
 		});
 	});
 });

@@ -72,8 +72,8 @@ export const RSPRESS_RUNTIME_EXTERNALS: readonly string[] = [
 	"@theme",
 ];
 
-/** Default runtime entry file path. */
-const DEFAULT_RUNTIME_ENTRY = "./src/runtime/index.tsx";
+/** Default runtime source directory (bundleless transpile root). */
+const DEFAULT_RUNTIME_DIR = "./src/runtime";
 
 /**
  * Builder for RSPress plugin packages with dual-bundle architecture.
@@ -347,14 +347,25 @@ export class RSPressPluginBuilder {
 		}
 
 		const sourceMap = mode === "dev";
+		// The runtime is emitted bundleless (per-file transpile) into
+		// dist/<mode>/runtime/, preserving the `src/runtime/...` directory structure
+		// via `outBase: "./src/runtime"`. This mirrors RSPress's own plugin pattern
+		// (e.g. @rspress/plugin-algolia): each component compiles to its own `.js`
+		// next to its CSS module, `react`/`@theme` stay external, and
+		// `import.meta.env` is left untouched so RSPress resolves `SSG_MD` per site
+		// build. Shipping per-file output (not a single bundle) lets plugins register
+		// individual components via `globalUIComponents` / `resolve.alias` against the
+		// published files, and keeps the dual-mode (HTML vs markdown) branch working.
 		const runtimeOutputDir = `dist/${mode}/runtime`;
 
 		// Build plugins list
 		const plugins: RsbuildPlugin[] = [];
 
-		// DtsPlugin for runtime types — outputs to dist/<mode>/runtime/ alongside JS/CSS.
-		// API model is explicitly disabled: React components are excluded from the
-		// plugin's public API model (only the plugin entry contributes to .api.json).
+		// DtsPlugin emits a bundled `runtime/index.d.ts` (types only) so the
+		// published `./runtime` export's `types` condition resolves. The JS stays
+		// bundleless; the declarations need not mirror the per-file JS layout.
+		// API model is disabled: runtime components are not part of the plugin's
+		// public `.api.json`.
 		plugins.push(
 			DtsPlugin({
 				...(options.tsconfigPath
@@ -366,7 +377,7 @@ export class RSPressPluginBuilder {
 				buildMode: mode,
 				format: "esm",
 				apiModel: false,
-				overrideEntries: { index: runtimeOpts.entry ?? DEFAULT_RUNTIME_ENTRY },
+				overrideEntries: { index: `${DEFAULT_RUNTIME_DIR}/index.tsx` },
 			}),
 		);
 
@@ -378,17 +389,26 @@ export class RSPressPluginBuilder {
 			plugins.push(...runtimeOpts.plugins);
 		}
 
-		// Merge externals
+		// Merge externals — React and the RSPress theme are provided by RSPress.
 		const externals: (string | RegExp)[] = [...RSPRESS_RUNTIME_EXTERNALS, ...(runtimeOpts.externals ?? [])];
 
-		// Merge define
+		// Merge define. The identity mapping preserves `import.meta.env` accesses
+		// (notably `import.meta.env.SSG_MD`) as runtime expressions for RSPress.
 		const sourceDefine = {
 			"import.meta.env": "import.meta.env",
 			...runtimeOpts.define,
 		};
 
+		// In bundleless mode the entry is a glob over the runtime tree so every file
+		// (including nested components) is transpiled 1:1 rather than bundled.
+		const runtimeEntry = runtimeOpts.entry ?? `${DEFAULT_RUNTIME_DIR}/**`;
+
 		return {
 			id: `${mode}-runtime`,
+			bundle: false,
+			syntax: "esnext",
+			outBase: DEFAULT_RUNTIME_DIR,
+			format: "esm",
 			output: {
 				target: "web",
 				cleanDistPath: false,
@@ -402,29 +422,11 @@ export class RSPressPluginBuilder {
 					exportLocalsConvention: "camelCaseOnly",
 				},
 			},
-			format: "esm",
-			bundle: true,
-			experiments: {
-				advancedEsm: true,
-			},
 			plugins,
 			source: {
 				...(options.tsconfigPath && { tsconfigPath: options.tsconfigPath }),
-				entry: { index: runtimeOpts.entry ?? DEFAULT_RUNTIME_ENTRY },
+				entry: { index: runtimeEntry },
 				define: sourceDefine,
-			},
-			tools: {
-				rspack(config, { rspack }) {
-					disableSharedChunks(config);
-					config.plugins ??= [];
-					config.plugins.push(
-						new rspack.BannerPlugin({
-							banner: 'import "./index.css";',
-							raw: true,
-							include: /index\.js$/,
-						}),
-					);
-				},
 			},
 		};
 	}
