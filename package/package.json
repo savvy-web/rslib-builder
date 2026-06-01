@@ -76,7 +76,7 @@
 		"@rslib/core": "^0.22.0",
 		"@types/deep-equal": "^1.0.4",
 		"@types/tmp": "^0.2.6",
-		"type-fest": "^5.5.0"
+		"type-fest": "^5.7.0"
 	},
 	"peerDependencies": {
 		"@rsbuild/plugin-react": "^2.0.0",
