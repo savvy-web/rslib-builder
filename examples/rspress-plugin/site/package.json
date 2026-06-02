@@ -13,7 +13,7 @@
 		"@rspress/plugin": "workspace:*"
 	},
 	"devDependencies": {
-		"@rspress/core": "^2.0.7",
+		"@rspress/core": "^2.0.13",
 		"@savvy-web/rslib-builder": "workspace:*",
 		"@types/node": "catalog:silk",
 		"@types/react": "catalog:silk",
