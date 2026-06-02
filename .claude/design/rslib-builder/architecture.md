@@ -3,8 +3,8 @@ status: current
 module: rslib-builder
 category: architecture
 created: 2026-01-18
-updated: 2026-05-20
-last-synced: 2026-05-20
+updated: 2026-06-02
+last-synced: 2026-06-02
 completeness: 95
 related:
   - rslib-builder/api-extraction.md
@@ -167,6 +167,7 @@ NodeLibraryBuilder.create(options): RslibConfigAsyncFn
   - API model is enabled by default for npm mode
   - Multi-entry: runs API Extractor per entry, merges into single `.api.json` with multiple `EntryPoint` members via `mergeApiModels()`
   - Format-aware: emits `.d.cts` for CJS entries, `.d.ts` for ESM entries
+  - Mirrors the builder's `exportsAsIndexes` option (passed to all three DtsPlugin instances — primary, dual-format secondary, per-entry override). When set, the `EntryExtractor` used for declaration bundling produces nested `foo/bar/index` entry names so the rolled-up declaration lands at `foo/bar/index.d.ts` beside the compiled `foo/bar/index.js`. When unset, nested export keys are hyphen-flattened (`foo-bar.d.ts`). This must stay aligned with the `types` path computed by PackageJsonTransformPlugin — see the `exportToOutputMap` shared state key
 - **PackageJsonTransformPlugin** - Transform package.json for dist
   - Stages: pre-process, optimize, optimize-inline
   - Format-aware: generates `import`/`require` conditions based on format
@@ -312,6 +313,7 @@ Post-processing step that transforms standard `{ types, import }` conditions int
 - `toCtsTypePath()` - `.d.ts` → `.d.cts`
 - `addFormatDirPrefix()` - `./index.js` → `./esm/index.js`
 - `applyFormatConditions()` - Orchestrates per-entry and dual format transforms
+- `createTypePath()` collapses a trailing `/index` to a sibling file (`./foo/bar.d.ts`) in bundle mode by default, but `transformStringExport()` suppresses that collapse when the input path came from `exportToOutputMap`. Those paths are already canonical `exportsAsIndexes` output (`./foo/bar/index.js`) whose declaration is co-located (`./foo/bar/index.d.ts`), so the `types` field must keep the nested index form to resolve.
 
 #### Component 5: CJS Interop
 
@@ -770,6 +772,7 @@ export function disableSharedChunks(config: Rspack.Configuration): void {
 
 - Producer: AutoEntryPlugin
 - Consumers: PackageJsonTransformPlugin
+- Maps an export key to its canonical JS output path. Under `exportsAsIndexes` this is a nested index path like `./foo/bar/index.js`. When PackageJsonTransformPlugin derives the matching `types` path from a value that came from this map, it must NOT collapse the trailing `/index` even in bundle mode — the declaration is emitted alongside as `./foo/bar/index.d.ts`, so collapsing to `./foo/bar.d.ts` would point `types` at a file that was never emitted. This is the contract that keeps the `types` path aligned with DtsPlugin's `exportsAsIndexes`-driven declaration naming (the two computations previously diverged under dual format + `exportsAsIndexes`, issue: dual-format-types).
 
 **`files-cache`** - `Map<string, CacheEntry>`
 

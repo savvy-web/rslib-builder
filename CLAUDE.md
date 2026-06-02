@@ -101,7 +101,8 @@ rslib-builder/
 │   │   ├── single-entry/        # Toy calculator (single export)
 │   │   ├── multi-entry/         # Multiple exports
 │   │   ├── with-bin/            # CLI bin entry
-│   │   └── options-testing/     # Builder options combos
+│   │   ├── options-testing/     # Builder options combos
+│   │   └── dual-format-indexes/ # ESM+CJS with exportsAsIndexes (nested types regression)
 │   └── rspress-plugin/          # RSPressPluginBuilder example
 │       ├── plugin/              # Plugin + runtime components
 │       └── site/                # RSPress doc site using the plugin

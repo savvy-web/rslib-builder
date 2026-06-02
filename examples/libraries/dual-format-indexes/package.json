@@ -1,0 +1,36 @@
+{
+	"name": "@libraries/dual-format-indexes",
+	"version": "1.0.0",
+	"private": true,
+	"type": "module",
+	"exports": {
+		".": "./src/index.ts",
+		"./group/alpha": "./src/group/alpha.ts",
+		"./group/beta": "./src/group/beta.ts"
+	},
+	"scripts": {
+		"build:dev": "rslib build --env-mode dev",
+		"build:prod": "rslib build --env-mode npm",
+		"types:check": "tsgo --noEmit"
+	},
+	"devDependencies": {
+		"@savvy-web/rslib-builder": "workspace:*",
+		"@types/node": "catalog:silk",
+		"@typescript/native-preview": "catalog:silk",
+		"typescript": "catalog:silk"
+	},
+	"publishConfig": {
+		"access": "public",
+		"directory": "dist/dev",
+		"linkDirectory": true,
+		"targets": [
+			{
+				"protocol": "npm",
+				"registry": "https://registry.npmjs.org/",
+				"directory": "dist/npm",
+				"access": "public",
+				"provenance": true
+			}
+		]
+	}
+}

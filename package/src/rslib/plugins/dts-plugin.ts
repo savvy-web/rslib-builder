@@ -830,6 +830,18 @@ export interface DtsPluginOptions {
 	 * When set, the EntryExtractor is bypassed entirely.
 	 */
 	overrideEntries?: Record<string, string>;
+
+	/**
+	 * Mirror of the builder's `exportsAsIndexes` option.
+	 *
+	 * @remarks
+	 * When true, the EntryExtractor used for declaration bundling produces nested
+	 * `foo/bar/index` entry names (matching the JS output), so the rolled-up
+	 * declaration is emitted as `foo/bar/index.d.ts` beside the compiled
+	 * `foo/bar/index.js`. When false (default), nested export keys are flattened
+	 * with hyphens (`foo-bar.d.ts`).
+	 */
+	exportsAsIndexes?: boolean;
 }
 
 /**
@@ -1827,8 +1839,12 @@ export const DtsPlugin = (options: DtsPluginOptions = {}): RsbuildPlugin => {
 										entryPoints.set(entryName, sourcePath);
 									}
 								} else {
-									// Discover entries from package.json exports
-									const extracted = new EntryExtractor().extract(packageJson);
+									// Discover entries from package.json exports. Mirror the builder's
+									// exportsAsIndexes setting so declaration output names match the JS
+									// entry names (foo/bar/index.d.ts vs the flattened foo-bar.d.ts).
+									const extracted = new EntryExtractor(
+										options.exportsAsIndexes != null ? { exportsAsIndexes: options.exportsAsIndexes } : undefined,
+									).extract(packageJson);
 									const entries = extracted.entries;
 									exportPaths = extracted.exportPaths;
 

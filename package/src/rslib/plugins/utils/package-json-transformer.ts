@@ -273,12 +273,19 @@ function transformStringExport(
 	collapseIndex: boolean = false,
 ): FlexibleExports {
 	let transformedPath: string;
+	// When a path comes from exportToOutputMap it is already the canonical output
+	// path (e.g. exportsAsIndexes mode produces "./foo/bar/index.js"). The matching
+	// declaration is emitted alongside it as "./foo/bar/index.d.ts", so the type
+	// path must NOT collapse the trailing "/index" even in bundle mode — otherwise
+	// `types` points at a file that was never emitted (see issue: dual-format-types).
+	let fromOutputMap = false;
 	if (exportToOutputMap && exportKey && exportToOutputMap.has(exportKey)) {
 		const mappedPath = exportToOutputMap.get(exportKey);
 		if (!mappedPath) {
 			throw new Error(`Export key "${exportKey}" has no mapped path`);
 		}
 		transformedPath = mappedPath;
+		fromOutputMap = true;
 	} else if (entrypoints && exportKey) {
 		const keyWithoutPrefix = exportKey.startsWith("./") ? exportKey.slice(2) : exportKey;
 		if (entrypoints.has(exportKey)) {
@@ -298,7 +305,7 @@ function transformStringExport(
 		!exportString.endsWith(".d.ts")
 	) {
 		return {
-			types: createTypePath(transformedPath, collapseIndex),
+			types: createTypePath(transformedPath, fromOutputMap ? false : collapseIndex),
 			import: transformedPath,
 		};
 	}
