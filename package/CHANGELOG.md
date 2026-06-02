@@ -1,5 +1,13 @@
 # @savvy-web/rslib-builder
 
+## 0.21.1
+
+### Bug Fixes
+
+* [`0fb1dd4`](https://github.com/savvy-web/rslib-builder/commit/0fb1dd4db578ea6bf967f88e738d3c220aacc86f) Fixed a broken `types` field in the generated `package.json` exports map when using `exportsAsIndexes: true` with a dual-format build (`format: ["esm", "cjs"]`) and nested export keys (e.g. `"./group/alpha"`).
+
+Previously, declarations were emitted with a hyphen-flattened filename (`esm/group-alpha.d.ts`) while the `types` field pointed at a directory-style path (`esm/group/alpha.d.ts`), causing TypeScript to fail to resolve types for those exports. Now declarations are emitted alongside the JS output as `esm/group/alpha/index.d.ts` (and `cjs/.../index.d.cts`), so `types`, `import`, and `require` all resolve correctly.
+
 ## 0.21.0
 
 ### Features
