@@ -645,6 +645,28 @@ describe("export-transform-utils", () => {
 					transformStringExport("./src/index.ts", true, ".", undefined, exportToOutputMap);
 				}).toThrow('Export key "." has no mapped path');
 			});
+
+			it("should keep /index in types for a mapped index path even when collapseIndex is true", () => {
+				// exportsAsIndexes mode: AutoEntryPlugin maps the export key to a
+				// canonical `.../index.js` output path. The `types` path must point at
+				// the co-located `.../index.d.ts` (matching `import`), NOT a collapsed
+				// `.../foo.d.ts` that no emitted declaration file corresponds to.
+				const exportToOutputMap = new Map<string, string>([
+					["./changesets/markdownlint", "./changesets/markdownlint/index.js"],
+				]);
+				const result = transformStringExport(
+					"./src/changesets/markdownlint.ts",
+					true,
+					"./changesets/markdownlint",
+					undefined,
+					exportToOutputMap,
+					true, // collapseIndex (bundle mode) — must not collapse a mapped index path
+				);
+				expect(result).toEqual({
+					types: "./changesets/markdownlint/index.d.ts",
+					import: "./changesets/markdownlint/index.js",
+				});
+			});
 		});
 
 		describe("transformPackageExports with collapseIndex", () => {

@@ -864,6 +864,7 @@ export class NodeLibraryBuilder {
 				format: primaryFormat,
 				...(options.apiModel !== undefined && { apiModel: options.apiModel }),
 				...(isDualFormat && { dtsPathPrefix: primaryFormat }),
+				...(options.exportsAsIndexes != null && { exportsAsIndexes: options.exportsAsIndexes }),
 			}),
 		);
 
@@ -981,6 +982,7 @@ export class NodeLibraryBuilder {
 							buildMode: mode,
 							format: secondaryFormat,
 							dtsPathPrefix: secondaryFormat,
+							...(options.exportsAsIndexes != null && { exportsAsIndexes: options.exportsAsIndexes }),
 						}),
 					];
 
@@ -1059,6 +1061,7 @@ export class NodeLibraryBuilder {
 							...(options.dtsBundledPackages && { bundledPackages: options.dtsBundledPackages }),
 							buildMode: mode,
 							format: overrideFormat,
+							...(options.exportsAsIndexes != null && { exportsAsIndexes: options.exportsAsIndexes }),
 						}),
 					];
 
