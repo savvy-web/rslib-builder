@@ -316,7 +316,6 @@ export interface TsDocMetadataOptions {
  *
  * @public
  */
-// biome-ignore lint/complexity/noStaticOnlyClass: Intentional class-based API for co-located business logic
 export class TsDocConfigBuilder {
 	/** All available TSDoc tag groups. */
 	static readonly ALL_GROUPS: TsDocTagGroup[] = ["core", "extended", "discretionary"];

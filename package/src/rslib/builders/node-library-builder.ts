@@ -613,7 +613,6 @@ if (module.exports && module.exports.__esModule && 'default' in module.exports) 
  * @public
  */
 /* v8 ignore next -- @preserve */
-// biome-ignore lint/complexity/noStaticOnlyClass: <This is a nicety for the API>
 export class NodeLibraryBuilder {
 	/** Valid build modes for validation. */
 	private static readonly VALID_MODES: readonly BuildMode[] = ["dev", "npm"];

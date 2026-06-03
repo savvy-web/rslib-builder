@@ -42,6 +42,11 @@ describe("WorkspaceCatalog", () => {
 
 	beforeEach(() => {
 		vi.clearAllMocks();
+		// Safe defaults for the pnpm catalog sources. Because readPnpmCatalogs now merges all
+		// three sources (rather than short-circuiting on the first non-empty one), a return value
+		// left on one of these mocks by a prior test would otherwise leak into later tests.
+		vi.mocked(readWantedLockfile).mockResolvedValue(null);
+		vi.mocked(getCatalogsFromWorkspaceManifest).mockReturnValue({});
 		catalog = new WorkspaceCatalog();
 	});
 
@@ -90,8 +95,6 @@ describe("WorkspaceCatalog", () => {
 						silkPeers: { "react-dom": "^18.0.0" },
 					});
 					expect(readFile).toHaveBeenCalledWith("/test/workspace/node_modules/.pnpm-workspace-state-v1.json", "utf-8");
-					expect(readWantedLockfile).not.toHaveBeenCalled();
-					expect(readWorkspaceManifest).not.toHaveBeenCalled();
 				});
 
 				it("should include catalogs missing from lockfile (core bug scenario)", async () => {
@@ -162,6 +165,76 @@ describe("WorkspaceCatalog", () => {
 				});
 			});
 
+			describe("merging sources (peer-only catalog bug fix)", () => {
+				it("should union catalogs across state and lockfile rather than short-circuiting", async () => {
+					// Lockfile only records `silk` (and the lone peer with no dev counterpart);
+					// pnpm drops peer-only catalog entries that are also satisfied by a `catalog:silk`
+					// devDependency, so `silkPeers` is incomplete in the lockfile.
+					vi.mocked(readWantedLockfile).mockResolvedValue({
+						lockfileVersion: "9.0",
+						importers: {},
+						catalogs: {
+							silk: { "@types/node": { specifier: "^25.9.1", version: "25.9.1" } },
+							silkPeers: { "@effect/platform": { specifier: ">=0.96.0", version: "0.96.1" } },
+						},
+					});
+					// The workspace state file (from the configDependency) has the complete catalogs.
+					vi.mocked(readFile).mockResolvedValue(
+						JSON.stringify({
+							settings: {
+								catalogs: {
+									silk: { "@types/node": "^25.9.1" },
+									silkPeers: { "@types/node": "^25.6.0", "@effect/platform": ">=0.96.0" },
+								},
+							},
+						}),
+					);
+
+					const result = await catalog.getCatalogs();
+
+					// `silkPeers["@types/node"]` is present even though the lockfile omitted it.
+					expect(result).toEqual({
+						silk: { "@types/node": "^25.9.1" },
+						silkPeers: { "@types/node": "^25.6.0", "@effect/platform": ">=0.96.0" },
+					});
+				});
+
+				it("should backfill lockfile-only entries missing from workspace state", async () => {
+					// State is incomplete here; lockfile carries an entry state lacks. The union keeps both.
+					vi.mocked(readFile).mockResolvedValue(
+						JSON.stringify({ settings: { catalogs: { silk: { typescript: "^6.0.0" } } } }),
+					);
+					vi.mocked(readWantedLockfile).mockResolvedValue({
+						lockfileVersion: "9.0",
+						importers: {},
+						catalogs: {
+							silk: { lodash: { specifier: "^4.17.21", version: "4.17.21" } },
+						},
+					});
+
+					const result = await catalog.getCatalogs();
+
+					expect(result).toEqual({ silk: { typescript: "^6.0.0", lodash: "^4.17.21" } });
+				});
+
+				it("should let workspace state win over lockfile on conflicting specifiers", async () => {
+					vi.mocked(readFile).mockResolvedValue(
+						JSON.stringify({ settings: { catalogs: { default: { react: "^19.0.0" } } } }),
+					);
+					vi.mocked(readWantedLockfile).mockResolvedValue({
+						lockfileVersion: "9.0",
+						importers: {},
+						catalogs: {
+							default: { react: { specifier: "^18.0.0", version: "18.2.0" } },
+						},
+					});
+
+					const result = await catalog.getCatalogs();
+
+					expect(result).toEqual({ default: { react: "^19.0.0" } });
+				});
+			});
+
 			it("should read catalogs from lockfile when workspace state is unavailable", async () => {
 				vi.mocked(readWantedLockfile).mockResolvedValue({
 					lockfileVersion: "9.0",
@@ -178,7 +251,6 @@ describe("WorkspaceCatalog", () => {
 					default: { react: "^18.0.0" },
 					silk: { typescript: "^5.9.0" },
 				});
-				expect(readWorkspaceManifest).not.toHaveBeenCalled();
 			});
 
 			it("should fall back to workspace manifest when lockfile has no catalogs", async () => {

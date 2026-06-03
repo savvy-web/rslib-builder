@@ -86,7 +86,6 @@ const DEFAULT_RUNTIME_DIR = "./src/runtime";
  * @public
  */
 /* v8 ignore next -- @preserve */
-// biome-ignore lint/complexity/noStaticOnlyClass: <This is a nicety for the API>
 export class RSPressPluginBuilder {
 	private static readonly VALID_MODES: readonly BuildMode[] = ["dev", "npm"] as const;
 

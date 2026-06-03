@@ -41,8 +41,9 @@ const WORKSPACE_PREFIX = "workspace:" as const;
  * - `workspace:` references to local workspace packages
  *
  * Supports multiple package managers:
- * - **pnpm**: Reads from workspace state file (primary, includes all configDependency catalogs),
- *   then `pnpm-lock.yaml`, then `pnpm-workspace.yaml`
+ * - **pnpm**: Merges the union of `pnpm-workspace.yaml`, `pnpm-lock.yaml`, and the workspace
+ *   state file (the most complete source, including all configDependency catalogs), so no
+ *   single incomplete source can drop a catalog entry
  * - **yarn**: Uses workspace-tools to read from yarn's catalog configuration
  *
  * The class caches the catalog data to avoid repeated filesystem operations during builds.
@@ -83,8 +84,9 @@ export class WorkspaceCatalog {
 	 * Gets all catalogs from the workspace, using the appropriate strategy for the package manager.
 	 *
 	 * @remarks
-	 * - **pnpm**: Reads from workspace state file first (most complete, includes configDependency
-	 *   catalogs like `catalog:silkPeers`), then `pnpm-lock.yaml`, then `pnpm-workspace.yaml`
+	 * - **pnpm**: Merges the union of the workspace state file (most complete, includes
+	 *   configDependency catalogs like `catalog:silkPeers`), `pnpm-lock.yaml`, and
+	 *   `pnpm-workspace.yaml`
 	 * - **yarn**: Uses workspace-tools to read from yarn's catalog configuration
 	 *
 	 * @returns Mapping of catalog names to their dependency version mappings
@@ -104,7 +106,7 @@ export class WorkspaceCatalog {
 		const { manager, root } = workspaceInfo;
 
 		if (manager === "pnpm") {
-			// pnpm: Use lockfile first (for config dependency catalogs), then workspace manifest
+			// pnpm: Merge workspace state, lockfile, and workspace manifest (see readPnpmCatalogs)
 			this.catalogsCache = await this.readPnpmCatalogs(root);
 		} else if (manager === "yarn") {
 			// yarn: Use workspace-tools getCatalogs
@@ -225,26 +227,56 @@ export class WorkspaceCatalog {
 	}
 
 	/**
-	 * Reads catalogs for pnpm workspaces.
-	 * Primary: workspace state file (most complete, includes configDependency catalogs)
-	 * Fallback 1: pnpm-lock.yaml
-	 * Fallback 2: pnpm-workspace.yaml
+	 * Reads catalogs for pnpm workspaces by merging every available source.
+	 *
+	 * @remarks
+	 * No single pnpm source is guaranteed complete, so all three are read and merged
+	 * rather than used in an either/or fallback chain:
+	 *
+	 * - **pnpm-workspace.yaml** only holds catalogs declared inline; catalogs supplied by
+	 *   `configDependencies` plugins are absent.
+	 * - **pnpm-lock.yaml** omits catalog entries that pnpm dedupes away. A `catalog:`
+	 *   reference that appears only in `peerDependencies` while the same package is also a
+	 *   `catalog:` dependency under a different catalog is satisfied by the dependency and
+	 *   never recorded, so a peer-only catalog can be partially or entirely missing.
+	 * - **node_modules/.pnpm-workspace-state-v1.json** is the most complete source (it
+	 *   includes configDependency catalogs) but is a transient install artifact: it is absent
+	 *   after `pnpm install --lockfile-only`, a node_modules purge, or a frozen CI install
+	 *   against cold modules.
+	 *
+	 * Merging the union of all three — with the most authoritative source winning per
+	 * dependency on conflicts — makes resolution robust regardless of which artifacts pnpm
+	 * happened to write for the current install.
 	 */
 	private async readPnpmCatalogs(workspaceRoot: string): Promise<Catalogs> {
-		// Primary: workspace state (most complete, includes configDependency catalogs)
-		const stateCatalogs = await this.readPnpmWorkspaceStateCatalogs(workspaceRoot);
-		if (Object.keys(stateCatalogs).length > 0) {
-			return stateCatalogs;
-		}
+		const [manifestCatalogs, lockfileCatalogs, stateCatalogs] = await Promise.all([
+			this.readPnpmWorkspaceCatalogs(workspaceRoot),
+			this.readPnpmLockfileCatalogs(workspaceRoot),
+			this.readPnpmWorkspaceStateCatalogs(workspaceRoot),
+		]);
 
-		// Fallback: lockfile
-		const lockfileCatalogs = await this.readPnpmLockfileCatalogs(workspaceRoot);
-		if (Object.keys(lockfileCatalogs).length > 0) {
-			return lockfileCatalogs;
-		}
+		// Precedence (lowest to highest): workspace manifest < lockfile < workspace state.
+		return this.mergeCatalogs(manifestCatalogs, lockfileCatalogs, stateCatalogs);
+	}
 
-		// Last resort: workspace manifest
-		return this.readPnpmWorkspaceCatalogs(workspaceRoot);
+	/**
+	 * Deep-merges catalog sources by catalog name and dependency.
+	 *
+	 * @remarks
+	 * Sources are applied in order, so later sources take precedence over earlier ones on a
+	 * per-dependency basis, while entries unique to any source are preserved (set union).
+	 * This lets an incomplete source (e.g. a lockfile missing peer-only catalog entries) be
+	 * backfilled by a more complete one without either source discarding the other's entries.
+	 */
+	private mergeCatalogs(...sources: Array<Catalogs | undefined>): Catalogs {
+		const result: Catalogs = {};
+		for (const source of sources) {
+			if (!source) continue;
+			for (const [name, entries] of Object.entries(source)) {
+				result[name] = { ...result[name], ...entries };
+			}
+		}
+		return result;
 	}
 
 	/**
@@ -287,8 +319,10 @@ export class WorkspaceCatalog {
 	private async readPnpmWorkspaceCatalogs(workspaceRoot: string): Promise<Catalogs> {
 		try {
 			const manifest = await readWorkspaceManifest(workspaceRoot);
-			return getCatalogsFromWorkspaceManifest(
-				manifest ? { catalog: manifest.catalog, catalogs: manifest.catalogs } : undefined,
+			return (
+				getCatalogsFromWorkspaceManifest(
+					manifest ? { catalog: manifest.catalog, catalogs: manifest.catalogs } : undefined,
+				) ?? {}
 			);
 		} catch {
 			return {};

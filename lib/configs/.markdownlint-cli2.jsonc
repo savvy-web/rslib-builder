@@ -12,10 +12,10 @@
 		"**/dist",
 		"**/CHANGELOG.md",
 		"**/.claude/plans",
-		"**/examples/rspress-plugin/site/docs",
-		"**/docs/superpowers"
+		"**/docs/superpowers",
+		"**/examples/rspress-plugin/site/docs"
 	],
-	"customRules": ["@savvy-web/changesets/markdownlint"],
+	"customRules": ["@savvy-web/silk/changesets/markdownlint"],
 	"config": {
 		"default": true,
 		"MD001": true,
