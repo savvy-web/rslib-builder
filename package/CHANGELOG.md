@@ -1,5 +1,11 @@
 # @savvy-web/rslib-builder
 
+## 0.21.2
+
+### Bug Fixes
+
+* [`72f8f15`](https://github.com/savvy-web/rslib-builder/commit/72f8f155220b7ba6f91f84ad22363af2c2c6dc87) Better handling of pnpm partial catalogs
+
 ## 0.21.1
 
 ### Bug Fixes
