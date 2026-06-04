@@ -1,5 +1,17 @@
 # @savvy-web/rslib-builder
 
+## 0.21.3
+
+### Bug Fixes
+
+* [`b769fb7`](https://github.com/savvy-web/rslib-builder/commit/b769fb7e597ecbd9897862b9394b4ff994b2854d) Adds `@pnpm/logger` as an explicit runtime dependency to satisfy the peer requirement of `@pnpm/lockfile.fs`. Consumer projects no longer encounter a missing-module error at runtime when the builder reads the pnpm lockfile during catalog resolution.
+
+### Dependencies
+
+* | [`b769fb7`](https://github.com/savvy-web/rslib-builder/commit/b769fb7e597ecbd9897862b9394b4ff994b2854d) | Dependency | Type  | Action | From      | To |
+  | ------------------------------------------------------------------------------------------------------- | ---------- | ----- | ------ | --------- | -- |
+  | @pnpm/logger                                                                                            | dependency | added | —      | ^1001.0.1 |    |
+
 ## 0.21.2
 
 ### Bug Fixes
