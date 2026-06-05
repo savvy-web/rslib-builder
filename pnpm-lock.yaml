@@ -278,13 +278,13 @@ importers:
         version: 1100.0.0
       '@pnpm/exportable-manifest':
         specifier: ^1000.4.2
-        version: 1000.4.2(@pnpm/logger@1001.0.1)
+        version: 1000.4.2(@pnpm/logger@1100.0.0)
       '@pnpm/lockfile.fs':
         specifier: ^1100.1.2
-        version: 1100.1.2(@pnpm/logger@1001.0.1)
+        version: 1100.1.2(@pnpm/logger@1100.0.0)
       '@pnpm/logger':
-        specifier: ^1001.0.1
-        version: 1001.0.1
+        specifier: ^1100.0.0
+        version: 1100.0.0
       '@pnpm/workspace.read-manifest':
         specifier: ^1000.3.1
         version: 1000.3.1
@@ -331,8 +331,8 @@ importers:
         specifier: catalog:silkPeers
         version: 19.2.7(react@19.2.7)
       sort-package-json:
-        specifier: ^3.7.0
-        version: 3.7.1
+        specifier: ^4.0.0
+        version: 4.0.0
       tmp:
         specifier: ^0.2.7
         version: 0.2.7
@@ -1040,9 +1040,9 @@ packages:
     resolution: {integrity: sha512-nWJYixawEXkyb7EqNfiMtmajvyADGRkCu6nBYNYxXtMiEpBZHgfsRElsQ0Unbi1vwFQho4lYczfrQPmA87ftLQ==}
     engines: {node: '>=22.13'}
 
-  '@pnpm/logger@1001.0.1':
-    resolution: {integrity: sha512-gdwlAMXC4Wc0s7Dmg/4wNybMEd/4lSd9LsXQxeg/piWY0PPXjgz1IXJWnVScx6dZRaaodWP3c1ornrw8mZdFZw==}
-    engines: {node: '>=18.12'}
+  '@pnpm/logger@1100.0.0':
+    resolution: {integrity: sha512-A3bRMTIZ5ptDPAE/KsDeY1J5UqqOiyo66+k/mUvaVjx++OJdMbp9If5kisEq9ljAV5r5TRpkxsJbSdrdJ5WtzQ==}
+    engines: {node: '>=22.13'}
 
   '@pnpm/manifest-utils@1002.0.5':
     resolution: {integrity: sha512-2DSwQ6pP73IuJS5mCCtPd5fibJwuAdufXKuSL/Oq1n6AggCqy8616Xea1X3RH3z5dL4mn7Z4EZ+vnX8jX3Wrfw==}
@@ -4209,6 +4209,11 @@ packages:
     engines: {node: '>=20'}
     hasBin: true
 
+  sort-package-json@4.0.0:
+    resolution: {integrity: sha512-6aYOlYI9AWioZ+rzu+4zKLmoFqJP0/fHDxrd7X04yqEibikY+5YVF0EYlyGn4v6X2PJY7yAUWV7oeP+i5rOm/g==}
+    engines: {node: '>=22'}
+    hasBin: true
+
   source-map-js@1.2.1:
     resolution: {integrity: sha512-UXWMKhLOwVKb728IUtQPXxfYU+usdybtUrK/8uGE8CQMvrhOpwvzDBwj0QhSL7MQc7vIsISBG8VQ8+IDQxpfQA==}
     engines: {node: '>=0.10.0'}
@@ -5510,9 +5515,9 @@ snapshots:
 
   '@pnpm/constants@1100.0.0': {}
 
-  '@pnpm/core-loggers@1001.0.9(@pnpm/logger@1001.0.1)':
+  '@pnpm/core-loggers@1001.0.9(@pnpm/logger@1100.0.0)':
     dependencies:
-      '@pnpm/logger': 1001.0.1
+      '@pnpm/logger': 1100.0.0
       '@pnpm/types': 1001.3.0
 
   '@pnpm/crypto.hash@1100.0.1':
@@ -5534,11 +5539,11 @@ snapshots:
     dependencies:
       '@pnpm/constants': 1100.0.0
 
-  '@pnpm/exportable-manifest@1000.4.2(@pnpm/logger@1001.0.1)':
+  '@pnpm/exportable-manifest@1000.4.2(@pnpm/logger@1100.0.0)':
     dependencies:
       '@pnpm/catalogs.resolver': 1000.0.5
       '@pnpm/error': 1000.1.0
-      '@pnpm/read-project-manifest': 1001.2.6(@pnpm/logger@1001.0.1)
+      '@pnpm/read-project-manifest': 1001.2.6(@pnpm/logger@1100.0.0)
       '@pnpm/resolving.jsr-specifier-parser': 1000.0.4
       '@pnpm/types': 1001.3.0
       p-map-values: 1.0.0
@@ -5568,7 +5573,7 @@ snapshots:
       '@pnpm/store.cafs-types': 1100.0.1
       '@pnpm/types': 1101.2.0
 
-  '@pnpm/lockfile.fs@1100.1.2(@pnpm/logger@1001.0.1)':
+  '@pnpm/lockfile.fs@1100.1.2(@pnpm/logger@1100.0.0)':
     dependencies:
       '@pnpm/constants': 1100.0.0
       '@pnpm/deps.path': 1100.0.5
@@ -5576,7 +5581,7 @@ snapshots:
       '@pnpm/lockfile.merger': 1100.0.8
       '@pnpm/lockfile.types': 1100.0.8
       '@pnpm/lockfile.utils': 1100.0.10
-      '@pnpm/logger': 1001.0.1
+      '@pnpm/logger': 1100.0.0
       '@pnpm/network.git-utils': 1100.0.1
       '@pnpm/object.key-sorting': 1100.0.0
       '@pnpm/types': 1101.2.0
@@ -5614,16 +5619,16 @@ snapshots:
       get-npm-tarball-url: 2.1.0
       ramda: '@pnpm/ramda@0.28.1'
 
-  '@pnpm/logger@1001.0.1':
+  '@pnpm/logger@1100.0.0':
     dependencies:
       bole: 5.0.29
       split2: 4.2.0
 
-  '@pnpm/manifest-utils@1002.0.5(@pnpm/logger@1001.0.1)':
+  '@pnpm/manifest-utils@1002.0.5(@pnpm/logger@1100.0.0)':
     dependencies:
-      '@pnpm/core-loggers': 1001.0.9(@pnpm/logger@1001.0.1)
+      '@pnpm/core-loggers': 1001.0.9(@pnpm/logger@1100.0.0)
       '@pnpm/error': 1000.1.0
-      '@pnpm/logger': 1001.0.1
+      '@pnpm/logger': 1100.0.0
       '@pnpm/semver.peer-range': 1000.0.0
       '@pnpm/types': 1001.3.0
       semver: 7.8.1
@@ -5641,13 +5646,13 @@ snapshots:
 
   '@pnpm/ramda@0.28.1': {}
 
-  '@pnpm/read-project-manifest@1001.2.6(@pnpm/logger@1001.0.1)':
+  '@pnpm/read-project-manifest@1001.2.6(@pnpm/logger@1100.0.0)':
     dependencies:
       '@gwhitney/detect-indent': 7.0.1
       '@pnpm/error': 1000.1.0
       '@pnpm/graceful-fs': 1000.1.0
-      '@pnpm/logger': 1001.0.1
-      '@pnpm/manifest-utils': 1002.0.5(@pnpm/logger@1001.0.1)
+      '@pnpm/logger': 1100.0.0
+      '@pnpm/manifest-utils': 1002.0.5(@pnpm/logger@1100.0.0)
       '@pnpm/text.comments-parser': 1000.0.0
       '@pnpm/types': 1001.3.0
       '@pnpm/write-project-manifest': 1000.0.16
@@ -9313,6 +9318,16 @@ snapshots:
   sort-object-keys@2.1.0: {}
 
   sort-package-json@3.7.1:
+    dependencies:
+      detect-indent: 7.0.2
+      detect-newline: 4.0.1
+      git-hooks-list: 4.2.1
+      is-plain-obj: 4.1.0
+      semver: 7.8.1
+      sort-object-keys: 2.1.0
+      tinyglobby: 0.2.17
+
+  sort-package-json@4.0.0:
     dependencies:
       detect-indent: 7.0.2
       detect-newline: 4.0.1
