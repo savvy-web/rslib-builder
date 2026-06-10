@@ -10,6 +10,7 @@
 	},
 	"scripts": {
 		"build:dev": "rslib build --env-mode dev",
+		"build:meta": "echo 'No meta build step defined'",
 		"build:prod": "rslib build --env-mode npm",
 		"types:check": "tsgo --noEmit"
 	},
