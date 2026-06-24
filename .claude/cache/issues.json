@@ -1,0 +1,9 @@
+{
+	"cachedAt": "2026-06-24T02:20:44.149Z",
+	"data": [
+		{
+			"number": 158,
+			"title": "Multi-entry packages produce invalid ESM chunks (duplicate __webpack_require__ declaration)"
+		}
+	]
+}

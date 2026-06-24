@@ -1,8 +1,0 @@
-.banner {
-	background: var(--hello-plugin-primary-bg);
-	border-bottom: 1px solid var(--hello-plugin-border);
-	color: var(--hello-plugin-primary);
-	font-weight: 600;
-	padding: 12px 16px;
-	text-align: center;
-}

@@ -1,9 +1,8 @@
 import { defineBuild, runBuild } from "@savvy-web/bundler";
 
 const config = defineBuild({
-	devManifest: "preserve",
+	bundledPackages: ["type-fest"],
 	meta: {
-		...(process.env.RSLIB_BUILDER_LOCAL_PATH && { localPaths: [process.env.RSLIB_BUILDER_LOCAL_PATH] }),
 		tsdoc: {
 			tagDefinitions: [
 				{

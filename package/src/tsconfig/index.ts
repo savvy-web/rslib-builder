@@ -148,11 +148,11 @@ export class TSConfigFile {
 	 * The configuration object includes standard TypeScript compiler options
 	 * and other tsconfig.json fields with JSON schema validation.
 	 *
-	 * @returns The parsed TypeScript configuration as a {@link TSConfigJsonWithSchema} object
+	 * @returns The parsed TypeScript configuration as a `TSConfigJsonWithSchema` object
 	 *
 	 * @throws If the configuration file is not found in imports
 	 *
-	 * @see {@link TSConfigJsonWithSchema} for the configuration type definition
+	 * @see `TSConfigJsonWithSchema` for the configuration type definition
 	 */
 	/* v8 ignore next -- @preserve */
 	get config(): TSConfigJsonWithSchema {
@@ -312,19 +312,19 @@ export class LibraryTSConfigFile extends TSConfigFile {
  */
 export const NodeEcmaLib: LibraryTSConfigFile = new LibraryTSConfigFile(
 	"ECMAScript library build configuration",
-	join(import.meta.dirname, "../public/tsconfig/ecma/lib.json"),
+	join(import.meta.dirname, "../../public/tsconfig/ecma/lib.json"),
 );
 
 /** @internal */
 export const RSPressPlugin: LibraryTSConfigFile = new LibraryTSConfigFile(
 	"RSPress plugin build configuration",
-	join(import.meta.dirname, "../public/tsconfig/rspress/plugin.json"),
+	join(import.meta.dirname, "../../public/tsconfig/rspress/plugin.json"),
 );
 
 /** @internal */
 export const RSPressWebsite: TSConfigFile = new TSConfigFile(
 	"RSPress website configuration",
-	join(import.meta.dirname, "../public/tsconfig/rspress/website.json"),
+	join(import.meta.dirname, "../../public/tsconfig/rspress/website.json"),
 );
 
 /**

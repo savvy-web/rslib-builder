@@ -44,7 +44,6 @@
 	},
 	"scripts": {
 		"build:dev": "node savvy.build.ts --target dev",
-		"build:meta": "node savvy.build.ts --target meta",
 		"build:prod": "node savvy.build.ts --target prod",
 		"prepare": "node savvy.build.ts --target dev",
 		"types:check": "tsgo --noEmit"
@@ -68,12 +67,12 @@
 		"picocolors": "^1.1.1",
 		"sort-package-json": "^4.0.0",
 		"tmp": "^0.2.7",
-		"workspace-tools": "^0.41.7"
+		"workspace-tools": "^0.41.8"
 	},
 	"devDependencies": {
 		"@pnpm/types": "^1101.3.0",
-		"@rslib/core": "^0.22.0",
-		"@savvy-web/bundler": "^0.2.1",
+		"@rslib/core": "^0.23.0",
+		"@savvy-web/bundler": "^0.9.0",
 		"@types/deep-equal": "^1.0.4",
 		"@types/tmp": "^0.2.6",
 		"type-fest": "^5.7.0"
@@ -81,7 +80,7 @@
 	"peerDependencies": {
 		"@rsbuild/plugin-react": "^2.0.0",
 		"@rslib/core": "^0.22.0",
-		"@types/node": "catalog:silkPeers",
+		"@types/node": "^26.0.0",
 		"@types/react": "catalog:silkPeers",
 		"@types/react-dom": "catalog:silkPeers",
 		"@typescript/native-preview": "catalog:silkPeers",

@@ -816,7 +816,10 @@ export interface DtsPluginOptions {
 	 */
 	dtsPathPrefix?: string;
 
-	/** Override the default LibraryTSConfigFile used for temp tsconfig generation. */
+	/**
+	 * Override the default LibraryTSConfigFile used for temp tsconfig generation.
+	 * @internal
+	 */
 	tsconfigPreset?: LibraryTSConfigFile;
 
 	/**
