@@ -1,5 +1,20 @@
 # @savvy-web/rslib-builder
 
+## 0.22.0
+
+### Breaking Changes
+
+* [`15d98fb`](https://github.com/savvy-web/rslib-builder/commit/15d98fb20a469a3308d1a5692cba44ffdb971e4e) ### Package deprecated
+
+All functionality has been moved to our new bundler [`savvy`](https://www.npmjs.com/package/@savvy-web/bundler)
+
+### Dependencies
+
+* | [`01f3dfd`](https://github.com/savvy-web/rslib-builder/commit/01f3dfd53ba8145b24c90151d5856133775e9bea) | Dependency | Type    | Action    | From      | To |
+  | :------------------------------------------------------------------------------------------------------ | :--------- | :------ | :-------- | :-------- | -- |
+  | @pnpm/logger                                                                                            | dependency | updated | ^1001.0.1 | ^1100.0.0 |    |
+  | sort-package-json                                                                                       | dependency | updated | ^3.7.0    | ^4.0.0    |    |
+
 ## 0.21.3
 
 ### Bug Fixes
