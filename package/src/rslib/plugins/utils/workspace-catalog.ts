@@ -319,11 +319,19 @@ export class WorkspaceCatalog {
 	private async readPnpmWorkspaceCatalogs(workspaceRoot: string): Promise<Catalogs> {
 		try {
 			const manifest = await readWorkspaceManifest(workspaceRoot);
-			return (
-				getCatalogsFromWorkspaceManifest(
-					manifest ? { catalog: manifest.catalog, catalogs: manifest.catalogs } : undefined,
-				) ?? {}
+			const catalogs = getCatalogsFromWorkspaceManifest(
+				manifest ? { catalog: manifest.catalog, catalogs: manifest.catalogs } : undefined,
 			);
+			const result: Catalogs = {};
+			for (const [name, catalog] of Object.entries(catalogs)) {
+				if (!catalog) continue;
+				const deps: Record<string, string> = {};
+				for (const [dep, version] of Object.entries(catalog)) {
+					if (version !== undefined) deps[dep] = version;
+				}
+				result[name] = deps;
+			}
+			return result;
 		} catch {
 			return {};
 		}

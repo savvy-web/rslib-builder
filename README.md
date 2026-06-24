@@ -1,5 +1,11 @@
 # rslib-builder
 
+> [!CAUTION]
+> **This package is deprecated and no longer maintained.**
+> All functionality has been moved to our new bundler [`@savvy-web/bundler`](https://www.npmjs.com/package/@savvy-web/bundler)
+> Sources live in the [Silk Suite monorepo](https://github.com/savvy-web/systems).
+> No further releases, fixes, or security patches will be published here.
+
 Monorepo for [`@savvy-web/rslib-builder`](./package/) — an RSlib-based build system for modern ESM Node.js libraries and RSPress plugins.
 
 ## Structure

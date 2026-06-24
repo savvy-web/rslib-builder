@@ -1,4 +1,4 @@
 {
-	"files": [],
-	"references": [{ "path": "package" }]
+	"$schema": "https://json.schemastore.org/tsconfig",
+	"extends": ["@savvy-web/silk/tsconfig/node/root.json"]
 }

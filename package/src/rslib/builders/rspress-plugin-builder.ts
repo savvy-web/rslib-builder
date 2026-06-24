@@ -60,10 +60,16 @@ export interface RSPressPluginBuilderOptions {
 	copyPatterns?: (string | CopyPatternConfig)[];
 }
 
-/** Built-in externals for RSPress plugin bundles. */
+/**
+ * Built-in externals for RSPress plugin bundles.
+ * @public
+ */
 export const RSPRESS_PLUGIN_EXTERNALS: readonly string[] = ["@rspress/core"];
 
-/** Built-in externals for RSPress runtime bundles. */
+/**
+ * Built-in externals for RSPress runtime bundles.
+ * @public
+ */
 export const RSPRESS_RUNTIME_EXTERNALS: readonly string[] = [
 	"react",
 	"react/jsx-runtime",

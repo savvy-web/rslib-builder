@@ -1,5 +1,10 @@
 # @savvy-web/rslib-builder
 
+> **This package is deprecated and no longer maintained.**
+> All functionality has been moved to our new bundler [`@savvy-web/bundler`](https://www.npmjs.com/package/@savvy-web/bundler)
+> Sources live in the [Silk Suite monorepo](https://github.com/savvy-web/systems).
+> No further releases, fixes, or security patches will be published here.
+
 [![npm version](https://img.shields.io/npm/v/@savvy-web/rslib-builder)](https://www.npmjs.com/package/@savvy-web/rslib-builder)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Node.js Version](https://img.shields.io/badge/node-%3E%3D24.0.0-brightgreen)](https://nodejs.org)

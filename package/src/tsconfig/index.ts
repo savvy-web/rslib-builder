@@ -4,11 +4,11 @@ import { join, relative } from "node:path";
 import type { InspectOptions } from "node:util";
 import { inspect } from "node:util";
 // biome-ignore lint/correctness/useImportExtensions: we can import JSON files directly
-import nodeEcmaLibJson from "../public/tsconfig/ecma/lib.json" with { type: "json" };
+import nodeEcmaLibJson from "../../public/tsconfig/ecma/lib.json" with { type: "json" };
 // biome-ignore lint/correctness/useImportExtensions: we can import JSON files directly
-import rspressPluginJson from "../public/tsconfig/rspress/plugin.json" with { type: "json" };
+import rspressPluginJson from "../../public/tsconfig/rspress/plugin.json" with { type: "json" };
 // biome-ignore lint/correctness/useImportExtensions: we can import JSON files directly
-import rspressWebsiteJson from "../public/tsconfig/rspress/website.json" with { type: "json" };
+import rspressWebsiteJson from "../../public/tsconfig/rspress/website.json" with { type: "json" };
 import type { TSConfigJsonWithSchema } from "../types/tsconfig-json.js";
 
 // Create require for CJS dependencies like tmp
@@ -17,9 +17,12 @@ const requireCJS: (id: string) => any = createRequire(import.meta.url);
 
 // Map of imported JSON files by their file path
 const jsonImports: Map<string, TSConfigJsonWithSchema> = new Map<string, TSConfigJsonWithSchema>([
-	[join(import.meta.dirname, "../public/tsconfig/ecma/lib.json"), nodeEcmaLibJson as TSConfigJsonWithSchema],
-	[join(import.meta.dirname, "../public/tsconfig/rspress/plugin.json"), rspressPluginJson as TSConfigJsonWithSchema],
-	[join(import.meta.dirname, "../public/tsconfig/rspress/website.json"), rspressWebsiteJson as TSConfigJsonWithSchema],
+	[join(import.meta.dirname, "../../public/tsconfig/ecma/lib.json"), nodeEcmaLibJson as TSConfigJsonWithSchema],
+	[join(import.meta.dirname, "../../public/tsconfig/rspress/plugin.json"), rspressPluginJson as TSConfigJsonWithSchema],
+	[
+		join(import.meta.dirname, "../../public/tsconfig/rspress/website.json"),
+		rspressWebsiteJson as TSConfigJsonWithSchema,
+	],
 ]);
 
 /**
@@ -145,11 +148,11 @@ export class TSConfigFile {
 	 * The configuration object includes standard TypeScript compiler options
 	 * and other tsconfig.json fields with JSON schema validation.
 	 *
-	 * @returns The parsed TypeScript configuration as a {@link TSConfigJsonWithSchema} object
+	 * @returns The parsed TypeScript configuration as a `TSConfigJsonWithSchema` object
 	 *
 	 * @throws If the configuration file is not found in imports
 	 *
-	 * @see {@link TSConfigJsonWithSchema} for the configuration type definition
+	 * @see `TSConfigJsonWithSchema` for the configuration type definition
 	 */
 	/* v8 ignore next -- @preserve */
 	get config(): TSConfigJsonWithSchema {
@@ -309,19 +312,19 @@ export class LibraryTSConfigFile extends TSConfigFile {
  */
 export const NodeEcmaLib: LibraryTSConfigFile = new LibraryTSConfigFile(
 	"ECMAScript library build configuration",
-	join(import.meta.dirname, "../public/tsconfig/ecma/lib.json"),
+	join(import.meta.dirname, "../../public/tsconfig/ecma/lib.json"),
 );
 
 /** @internal */
 export const RSPressPlugin: LibraryTSConfigFile = new LibraryTSConfigFile(
 	"RSPress plugin build configuration",
-	join(import.meta.dirname, "../public/tsconfig/rspress/plugin.json"),
+	join(import.meta.dirname, "../../public/tsconfig/rspress/plugin.json"),
 );
 
 /** @internal */
 export const RSPressWebsite: TSConfigFile = new TSConfigFile(
 	"RSPress website configuration",
-	join(import.meta.dirname, "../public/tsconfig/rspress/website.json"),
+	join(import.meta.dirname, "../../public/tsconfig/rspress/website.json"),
 );
 
 /**

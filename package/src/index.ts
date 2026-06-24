@@ -40,6 +40,7 @@
  */
 
 /* v8 ignore start - Export module, tested through consuming packages */
+export type { TsConfigJson } from "type-fest";
 
 // Core builder
 export type {
@@ -108,7 +109,6 @@ export { TsconfigResolver, TsconfigResolverError } from "./rslib/plugins/utils/t
 export type { VirtualEntryPluginOptions } from "./rslib/plugins/virtual-entry-plugin.js";
 export { VirtualEntryPlugin } from "./rslib/plugins/virtual-entry-plugin.js";
 export type { LibraryTSConfigFile, TSConfigFile } from "./tsconfig/index.js";
-
 // Type utilities
 export type {
 	JsonArray,
@@ -119,5 +119,6 @@ export type {
 	PackageJson,
 	Primitive,
 } from "./types/package-json.js";
+export type { TSConfigJsonWithSchema, TsConfigJsonBase } from "./types/tsconfig-json.js";
 
 /* v8 ignore stop */
